@@ -4,38 +4,30 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { SpotlightCard } from "../components/effects";
 import { Badge, Button, EmptyState, ErrorNote, Field, Input, Modal, PageHeader, Select, Textarea, Toggle } from "../components/ui";
-import { api, type Agent, type AgentInput, type Health, type PromptTemplate, type ToolInfo } from "../lib/api";
+import { Link } from "react-router-dom";
+import { api, type Agent, type AgentInput, type Llm, type PromptTemplate, type ToolInfo } from "../lib/api";
 import { toolLabel } from "../lib/format";
 import { useResource } from "../lib/hooks";
 
 const EMOJIS = ["🤖", "🔎", "📊", "🧠", "🎬", "🔌", "🛠️", "📚", "🧑‍💻", "🦉", "🚀", "🧪"];
 const COLORS = ["#8b5cf6", "#22d3ee", "#34d399", "#f59e0b", "#f472b6", "#fb7185", "#a78bfa", "#60a5fa"];
-const EFFORT_HINT: Record<string, string> = {
-  low: "rápido e barato",
-  medium: "padrão do Opus 5.5",
-  high: "mais raciocínio",
-  xhigh: "ótimo para agentes complexos",
-  max: "máximo (lento/caro)",
-};
 
 const blank: AgentInput = {
   name: "",
   emoji: "🤖",
   color: "#8b5cf6",
   description: "",
-  provider: "anthropic",
-  model: "claude-opus-5-5",
-  effort: "medium",
+  llmId: "",
   systemPrompt: "Você é um agente prestativo. Planeje antes de agir e explique o que está fazendo. Responda em português.",
   tools: ["calculator", "current_time"],
   maxIterations: 10,
   requireApproval: false,
   memory: { autoRecall: true, autoEpisode: true, recallLimit: 5 },
-  refusalFallback: true,
 };
 
 export default function Agents() {
   const agents = useResource<Agent[]>("/api/agents");
+  const llms = useResource<Llm[]>("/api/llms");
   const [editing, setEditing] = useState<{ id?: string; data: AgentInput } | null>(null);
   const navigate = useNavigate();
 
@@ -52,7 +44,7 @@ export default function Agents() {
         title="Agentes"
         description="Um agente = modelo + prompt de sistema + ferramentas + política de memória + limites. Mude uma peça e veja como o comportamento muda."
         actions={
-          <Button variant="primary" onClick={() => setEditing({ data: structuredClone(blank) })}>
+          <Button variant="primary" onClick={() => setEditing({ data: { ...structuredClone(blank), llmId: llms.data?.[0]?.id ?? "" } })}>
             <Plus size={16} /> Novo agente
           </Button>
         }
@@ -68,7 +60,10 @@ export default function Agents() {
                 </div>
                 <div className="min-w-0 flex-1">
                   <div className="font-semibold">{a.name}</div>
-                  <div className="font-mono text-[11px] text-ink-400">{a.provider === "demo" ? "LLM simulado (offline)" : `${a.model} · effort ${a.effort}`}</div>
+                  <div className="font-mono text-[11px] text-ink-400">{(() => {
+                      const l = llms.data?.find((x) => x.id === a.llmId);
+                      return l ? `${l.name} · ${l.model}${l.ready ? "" : " · sem chave"}` : "sem LLM";
+                    })()}</div>
                 </div>
               </div>
               <p className="mt-3 line-clamp-2 min-h-[2.5em] text-[13px] text-ink-300">{a.description || a.systemPrompt}</p>
@@ -133,7 +128,7 @@ function AgentEditor({ initial, id, onClose, onSaved }: { initial: AgentInput; i
   const [error, setError] = useState<string | null>(null);
   const tools = useResource<ToolInfo[]>("/api/tools");
   const prompts = useResource<PromptTemplate[]>("/api/prompts");
-  const health = useResource<Health>("/api/health");
+  const llms = useResource<Llm[]>("/api/llms");
   const set = <K extends keyof AgentInput>(k: K, v: AgentInput[K]) => setForm((f) => ({ ...f, [k]: v }));
   const toggleTool = (name: string) => set("tools", form.tools.includes(name) ? form.tools.filter((t) => t !== name) : [...form.tools, name]);
 
@@ -174,24 +169,34 @@ function AgentEditor({ initial, id, onClose, onSaved }: { initial: AgentInput; i
           <Input value={form.description} onChange={(e) => set("description", e.target.value)} placeholder="Para que serve este agente?" />
         </Field>
 
-        <div className="grid gap-4 md:grid-cols-3">
-          <Field label="Provedor" hint={form.provider === "demo" ? "sem chave de API" : undefined}>
-            <Select value={form.provider} onChange={(e) => set("provider", e.target.value as AgentInput["provider"])}>
-              <option value="anthropic">Anthropic (Claude real)</option>
-              <option value="demo">Demo (LLM simulado)</option>
-            </Select>
-          </Field>
-          <Field label="Modelo">
-            <Select value={form.model} disabled={form.provider === "demo"} onChange={(e) => set("model", e.target.value)}>
-              {health.data?.models.map((m) => <option key={m.id} value={m.id}>{m.label} — {m.note}</option>)}
-            </Select>
-          </Field>
-          <Field label="Esforço (effort)" hint={EFFORT_HINT[form.effort]}>
-            <Select value={form.effort} disabled={form.provider === "demo"} onChange={(e) => set("effort", e.target.value as AgentInput["effort"])}>
-              {Object.keys(EFFORT_HINT).map((k) => <option key={k}>{k}</option>)}
-            </Select>
-          </Field>
-        </div>
+        <Field
+          label="LLM"
+          hint={
+            <Link to="/llms" className="text-cyan hover:underline">
+              gerenciar LLMs →
+            </Link>
+          }
+        >
+          <div className="grid gap-2 sm:grid-cols-2">
+            {llms.data?.map((l) => (
+              <button
+                key={l.id}
+                type="button"
+                onClick={() => set("llmId", l.id)}
+                className={`rounded-xl border p-2.5 text-left transition ${form.llmId === l.id ? "border-violet/50 bg-violet/10" : "border-white/8 hover:bg-white/[0.03]"}`}
+              >
+                <div className="flex items-center justify-between gap-2 text-[13px] font-medium text-ink-100">
+                  <span className="truncate">{l.name}</span>
+                  <Badge color={l.ready ? "mint" : "amber"}>{l.ready ? "pronta" : "sem chave"}</Badge>
+                </div>
+                <div className="truncate font-mono text-[11px] text-ink-400">
+                  {l.provider} · {l.model}
+                  {l.provider === "anthropic" ? ` · ${l.effort}` : ""}
+                </div>
+              </button>
+            ))}
+          </div>
+        </Field>
 
         <Field
           label="Prompt de sistema"
@@ -267,7 +272,6 @@ function AgentEditor({ initial, id, onClose, onSaved }: { initial: AgentInput; i
           <div className="rounded-xl border border-white/8 p-2">
             <div className="px-2 pt-1 text-[12px] font-medium text-ink-400">Controle e segurança</div>
             <Toggle checked={form.requireApproval} onChange={(v) => set("requireApproval", v)} label="Aprovação humana" description="Pausa antes de cada ferramenta e pede sua autorização." />
-            <Toggle checked={form.refusalFallback} onChange={(v) => set("refusalFallback", v)} label="Fallback em recusas" description="Se o modelo recusar, a API tenta outro modelo automaticamente." />
             <div className="px-2 pt-1">
               <Field label="Máximo de iterações" hint="evita loops infinitos">
                 <Input type="number" min={1} max={50} value={form.maxIterations} onChange={(e) => set("maxIterations", Number(e.target.value))} />
@@ -279,7 +283,7 @@ function AgentEditor({ initial, id, onClose, onSaved }: { initial: AgentInput; i
         <ErrorNote message={error} />
         <div className="flex justify-end gap-2">
           <Button onClick={onClose}>Cancelar</Button>
-          <Button variant="primary" onClick={save} disabled={!form.name.trim()}>
+          <Button variant="primary" onClick={save} disabled={!form.name.trim() || !form.llmId}>
             Salvar agente
           </Button>
         </div>

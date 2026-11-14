@@ -1,12 +1,15 @@
 import { motion } from "motion/react";
-import { Activity, BookOpen, Bot, Brain, FileText, LayoutDashboard, Plug, Play, Settings, ShieldCheck } from "lucide-react";
+import { BookOpen, Bot, Brain, Cpu, FileText, Globe, LayoutDashboard, Plug, Play, Server, ShieldCheck, Trash2 } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
+import type { Health } from "../lib/api";
+import { resetBrowserData } from "../lib/runtime";
 import { LiveDot } from "./effects";
 
 const NAV = [
   { to: "/", label: "Visão geral", icon: LayoutDashboard },
   { to: "/playground", label: "Playground", icon: Play, highlight: true },
   { to: "/agents", label: "Agentes", icon: Bot },
+  { to: "/llms", label: "LLMs", icon: Cpu },
   { to: "/mcp", label: "Servidores MCP", icon: Plug },
   { to: "/memory", label: "Memória", icon: Brain },
   { to: "/prompts", label: "Prompts", icon: FileText },
@@ -14,7 +17,7 @@ const NAV = [
   { to: "/learn", label: "Aprender", icon: BookOpen },
 ];
 
-export function Sidebar({ configured }: { configured: boolean | null }) {
+export function Sidebar({ health }: { health: Health | null }) {
   const { pathname } = useLocation();
   const isActive = (to: string) => (to === "/" ? pathname === "/" : pathname.startsWith(to));
   return (
@@ -45,17 +48,23 @@ export function Sidebar({ configured }: { configured: boolean | null }) {
       </nav>
 
       <div className="mt-auto hidden space-y-2 p-3 md:block">
-        <NavLink to="/settings" className="flex items-center gap-3 rounded-xl px-3 py-2 text-[13px] text-ink-400 transition hover:bg-white/5 hover:text-ink-200">
-          <Settings size={16} /> Configurações
-        </NavLink>
         <div className="glass rounded-xl p-3">
           <div className="flex items-center gap-2 text-[12px] text-ink-300">
-            <LiveDot color={configured ? "bg-mint" : "bg-amber"} active={configured !== null} />
-            {configured === null ? "Conectando…" : configured ? "Claude conectado" : "Modo demo (sem chave)"}
+            <LiveDot color={health?.llmsReady ? "bg-mint" : "bg-amber"} active={health !== null} />
+            {health === null ? "Conectando…" : `${health.llmsReady}/${health.llmsTotal} LLMs prontas`}
           </div>
           <div className="mt-1 flex items-center gap-1.5 font-mono text-[10px] text-ink-500">
-            <Activity size={10} /> API local :8787
+            {health?.runtime === "browser" ? <Globe size={10} /> : <Server size={10} />}
+            {health?.runtime === "browser" ? "modo navegador · dados locais" : "servidor local :8787"}
           </div>
+          {health?.runtime === "browser" && (
+            <button
+              onClick={() => confirm("Apagar todos os dados salvos neste navegador (agentes, LLMs, chaves, memórias)?") && resetBrowserData()}
+              className="mt-2 flex items-center gap-1 text-[10.5px] text-ink-500 transition hover:text-rose"
+            >
+              <Trash2 size={10} /> apagar dados locais
+            </button>
+          )}
         </div>
       </div>
     </aside>

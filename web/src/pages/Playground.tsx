@@ -7,7 +7,7 @@ import { LiveDot } from "../components/effects";
 import { JsonView } from "../components/JsonView";
 import { Timeline } from "../components/Timeline";
 import { Badge, Button, Card, ErrorNote, Modal, Textarea } from "../components/ui";
-import { api, type Agent, type RunDetail, type RunEvent, type RunSummary, type ToolInfo } from "../lib/api";
+import { api, type Agent, type Llm, type RunDetail, type RunEvent, type RunSummary, type ToolInfo } from "../lib/api";
 import { fmtNumber, timeAgo, toolLabel } from "../lib/format";
 import { useEventStream, useResource } from "../lib/hooks";
 import { emptyRun, reduceRun, type RunView } from "../lib/runState";
@@ -35,6 +35,8 @@ export default function Playground() {
   const navigate = useNavigate();
   const agents = useResource<Agent[]>("/api/agents");
   const tools = useResource<ToolInfo[]>("/api/tools");
+  const llms = useResource<Llm[]>("/api/llms");
+  const llmOf = (a: Agent | null | undefined) => llms.data?.find((l) => l.id === a?.llmId);
   const runs = useResource<RunSummary[]>("/api/runs");
   const [agentId, setAgentId] = useState<string | null>(null);
   const [input, setInput] = useState("");
@@ -48,7 +50,7 @@ export default function Playground() {
 
   // Agente selecionado: o da execução aberta, ou o primeiro da lista.
   useEffect(() => {
-    if (!agentId && agents.data?.length) setAgentId(agents.data.find((a) => a.provider === "demo")?.id ?? agents.data[0].id);
+    if (!agentId && agents.data?.length) setAgentId(agents.data.find((a) => a.llmId === "llm_demo")?.id ?? agents.data[0].id);
   }, [agents.data, agentId]);
 
   useEffect(() => {
@@ -67,13 +69,17 @@ export default function Playground() {
     }
   });
 
+  // Ferramentas MCP aparecem/somem conforme os servidores conectam.
+  useEventStream("/api/mcp/events", () => void tools.reload());
+
   useEffect(() => {
     timelineRef.current?.scrollTo({ top: timelineRef.current.scrollHeight, behavior: "smooth" });
   }, [view.steps]);
 
   const agent = useMemo(() => agents.data?.find((a) => a.id === (runId ? runAgentId ?? agentId : agentId)) ?? null, [agents.data, agentId, runAgentId, runId]);
   const live = view.status === "running" || view.status === "awaiting_approval";
-  const examples = agent?.provider === "demo" ? EXAMPLES.demo : EXAMPLES.default;
+  const agentLlm = llmOf(agent);
+  const examples = agentLlm?.provider === "demo" ? EXAMPLES.demo : EXAMPLES.default;
 
   async function start(text = input) {
     if (!agent || !text.trim()) return;
@@ -138,7 +144,7 @@ export default function Playground() {
             <span className="text-xl">{a.emoji}</span>
             <span>
               <span className="block text-[13px] font-medium">{a.name}</span>
-              <span className="block font-mono text-[10px] text-ink-400">{a.provider === "demo" ? "LLM simulado" : a.model}</span>
+              <span className="block font-mono text-[10px] text-ink-400">{llmOf(a)?.name ?? "sem LLM"}{llmOf(a) && !llmOf(a)!.ready ? " · sem chave" : ""}</span>
             </span>
           </button>
         ))}
@@ -173,6 +179,12 @@ export default function Playground() {
           ))}
         </div>
       </Card>
+      {agentLlm && !agentLlm.ready && !live && (
+        <div className="mb-4 rounded-xl border border-amber/25 bg-amber/[0.06] px-3.5 py-2.5 text-[13px] text-ink-300">
+          🔑 A LLM <b className="text-amber">{agentLlm.name}</b> deste agente ainda não tem chave.{" "}
+          <Link to="/llms" className="text-cyan underline">Configure em LLMs</Link> ou escolha o <b>Agente Demo</b>, que roda sem chave.
+        </div>
+      )}
       <ErrorNote message={error} />
 
       <div className="grid gap-6 xl:grid-cols-12">
@@ -188,7 +200,7 @@ export default function Playground() {
                 <Square size={12} /> parar
               </Button>
             )}
-            {agent && <AgentGraph agent={agent} tools={tools.data ?? []} view={view} />}
+            {agent && <AgentGraph agent={agent} tools={tools.data ?? []} view={view} llmLabel={agentLlm ? `${agentLlm.name}` : "sem LLM"} />}
           </Card>
 
           <div className="grid grid-cols-2 gap-3 md:grid-cols-4">

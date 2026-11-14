@@ -68,7 +68,7 @@ const EXERCISES = [
   "Ative “Aprovação humana” em um agente e negue uma ferramenta. Veja como ele reage.",
   "Salve uma preferência (“lembre que prefiro respostas curtas”) e, em outra execução, veja o recall automático.",
   "Teste uma ferramenta direto na página MCP e depois peça ao Explorador MCP para usá-la.",
-  "Mude o effort de um agente de low para high e compare tokens e qualidade na auditoria.",
+  "Cadastre duas LLMs (ex.: Opus e Haiku), troque a LLM de um agente e compare tokens e qualidade na auditoria.",
   "Crie um prompt de sistema na biblioteca (ex.: Crítico interno) e aplique a um agente.",
   "Estude o servidor mcp-servers/laboratorio/index.ts e adicione uma ferramenta nova.",
 ];

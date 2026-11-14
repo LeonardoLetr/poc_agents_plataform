@@ -4,7 +4,7 @@ import { useState } from "react";
 import { LiveDot } from "../components/effects";
 import { JsonView } from "../components/JsonView";
 import { Badge, Button, Card, EmptyState, ErrorNote, Field, Input, Modal, PageHeader, Select, Textarea } from "../components/ui";
-import { api, type McpServer } from "../lib/api";
+import { api, type Health, type McpServer } from "../lib/api";
 import { fmtMs } from "../lib/format";
 import { useEventStream, useResource } from "../lib/hooks";
 
@@ -26,6 +26,7 @@ const statusMeta = {
 
 export default function Mcp() {
   const servers = useResource<McpServer[]>("/api/mcp");
+  const health = useResource<Health>("/api/health");
   const [adding, setAdding] = useState(false);
 
   useEventStream<{ id: string } & McpServer["state"]>("/api/mcp/events", (e) => {
@@ -59,6 +60,7 @@ export default function Mcp() {
       </div>
       {adding && (
         <AddServer
+          health={health.data}
           onClose={() => setAdding(false)}
           onSaved={() => {
             setAdding(false);
@@ -133,7 +135,7 @@ function ServerCard({ server, onChange }: { server: McpServer; onChange: () => v
               {server.state.serverInfo && <span className="font-mono text-[10.5px] text-ink-500">v{server.state.serverInfo.version}</span>}
             </div>
             <div className="mt-1 truncate font-mono text-[11px] text-ink-400">
-              {server.transport === "stdio" ? `$ ${server.command} ${(server.args ?? []).join(" ")}` : server.url}
+              {server.transport === "stdio" ? `$ ${server.command} ${(server.args ?? []).join(" ")}` : server.transport === "builtin" ? `embutido: ${server.command} (transporte em memória)` : server.url}
             </div>
           </div>
           <div className="flex gap-1">
@@ -270,8 +272,10 @@ function ToolTester({ server, tool, onClose }: { server: McpServer; tool: McpSer
   );
 }
 
-function AddServer({ onClose, onSaved }: { onClose: () => void; onSaved: () => void }) {
-  const [form, setForm] = useState({ name: "", transport: "stdio" as "stdio" | "http", command: "npx", args: "", env: "", url: "", headers: "" });
+function AddServer({ health, onClose, onSaved }: { health: Health | null; onClose: () => void; onSaved: () => void }) {
+  const stdio = health?.capabilities.stdio ?? true;
+  type T = "stdio" | "http" | "builtin";
+  const [form, setForm] = useState({ name: "", transport: (stdio ? "stdio" : "http") as T, command: stdio ? "npx" : "", args: "", env: "", url: "", headers: "" });
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -294,7 +298,7 @@ function AddServer({ onClose, onSaved }: { onClose: () => void; onSaved: () => v
       await api.post("/api/mcp", {
         name: form.name,
         transport: form.transport,
-        command: form.transport === "stdio" ? form.command : undefined,
+        command: form.transport !== "http" ? form.command : undefined,
         args: form.transport === "stdio" ? form.args.match(/"[^"]*"|\S+/g)?.map((a) => a.replace(/^"|"$/g, "")) ?? [] : [],
         env: kv(form.env),
         url: form.transport === "http" ? form.url : undefined,
@@ -316,6 +320,8 @@ function AddServer({ onClose, onSaved }: { onClose: () => void; onSaved: () => v
           {PRESETS.map((p) => (
             <button
               key={p.name}
+              disabled={p.transport === "stdio" && !stdio}
+              title={p.transport === "stdio" && !stdio ? "Precisa do servidor local (npm run dev)" : undefined}
               onClick={() =>
                 setForm({
                   ...form,
@@ -326,7 +332,7 @@ function AddServer({ onClose, onSaved }: { onClose: () => void; onSaved: () => v
                   url: "url" in p ? p.url : "",
                 })
               }
-              className="rounded-xl border border-white/8 bg-white/[0.02] p-2.5 text-left transition hover:border-pink/40 hover:bg-pink/5"
+              className="rounded-xl border border-white/8 bg-white/[0.02] p-2.5 text-left transition hover:border-pink/40 hover:bg-pink/5 disabled:cursor-not-allowed disabled:opacity-35"
             >
               <div className="text-[12.5px] font-medium text-ink-100">{p.label}</div>
               <div className="mt-0.5 line-clamp-2 text-[11px] text-ink-400">{p.note}</div>
@@ -340,13 +346,20 @@ function AddServer({ onClose, onSaved }: { onClose: () => void; onSaved: () => v
             <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="ex.: filesystem" />
           </Field>
           <Field label="Transporte">
-            <Select value={form.transport} onChange={(e) => setForm({ ...form, transport: e.target.value as "stdio" | "http" })}>
-              <option value="stdio">stdio — processo local</option>
+            <Select value={form.transport} onChange={(e) => setForm({ ...form, transport: e.target.value as T, command: e.target.value === "builtin" ? (health?.capabilities.builtinMcp[0] ?? "") : form.command })}>
+              <option value="stdio" disabled={!stdio}>stdio — processo local{stdio ? "" : " (só no modo servidor)"}</option>
               <option value="http">HTTP — servidor remoto</option>
+              <option value="builtin">embutido — roda em memória</option>
             </Select>
           </Field>
         </div>
-        {form.transport === "stdio" ? (
+        {form.transport === "builtin" ? (
+          <Field label="Servidor embutido" hint="código em core/mcp/lab-server.ts">
+            <Select value={form.command} onChange={(e) => setForm({ ...form, command: e.target.value })}>
+              {health?.capabilities.builtinMcp.map((b) => <option key={b}>{b}</option>)}
+            </Select>
+          </Field>
+        ) : form.transport === "stdio" ? (
           <>
             <div className="grid gap-4 md:grid-cols-[160px_1fr]">
               <Field label="Comando">

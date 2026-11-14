@@ -12,7 +12,7 @@ import Mcp from "./pages/Mcp";
 import MemoryPage from "./pages/Memory";
 import Playground from "./pages/Playground";
 import Prompts from "./pages/Prompts";
-import Settings from "./pages/Settings";
+import Llms from "./pages/Llms";
 
 export default function App() {
   const location = useLocation();
@@ -20,7 +20,7 @@ export default function App() {
   return (
     <div className="flex min-h-full flex-col md:flex-row">
       <Aurora />
-      <Sidebar configured={health.data ? health.data.anthropicConfigured : null} />
+      <Sidebar health={health.data} />
       <main className="min-w-0 flex-1">
         <AnimatePresence mode="wait">
           <motion.div
@@ -41,7 +41,8 @@ export default function App() {
               <Route path="/prompts" element={<Prompts />} />
               <Route path="/audit" element={<Audit />} />
               <Route path="/learn" element={<Learn />} />
-              <Route path="/settings" element={<Settings onSaved={health.reload} health={health.data} />} />
+              <Route path="/llms" element={<Llms health={health.data} onChange={health.reload} />} />
+              <Route path="/settings" element={<Llms health={health.data} onChange={health.reload} />} />
             </Routes>
           </motion.div>
         </AnimatePresence>

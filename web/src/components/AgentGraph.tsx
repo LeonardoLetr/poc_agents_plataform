@@ -30,8 +30,8 @@ const handles = (
   </>
 );
 
-function AgentNode({ data }: NodeProps<Node<{ agent: Agent; view: RunView }>>) {
-  const { agent, view } = data;
+function AgentNode({ data }: NodeProps<Node<{ agent: Agent; view: RunView; llmLabel: string }>>) {
+  const { agent, view, llmLabel } = data;
   const thinking = view.active === "llm" && (view.status === "running");
   const label =
     view.status === "idle" ? "Aguardando tarefa" :
@@ -62,7 +62,7 @@ function AgentNode({ data }: NodeProps<Node<{ agent: Agent; view: RunView }>>) {
       </div>
       <div className="mt-2 text-center">
         <div className="text-[13px] font-semibold">{agent.name}</div>
-        <div className="font-mono text-[10px] text-ink-400">{view.model ?? agent.model}</div>
+        <div className="font-mono text-[10px] text-ink-400">{view.model ?? llmLabel}</div>
         <div className={`mt-1 text-[11px] ${thinking ? "shimmer-text" : "text-ink-300"}`}>{label}</div>
       </div>
     </div>
@@ -125,12 +125,12 @@ function BeamEdge({ id, sourceX, sourceY, targetX, targetY, sourcePosition, targ
 const nodeTypes = { agent: AgentNode, tool: ToolNode };
 const edgeTypes = { beam: BeamEdge };
 
-export function AgentGraph(props: { agent: Agent; tools: ToolInfo[]; view: RunView }) {
+export function AgentGraph(props: { agent: Agent; tools: ToolInfo[]; view: RunView; llmLabel: string }) {
   // Remonta (e reenquadra) quando troca de agente ou o conjunto de ferramentas muda.
   return <GraphInner key={`${props.agent.id}:${props.agent.tools.join(",")}:${props.tools.length}`} {...props} />;
 }
 
-function GraphInner({ agent, tools, view }: { agent: Agent; tools: ToolInfo[]; view: RunView }) {
+function GraphInner({ agent, tools, view, llmLabel }: { agent: Agent; tools: ToolInfo[]; view: RunView; llmLabel: string }) {
   // O texto transmitido muda a cada token; o grafo só precisa mudar quando o "estado visível" muda.
   const iterations = view.steps.filter((s) => s.kind === "iteration");
   const signature = JSON.stringify({
@@ -182,7 +182,7 @@ function GraphInner({ agent, tools, view }: { agent: Agent; tools: ToolInfo[]; v
     const startY = 150 - ((toolNodes.length - 1) * gap) / 2;
     const nodes: Node[] = [
       { id: "user", type: "tool", position: { x: 0, y: 130 }, data: { label: "Usuário", sub: "tarefa / resposta", icon: User, active: view.active === "user", count: 0, color: "#22d3ee" } },
-      { id: "llm", type: "agent", position: { x: 250, y: 80 }, data: { agent, view } },
+      { id: "llm", type: "agent", position: { x: 250, y: 80 }, data: { agent, view, llmLabel } },
       ...toolNodes.map((t, i) => ({
         id: t.id,
         type: "tool",
@@ -208,7 +208,7 @@ function GraphInner({ agent, tools, view }: { agent: Agent; tools: ToolInfo[]; v
     if (hasScratch) edges.push(edge("e-scratch", "llm", "scratchpad", "ts", "bt", "#34d399"));
     return { nodes, edges };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [agent, tools, signature]);
+  }, [agent, tools, signature, llmLabel]);
 
   const [nodes, setNodes, onNodesChange] = useNodesState<Node>(computed.nodes);
   const [edges, setEdges] = useEdgesState<Edge>(computed.edges);

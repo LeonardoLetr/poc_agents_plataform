@@ -5,13 +5,14 @@ import { Link } from "react-router-dom";
 import { BlurText, LiveDot, NumberTicker, SpotlightCard } from "../components/effects";
 import { LoopDiagram } from "../components/LoopDiagram";
 import { Button, Card } from "../components/ui";
-import type { Agent, AuditEntry, Health, Stats } from "../lib/api";
+import type { Agent, AuditEntry, Health, Llm, Stats } from "../lib/api";
 import { fmtTime } from "../lib/format";
 import { useEventStream, useInterval, useResource } from "../lib/hooks";
 
 export default function Dashboard({ health }: { health: Health | null }) {
   const stats = useResource<Stats>("/api/stats");
   const agents = useResource<Agent[]>("/api/agents");
+  const llms = useResource<Llm[]>("/api/llms");
   const recent = useResource<{ entries: AuditEntry[] }>("/api/audit?limit=12");
   const [feed, setFeed] = useState<AuditEntry[]>([]);
   useInterval(stats.reload, 8000);
@@ -27,8 +28,9 @@ export default function Dashboard({ health }: { health: Health | null }) {
       <section className="grid items-center gap-8 lg:grid-cols-[1.1fr_1fr]">
         <div>
           <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} className="mb-4 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.03] px-3 py-1 text-[12px] text-ink-300">
-            <LiveDot color={health?.anthropicConfigured ? "bg-mint" : "bg-amber"} />
-            {health?.anthropicConfigured ? "Claude conectado — agentes reais" : "Sem chave: experimente o Agente Demo"}
+            <LiveDot color={health?.llmsReady && health.llmsReady > 1 ? "bg-mint" : "bg-amber"} />
+            {health?.llmsReady && health.llmsReady > 1 ? `${health.llmsReady} LLMs prontas — agentes reais` : "Sem chave ainda: experimente o Agente Demo ou configure uma LLM"}
+            {health?.runtime === "browser" && <span className="text-ink-500">· rodando no navegador</span>}
           </motion.div>
           <h1 className="text-4xl font-semibold leading-[1.08] tracking-tight md:text-[3.5rem]">
             <BlurText text="Um laboratório para ver" />{" "}
@@ -122,7 +124,7 @@ export default function Dashboard({ health }: { health: Health | null }) {
                   <span className="flex h-10 w-10 items-center justify-center rounded-xl text-xl" style={{ background: `${a.color}22` }}>{a.emoji}</span>
                   <div className="min-w-0">
                     <div className="truncate text-[14px] font-medium">{a.name}</div>
-                    <div className="font-mono text-[10.5px] text-ink-400">{a.tools.length} ferramentas · {a.provider === "demo" ? "demo" : a.model}</div>
+                    <div className="font-mono text-[10.5px] text-ink-400">{a.tools.length} ferramentas · {llms.data?.find((l) => l.id === a.llmId)?.name ?? "sem LLM"}</div>
                   </div>
                 </div>
                 <p className="mt-2 line-clamp-2 text-[12.5px] text-ink-400">{a.description}</p>
