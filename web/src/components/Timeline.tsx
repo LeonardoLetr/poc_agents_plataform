@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from "motion/react";
-import { AlertTriangle, Brain, CheckCircle2, ChevronDown, CircleDashed, Hand, Loader2, MessageSquare, Plug, Sparkles, User, Wrench, XCircle } from "lucide-react";
+import { AlertTriangle, Brain, CheckCircle2, ChevronDown, CircleDashed, Hand, Loader2, MessageSquare, Plug, User, Wrench, XCircle } from "lucide-react";
 import { useState } from "react";
 import { fmtMs, fmtNumber, kindLabel, toolLabel } from "../lib/format";
 import type { Step, ToolStep } from "../lib/runState";
@@ -85,7 +85,6 @@ function Iteration({ step, live }: { step: Extract<Step, { kind: "iteration" }>;
       {(step.thinking || streaming) && (
         <div className="mb-2">
           <button onClick={() => setShowThinking(!showThinking)} className="flex items-center gap-1.5 text-[11.5px] text-ink-400 hover:text-ink-200">
-            <Sparkles size={12} className="text-accent" />
             <span className={streaming && !step.text ? "shimmer-text" : ""}>{streaming && !step.text ? "pensando…" : "raciocínio"}</span>
             <ChevronDown size={12} className={`transition ${showThinking ? "rotate-180" : ""}`} />
           </button>
@@ -131,12 +130,12 @@ export function Timeline({ steps, live }: { steps: Step[]; live: boolean }) {
             return (
               <Rail key={key} icon={<Brain size={14} />} color="#7c6fa6" last={last}>
                 <div className="text-[12px] text-ink-300">
-                  <b className="text-accent">{s.memories.length} memórias</b> recuperadas e injetadas no prompt de sistema
+                  <b className="font-medium text-memory">{s.memories.length} memórias</b> recuperadas e injetadas no prompt de sistema
                 </div>
                 <div className="mt-1.5 space-y-1">
                   {s.memories.map((m) => (
-                    <div key={m.id} className="flex items-start gap-2 rounded-lg bg-accent/5 px-2.5 py-1.5 text-[12px] text-ink-300">
-                      <Badge color="accent">{kindLabel[m.kind] ?? m.kind}</Badge>
+                    <div key={m.id} className="flex items-start gap-2 rounded-lg bg-memory/[0.06] px-2.5 py-1.5 text-[12px] text-ink-300">
+                      <Badge color="memory">{kindLabel[m.kind] ?? m.kind}</Badge>
                       <span className="flex-1">{m.content}</span>
                       <span className="font-mono text-[10px] text-ink-500">{m.score.toFixed(2)}</span>
                     </div>
@@ -153,9 +152,9 @@ export function Timeline({ steps, live }: { steps: Step[]; live: boolean }) {
           case "memory":
             return (
               <Rail key={key} icon={<Brain size={14} />} color="#7c6fa6" last={last}>
-                <div className="rounded-xl border border-accent/20 bg-accent/5 px-3 py-2 text-[12.5px] text-ink-300">
-                  <span className="mr-1.5 text-accent">💾 Nova memória</span>
-                  <Badge color="accent">{kindLabel[s.memory.kind]}</Badge> {s.memory.content}
+                <div className="rounded-xl border border-memory/20 bg-memory/[0.05] px-3 py-2 text-[12.5px] leading-relaxed text-ink-300">
+                  <span className="mr-1.5 font-medium text-memory">Nova memória</span>
+                  <Badge color="memory">{kindLabel[s.memory.kind]}</Badge> {s.memory.content}
                 </div>
               </Rail>
             );

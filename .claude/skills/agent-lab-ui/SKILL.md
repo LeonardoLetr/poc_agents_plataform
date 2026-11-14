@@ -27,6 +27,11 @@ Minimalista, quente e calmo, com cara de ferramenta e não de "demo de IA". A es
 - Estado ativo = borda/anel na cor do contexto (`.beam` agora é só um contorno), nunca brilho.
 - Respeite `prefers-reduced-motion` (já tratado no CSS).
 
+## Celular
+- **Nada pode ser mais largo que a tela** (sem rolagem lateral). Itens de grid já têm `min-width: 0`; cabeçalhos com vários itens usam `flex-wrap`;
+  elementos com tamanho fixo (diagramas) encolhem com a largura da janela.
+- `node web/scripts/check-mobile.cjs` testa 9 páginas em 3 celulares e roda no CI; o deploy do Pages não publica se falhar.
+
 ## Componentes
 - Primitivos em `web/src/components/ui.tsx`; efeitos em `effects.tsx`. Reaproveite antes de criar outro.
 - Toda página começa com `PageHeader` (eyebrow em mono, título serifado, descrição didática).

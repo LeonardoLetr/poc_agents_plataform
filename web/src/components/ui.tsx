@@ -40,7 +40,7 @@ export function Button({ variant = "ghost", size = "md", className = "", childre
   );
 }
 
-export function Badge({ children, color = "ink", className = "" }: { children: ReactNode; color?: "ink" | "accent" | "info" | "ok" | "warn" | "bad" | "mcp"; className?: string }) {
+export function Badge({ children, color = "ink", className = "" }: { children: ReactNode; color?: "ink" | "accent" | "info" | "ok" | "warn" | "bad" | "mcp" | "memory"; className?: string }) {
   const map = {
     ink: "bg-black/[0.038] text-ink-300 border-black/[0.08]",
     accent: "bg-accent/10 text-accent border-accent/25",
@@ -49,6 +49,7 @@ export function Badge({ children, color = "ink", className = "" }: { children: R
     warn: "bg-warn/10 text-warn border-warn/25",
     bad: "bg-bad/10 text-bad border-bad/25",
     mcp: "bg-mcp/10 text-mcp border-mcp/25",
+    memory: "bg-memory/10 text-memory border-memory/25",
   };
   return <span className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 font-mono text-[10.5px] ${map[color]} ${className}`}>{children}</span>;
 }
@@ -105,7 +106,7 @@ export function Modal({ open, onClose, title, children, wide }: { open: boolean;
             className={`relative max-h-[90vh] w-full overflow-y-auto rounded-2xl border border-black/[0.08] bg-white p-6 shadow-[0_24px_60px_-20px_rgb(31_30_28/0.35)] ${wide ? "max-w-3xl" : "max-w-lg"}`}
           >
             <div className="mb-5 flex items-center justify-between gap-4">
-              <h2 className="text-lg font-semibold">{title}</h2>
+              <h2 className="font-serif text-[22px] font-normal tracking-[-0.01em] text-ink-100">{title}</h2>
               <button onClick={onClose} className="rounded-lg p-1.5 text-ink-400 transition hover:bg-black/[0.075] hover:text-ink-100" aria-label="Fechar">
                 <X size={18} />
               </button>

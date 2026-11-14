@@ -70,7 +70,7 @@ const EXERCISES = [
   "Teste uma ferramenta direto na página MCP e depois peça ao Explorador MCP para usá-la.",
   "Cadastre duas LLMs (ex.: Opus e Haiku), troque a LLM de um agente e compare tokens e qualidade na auditoria.",
   "Crie um prompt de sistema na biblioteca (ex.: Crítico interno) e aplique a um agente.",
-  "Estude o servidor mcp-servers/laboratorio/index.ts e adicione uma ferramenta nova.",
+  "Estude o servidor MCP em core/mcp/lab-server.ts e adicione uma ferramenta nova.",
 ];
 
 export default function Learn() {
@@ -100,21 +100,21 @@ export default function Learn() {
       <section className="grid items-center gap-8 lg:grid-cols-2">
         <LoopDiagram size={360} />
         <div className="space-y-4">
-          <h2 className="text-2xl font-semibold">1. O loop é o agente</h2>
+          <h2 className="font-serif text-[28px] font-normal tracking-[-0.01em] text-ink-100">1. O loop é o agente</h2>
           <p className="text-[15px] leading-relaxed text-ink-300">
             Um LLM sozinho só transforma texto em texto. Ele vira um <b className="text-ink-100">agente</b> quando colocamos ele num loop com ferramentas: o
             modelo lê o contexto, decide o próximo passo, nós executamos a ação e devolvemos o resultado. Isso se repete até ele responder sem pedir
             ferramentas (<code className="text-ok">stop_reason: end_turn</code>) ou até atingir o limite de iterações.
           </p>
           <p className="text-[15px] leading-relaxed text-ink-300">
-            O código desse loop está em <code className="text-info">server/src/agent/runner.ts</code> — leia junto com o <Link to="/playground" className="text-info underline">playground</Link>.
+            O código desse loop está em <code className="text-info">core/agent/runner.ts</code> — leia junto com o <Link to="/playground" className="text-info underline">playground</Link>.
           </p>
         </div>
       </section>
 
       <section className="grid gap-8 lg:grid-cols-2">
         <div className="space-y-4">
-          <h2 className="text-2xl font-semibold">2. Anatomia da conversa</h2>
+          <h2 className="font-serif text-[28px] font-normal tracking-[-0.01em] text-ink-100">2. Anatomia da conversa</h2>
           <p className="text-[15px] leading-relaxed text-ink-300">
             Ferramentas funcionam por um protocolo simples: o assistente responde com um bloco <code className="text-accent">tool_use</code> (nome +
             argumentos em JSON). A plataforma executa e responde com <code className="text-warn">tool_result</code> como se fosse o usuário. Ao lado,
@@ -127,7 +127,7 @@ export default function Learn() {
       </section>
 
       <section>
-        <h2 className="mb-4 text-2xl font-semibold">3. As peças</h2>
+        <h2 className="mb-4 font-serif text-[28px] font-normal tracking-[-0.01em] text-ink-100">3. As peças</h2>
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           {[
             { icon: <Wrench />, color: "#b07a1e", title: "Ferramentas", to: "/agents", text: "Funções com nome, descrição e schema JSON. A descrição é o que o modelo lê para decidir quando usar — escreva bem!" },
@@ -152,7 +152,7 @@ export default function Learn() {
 
       <section className="grid gap-8 lg:grid-cols-2">
         <div>
-          <h2 className="mb-4 text-2xl font-semibold">4. Glossário</h2>
+          <h2 className="mb-4 font-serif text-[28px] font-normal tracking-[-0.01em] text-ink-100">4. Glossário</h2>
           <div className="space-y-2">
             {GLOSSARY.map(([term, def]) => (
               <Card key={term} className="p-3.5">
@@ -163,7 +163,7 @@ export default function Learn() {
           </div>
         </div>
         <div>
-          <h2 className="mb-4 text-2xl font-semibold">
+          <h2 className="mb-4 font-serif text-[28px] font-normal tracking-[-0.01em] text-ink-100">
             5. Experimentos <span className="text-[14px] font-normal text-ink-400">({done.size}/{EXERCISES.length})</span>
           </h2>
           <div className="mb-3 h-1.5 overflow-hidden rounded-full bg-black/[0.038]">

@@ -109,7 +109,7 @@ export default function Audit() {
         ].map(([label, value]) => (
           <Card key={label as string} className="p-3.5">
             <div className="text-[11px] text-ink-400">{label}</div>
-            <div className={`mt-1 text-xl font-semibold tabular-nums ${label === "Erros" && Number(value) > 0 ? "text-bad" : ""}`}>{fmtNumber(Number(value))}</div>
+            <div className={`mt-1 text-xl font-medium tracking-tight tabular-nums text-ink-100 ${label === "Erros" && Number(value) > 0 ? "text-bad" : ""}`}>{fmtNumber(Number(value))}</div>
           </Card>
         ))}
       </div>

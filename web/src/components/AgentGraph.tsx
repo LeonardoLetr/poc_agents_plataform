@@ -1,4 +1,4 @@
-import { BaseEdge, Handle, Position, ReactFlow, getBezierPath, useEdgesState, useNodesState, type Edge, type EdgeProps, type Node, type NodeProps } from "@xyflow/react";
+import { Background, BackgroundVariant, BaseEdge, Handle, Position, ReactFlow, getBezierPath, useEdgesState, useNodesState, type Edge, type EdgeProps, type Node, type NodeProps } from "@xyflow/react";
 import { motion } from "motion/react";
 import { Brain, Calculator, Clock, Globe, NotebookPen, Plug, User, Wrench } from "lucide-react";
 import { useEffect, useMemo } from "react";
@@ -233,6 +233,9 @@ function GraphInner({ agent, tools, view, llmLabel }: { agent: Agent; tools: Too
       proOptions={{ hideAttribution: true }}
       minZoom={0.4}
       maxZoom={1.4}
-    />
+    >
+      {/* Pontilhado discreto: dá referência espacial sem competir com os nós. */}
+      <Background variant={BackgroundVariant.Dots} gap={22} size={1.2} color="#ddd7c9" />
+    </ReactFlow>
   );
 }

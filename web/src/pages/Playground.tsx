@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from "motion/react";
-import { ArrowUp, Coins, History, Layers, Loader2, Repeat, Send, Square, Timer, Wand2 } from "lucide-react";
+import { ArrowUp, Coins, History, Layers, Loader2, Repeat, Send, Square, Timer } from "lucide-react";
 import { useEffect, useMemo, useReducer, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { AgentGraph } from "../components/AgentGraph";
@@ -127,7 +127,7 @@ export default function Playground() {
       </div>
 
       {/* Seletor de agente */}
-      <div className="mb-4 flex gap-2 overflow-x-auto pb-1">
+      <div className="mb-4 flex flex-wrap gap-2">
         {agents.data?.map((a) => (
           <button
             key={a.id}
@@ -137,21 +137,24 @@ export default function Playground() {
               if (runId) navigate("/playground");
             }}
             className={`relative flex shrink-0 items-center gap-2.5 rounded-2xl border px-3.5 py-2.5 text-left transition ${
-              agent?.id === a.id ? "border-black/[0.16] bg-black/[0.053]" : "border-black/[0.064] bg-black/[0.015] hover:bg-black/[0.038]"
+              agent?.id === a.id ? "border-black/[0.16] bg-white shadow-[0_1px_2px_rgb(31_30_28/0.06)]" : "border-black/[0.07] hover:bg-white/70"
             } disabled:opacity-50`}
           >
             {agent?.id === a.id && <motion.div layoutId="agent-pick" className="absolute inset-x-3 -bottom-px h-px" style={{ background: a.color }} />}
             <span className="text-xl">{a.emoji}</span>
             <span>
               <span className="block text-[13px] font-medium">{a.name}</span>
-              <span className="block font-mono text-[10px] text-ink-400">{llmOf(a)?.name ?? "sem LLM"}{llmOf(a) && !llmOf(a)!.ready ? " · sem chave" : ""}</span>
+              <span className="flex items-center gap-1.5 text-[11.5px] text-ink-400">
+                {llmOf(a) && <span className={`h-1.5 w-1.5 rounded-full ${llmOf(a)!.ready ? "bg-ok" : "bg-warn"}`} title={llmOf(a)!.ready ? "LLM pronta" : "LLM sem chave"} />}
+                {llmOf(a)?.name ?? "sem LLM"}
+              </span>
             </span>
           </button>
         ))}
       </div>
 
       {/* Entrada da tarefa */}
-      <Card className="mb-6 p-2">
+      <Card className="mb-6 p-2 transition focus-within:border-accent/40 focus-within:ring-[3px] focus-within:ring-accent/10">
         <div className="flex items-end gap-2">
           <Textarea
             rows={2}
@@ -164,14 +167,13 @@ export default function Playground() {
                 void start();
               }
             }}
-            className="resize-none border-0 bg-transparent focus:ring-0"
+            className="resize-none !border-0 !bg-transparent !shadow-none !ring-0"
           />
           <Button variant="primary" onClick={() => start()} disabled={!input.trim() || !agent || live} className="h-11 w-11 shrink-0 !px-0" aria-label="Executar">
             {live ? <Loader2 size={18} className="animate-spin" /> : <ArrowUp size={18} />}
           </Button>
         </div>
         <div className="flex flex-wrap gap-1.5 px-2 pb-1 pt-1">
-          <Wand2 size={13} className="mt-1 text-ink-500" />
           {examples.map((ex) => (
             <button key={ex} onClick={() => setInput(ex)} className="rounded-full border border-black/[0.064] bg-black/[0.022] px-2.5 py-1 text-[11.5px] text-ink-300 transition hover:border-accent/40 hover:text-ink-100">
               {ex.length > 60 ? `${ex.slice(0, 58)}…` : ex}
@@ -204,10 +206,10 @@ export default function Playground() {
           </Card>
 
           <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-            <Metric icon={<Repeat size={14} />} label="Iterações do loop" value={view.iteration} />
-            <Metric icon={<ArrowUp size={14} />} label="Tokens de entrada" value={view.tokens.input} />
-            <Metric icon={<Coins size={14} />} label="Tokens de saída" value={view.tokens.output} />
-            <Metric icon={<Timer size={14} />} label="Ferramentas chamadas" value={Object.values(view.callCounts).reduce((a, b) => a + b, 0)} />
+            <Metric icon={<Repeat size={14} />} label="Iterações" value={view.iteration} />
+            <Metric icon={<ArrowUp size={14} />} label="Tokens entrada" value={view.tokens.input} />
+            <Metric icon={<Coins size={14} />} label="Tokens saída" value={view.tokens.output} />
+            <Metric icon={<Timer size={14} />} label="Ferramentas" value={Object.values(view.callCounts).reduce((a, b) => a + b, 0)} />
           </div>
 
           {runId && (
@@ -258,7 +260,7 @@ export default function Playground() {
                         void sendFollowUp();
                       }
                     }}
-                    placeholder="Continuar a conversa (mantém o histórico = memória de curto prazo)"
+                    placeholder="Continuar a conversa…"
                     className="resize-none"
                   />
                   <Button variant="primary" onClick={sendFollowUp} disabled={!followUp.trim()} className="shrink-0">
@@ -333,7 +335,7 @@ function Metric({ icon, label, value }: { icon: React.ReactNode; label: string; 
         {icon} {label}
       </div>
       <AnimatePresence mode="popLayout">
-        <motion.div key={value} initial={{ y: 8, opacity: 0 }} animate={{ y: 0, opacity: 1 }} className="mt-1 text-2xl font-semibold tabular-nums">
+        <motion.div key={value} initial={{ y: 8, opacity: 0 }} animate={{ y: 0, opacity: 1 }} className="mt-1 text-2xl font-medium tracking-tight tabular-nums text-ink-100">
           {fmtNumber(value)}
         </motion.div>
       </AnimatePresence>

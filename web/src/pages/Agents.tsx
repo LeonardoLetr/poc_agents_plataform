@@ -204,7 +204,7 @@ function AgentEditor({ initial, id, onClose, onSaved }: { initial: AgentInput; i
             <span className="flex items-center gap-1">
               <FileText size={11} /> inserir da biblioteca:
               <select
-                className="ml-1 rounded bg-ink-800 px-1 text-ink-200"
+                className="ml-1 rounded-md border border-black/10 bg-white px-1 text-ink-200"
                 value=""
                 onChange={(e) => {
                   const p = prompts.data?.find((x) => x.id === e.target.value);
@@ -224,8 +224,8 @@ function AgentEditor({ initial, id, onClose, onSaved }: { initial: AgentInput; i
           <div className="mb-2 text-[13px] font-medium text-ink-200">Ferramentas</div>
           <div className="grid gap-2 md:grid-cols-2">
             {builtin.map((t) => (
-              <label key={t.name} className={`flex cursor-pointer gap-2.5 rounded-xl border p-2.5 transition ${form.tools.includes(t.name) ? "border-warn/40 bg-warn/5" : "border-black/[0.064] hover:bg-black/[0.022]"}`}>
-                <input type="checkbox" className="mt-0.5 accent-[#b07a1e]" checked={form.tools.includes(t.name)} onChange={() => toggleTool(t.name)} />
+              <label key={t.name} className={`flex cursor-pointer gap-2.5 rounded-lg border p-2.5 transition ${form.tools.includes(t.name) ? "border-ink-400/50 bg-ink-950" : "border-black/[0.08] hover:bg-ink-950"}`}>
+                <input type="checkbox" className="mt-0.5 accent-[#c96442]" checked={form.tools.includes(t.name)} onChange={() => toggleTool(t.name)} />
                 <span className="min-w-0">
                   <span className="flex items-center gap-1.5 font-mono text-[12px] text-ink-100">
                     {t.name} <Badge>{t.category}</Badge>
@@ -243,7 +243,7 @@ function AgentEditor({ initial, id, onClose, onSaved }: { initial: AgentInput; i
                 return (
                   <div key={server} className="rounded-xl border border-mcp/20 bg-mcp/[0.03] p-3">
                     <label className="flex cursor-pointer items-center gap-2 text-[13px]">
-                      <input type="checkbox" className="accent-[#9b5e86]" checked={form.tools.includes(wildcard)} onChange={() => toggleTool(wildcard)} />
+                      <input type="checkbox" className="accent-[#c96442]" checked={form.tools.includes(wildcard)} onChange={() => toggleTool(wildcard)} />
                       <span className="font-medium text-mcp">MCP: {server}</span> <span className="text-ink-400">— todas as {serverTools.length} ferramentas</span>
                     </label>
                     {!form.tools.includes(wildcard) && (

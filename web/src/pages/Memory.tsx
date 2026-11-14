@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from "motion/react";
-import { Brain, MessagesSquare, NotebookPen, Pencil, Plus, Search, Sparkles, Trash2, History } from "lucide-react";
+import { Brain, MessagesSquare, NotebookPen, Pencil, Plus, Search, Trash2, History } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Badge, Button, Card, ErrorNote, Field, Input, Modal, PageHeader, Select, Textarea } from "../components/ui";
 import { api, type Agent, type Memory, type MemoryKind } from "../lib/api";
@@ -76,7 +76,7 @@ export default function MemoryPage() {
 
         <Card className="flex flex-col p-4 lg:col-span-2">
           <div className="mb-1 flex items-center gap-2 text-[13px] font-medium">
-            <Sparkles size={14} className="text-accent" /> Laboratório de recuperação
+            <Search size={14} className="text-ink-400" /> Laboratório de recuperação
           </div>
           <p className="mb-3 text-[12px] text-ink-400">Simule o que o agente recupera para uma tarefa. Pontuação = 70% termos em comum + 20% importância + 10% recência.</p>
           <div className="flex gap-2">
@@ -207,7 +207,7 @@ function Constellation({ memories, highlighted }: { memories: Memory[]; highligh
           <ellipse key={r} cx="50%" cy="52%" rx={`${r * 44}%`} ry={`${r * 40}%`} fill="none" stroke="rgb(31 30 28 / 0.1)" strokeDasharray="3 6" />
         ))}
       </svg>
-      <div className="absolute left-1/2 top-[52%] -translate-x-1/2 -translate-y-1/2 text-3xl opacity-80">🧠</div>
+      <div className="absolute left-1/2 top-[52%] -translate-x-1/2 -translate-y-1/2 font-serif text-[15px] italic text-ink-400">agente</div>
       {points.map(({ m, x, y, r, delay }) => {
         const dim = highlighted && !highlighted.has(m.id);
         const lit = highlighted?.has(m.id);
