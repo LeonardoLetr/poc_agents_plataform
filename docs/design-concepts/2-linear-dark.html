@@ -1,0 +1,63 @@
+<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>Conceito 2 · Minimal Dark</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0}
+body{width:1440px;height:960px;overflow:hidden;background:#08090a;color:#e6e6e8;font-family:"Inter Tight",sans-serif;font-size:13px}
+.app{display:grid;grid-template-columns:220px 1fr;height:100%}
+aside{border-right:1px solid #1c1d20;padding:14px 10px;display:flex;flex-direction:column;gap:1px;background:#0b0c0d}
+.brand{display:flex;gap:8px;align-items:center;padding:6px 8px 16px;font-weight:600;font-size:14px}
+.brand i{width:22px;height:22px;border-radius:6px;background:#5e6ad2;font-style:normal;display:grid;place-items:center;font-size:12px}
+.sec{color:#5b5d63;font-size:11px;padding:14px 8px 6px}
+.nav{padding:6px 8px;border-radius:6px;color:#9a9ca3;display:flex;justify-content:space-between}
+.nav.on{background:#17181b;color:#f2f2f3}.kbd{font-family:"JetBrains Mono";font-size:10px;color:#55575c}
+main{display:flex;flex-direction:column;min-width:0}
+.bar{height:48px;border-bottom:1px solid #1c1d20;display:flex;align-items:center;padding:0 20px;gap:10px;color:#8a8c93}
+.bar b{color:#f2f2f3;font-weight:500}
+.chip{border:1px solid #26272b;border-radius:6px;padding:3px 8px;font-size:11.5px;color:#a8aab0;background:#0f1012}
+.live{color:#4cc38a}
+.content{padding:20px;display:grid;grid-template-columns:1.4fr 1fr;grid-template-rows:auto 1fr auto;gap:12px;flex:1;min-height:0}
+.input{grid-column:1/3;border:1px solid #26272b;background:#0f1012;border-radius:8px;display:flex;align-items:center;padding:10px 10px 10px 14px;gap:10px}
+.input span{flex:1;color:#d6d7da}.input .run{background:#5e6ad2;color:#fff;border-radius:6px;padding:6px 12px;font-weight:500}
+.panel{border:1px solid #1c1d20;border-radius:10px;background:#0c0d0f;min-height:0;display:flex;flex-direction:column}
+.ph{display:flex;justify-content:space-between;align-items:center;padding:10px 14px;border-bottom:1px solid #1c1d20;color:#9a9ca3;font-size:12px}
+.graph{flex:1;margin:14px}
+.g-node{display:flex;gap:8px;align-items:center;padding:7px 10px;border:1px solid #26272b;background:#111214;border-radius:8px;white-space:nowrap}
+.g-icon{width:20px;height:20px;border-radius:5px;display:grid;place-items:center;background:#1a1b1e;color:#8a8c93;font-size:10px;font-family:"JetBrains Mono"}
+.g-label{font-family:"JetBrains Mono";font-size:11.5px;color:#e6e6e8}.g-sub{font-size:10px;color:#6b6d73}
+.g-agent{flex-direction:column;border:0;background:none;gap:3px;text-align:center}
+.g-orb{width:72px;height:72px;border-radius:16px;border:1px solid #3a3f7a;background:radial-gradient(circle at 50% 0,#2a2f66,#111214 70%);display:grid;place-items:center;font-size:28px;box-shadow:0 0 40px -6px rgba(94,106,210,.6);margin-bottom:6px}
+.g-agent .g-label{font-family:"Inter Tight";font-size:13px;font-weight:600}.g-state{font-size:11px;color:#8f97ff}
+.g-node.is-active{border-color:#5e6ad2;box-shadow:0 0 0 3px rgba(94,106,210,.18)}
+.g-edge{fill:none;stroke:#222327;stroke-width:1.2}.g-edge.is-on{stroke:#5e6ad2;stroke-width:1.6}.g-dot{fill:#aab1ff}
+.tl{padding:6px 14px;overflow:hidden;display:flex;flex-direction:column}
+.row{display:grid;grid-template-columns:62px 1fr;gap:10px;padding:10px 0;border-bottom:1px solid #16171a}
+.row .t{font-family:"JetBrains Mono";font-size:10.5px;color:#55575c;padding-top:2px}
+.ty{font-family:"JetBrains Mono";font-size:10.5px;color:#8f97ff}
+.th{color:#8a8c93;margin-top:3px;line-height:1.5}
+.tool{margin-top:6px;font-family:"JetBrains Mono";font-size:11px;border:1px solid #1f2023;border-radius:6px;padding:6px 8px;display:flex;justify-content:space-between;color:#c8c9cd}
+.ok{color:#4cc38a}
+.final{margin-top:10px;border:1px solid #1f3a2c;background:#0c1511;border-radius:8px;padding:12px;line-height:1.55;color:#d9dadc}
+.metrics{grid-column:1/3;display:grid;grid-template-columns:repeat(5,1fr);border:1px solid #1c1d20;border-radius:10px;background:#0c0d0f}
+.metric{padding:12px 14px;border-right:1px solid #1c1d20}.metric:last-child{border:0}.metric small{color:#6b6d73;font-size:11px}.metric b{display:block;font-size:20px;font-weight:500;margin-top:2px;letter-spacing:-.02em}
+.spark{height:18px;margin-top:6px;background:linear-gradient(90deg,transparent,rgba(94,106,210,.0)),repeating-linear-gradient(90deg,#1f2023 0 2px,transparent 2px 6px)}
+</style></head><body><div class="app">
+<aside><div class="brand"><i>◆</i>Agent Lab</div><div class="sec">Workspace</div><div id="nav"></div></aside>
+<main>
+ <div class="bar"><span>Playground</span><span>/</span><b>Pesquisador</b><span class="chip">claude-opus-5-5 · medium</span><span style="flex:1"></span><span class="chip live">● ao vivo</span><span class="chip">⌘K</span></div>
+ <div class="content">
+  <div class="input"><span id="task"></span><span class="kbd">↵</span><div class="run">Executar</div></div>
+  <div class="panel"><div class="ph"><span>Mapa do agente</span><span>iteração 3 de 10</span></div><div class="graph" id="graph"></div></div>
+  <div class="panel"><div class="ph"><span>Eventos</span><span>12</span></div><div class="tl">
+   <div class="row"><span class="t">10:24:05</span><div><span class="ty">llm.response</span><div class="th">Identifiquei uma conta — vou usar a calculadora.</div><div class="tool"><span>calculator("(1250*1.08)^2")</span><span class="ok">1822500 · 1ms</span></div></div></div>
+   <div class="row"><span class="t">10:24:06</span><div><span class="ty">tool.call · mcp</span><div class="tool"><span>laboratorio/dados_rolar("2d20")</span><span class="ok">27 · 5ms</span></div></div></div>
+   <div class="row"><span class="t">10:24:06</span><div><span class="ty">memory.created</span><div class="th">episódio salvo · importância 2</div></div></div>
+   <div class="final"><span class="ty" style="color:#4cc38a">end_turn</span><br>(1250 × 1,08)² = <b>1.822.500</b>. Agora são 10:24. Dados: [15, 12] = 27.</div>
+  </div></div>
+  <div class="metrics" id="metrics"></div>
+ </div>
+</main></div>
+<script src="shared.js"></script><script>
+nav.innerHTML=LAB.nav.map((n,i)=>`<div class="nav ${i==1?'on':''}"><span>${n}</span><span class="kbd">${i<4?'G '+'OPAL'[i]:''}</span></div>`).join('');task.textContent=LAB.task;
+metrics.innerHTML=[...LAB.metrics,["Custo","$0,0123"]].map(([k,v])=>`<div class="metric"><small>${k}</small><b>${v}</b><div class="spark"></div></div>`).join('');
+renderGraph(graph,{icons:{user:'U',tool:'ƒ',mcp:'⌁',memory:'M'},agentIcon:'🔎',dotR:3});
+</script></body></html>
