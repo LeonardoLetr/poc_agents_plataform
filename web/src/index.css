@@ -18,7 +18,7 @@
   --color-ink-700: #dbd5c6; /* bordas fortes */
   --color-ink-600: #cdc6b5;
   --color-ink-500: #a8a193; /* ícones apagados */
-  --color-ink-400: #7d776b; /* texto secundário */
+  --color-ink-400: #6f6a5f; /* texto secundário */
   --color-ink-300: #5f5a50; /* texto de apoio */
   --color-ink-200: #3d3a34; /* corpo */
   --color-ink-100: #1f1e1c; /* títulos */
@@ -48,6 +48,12 @@
 :root { color-scheme: light; }
 
 html, body, #root { height: 100%; }
+
+/* Trava contra rolagem lateral no celular: nada pode ser mais largo que a tela.
+   (clip, ao contrário de hidden, não quebra o position: sticky da sidebar.) */
+html, body { overflow-x: clip; max-width: 100%; }
+/* Itens de grid/flex podem encolher abaixo do conteúdo (senão um texto longo alarga a coluna). */
+.grid > * { min-width: 0; }
 
 body {
   background: var(--color-ink-950);

@@ -56,6 +56,15 @@ jobs:
           cp dist/index.html dist/404.html
           touch dist/.nojekyll
 
+      # Garantia de layout: se alguma página ficar mais larga que a tela do celular, não publica.
+      - name: Testar layout no celular
+        run: |
+          npm install --no-save playwright@1.63.0
+          npx playwright install --with-deps chromium
+          (cd web && npx vite preview --port 4173 --base=/${{ github.event.repository.name }}/ &)
+          for i in $(seq 1 30); do curl -sf http://localhost:4173/${{ github.event.repository.name }}/ > /dev/null && break; sleep 1; done
+          node web/scripts/check-mobile.cjs http://localhost:4173/${{ github.event.repository.name }}
+
       - uses: actions/upload-pages-artifact@v3
         with:
           path: web/dist

@@ -27,10 +27,14 @@ export default function Dashboard({ health }: { health: Health | null }) {
       {/* Hero */}
       <section className="grid items-center gap-8 lg:grid-cols-[1.1fr_1fr]">
         <div>
-          <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} className="mb-4 inline-flex items-center gap-2 rounded-full border border-black/[0.08] bg-black/[0.022] px-3 py-1 text-[12px] text-ink-300">
-            <LiveDot color={health?.llmsReady && health.llmsReady > 1 ? "bg-ok" : "bg-warn"} />
-            {health?.llmsReady && health.llmsReady > 1 ? `${health.llmsReady} LLMs prontas — agentes reais` : "Sem chave ainda: experimente o Agente Demo ou configure uma LLM"}
-            {health?.runtime === "browser" && <span className="text-ink-500">· rodando no navegador</span>}
+          <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} className="mb-4 inline-flex max-w-full items-baseline gap-2 rounded-2xl border border-black/[0.08] bg-white/60 px-3 py-1.5 text-[12px] leading-snug text-ink-300">
+            <span className="translate-y-[1px]">
+              <LiveDot color={health?.llmsReady && health.llmsReady > 1 ? "bg-ok" : "bg-warn"} />
+            </span>
+            <span>
+              {health?.llmsReady && health.llmsReady > 1 ? `${health.llmsReady} LLMs prontas — agentes reais` : "Sem chave ainda: experimente o Agente Demo ou configure uma LLM"}
+              {health?.runtime === "browser" && <span className="text-ink-400"> · rodando no navegador</span>}
+            </span>
           </motion.div>
           <h1 className="font-serif text-[40px] font-normal leading-[1.1] tracking-[-0.02em] text-ink-100 md:text-[54px]">
             <BlurText text="Um laboratório para ver" />
@@ -69,7 +73,7 @@ export default function Dashboard({ health }: { health: Health | null }) {
 
       <section className="grid gap-6 lg:grid-cols-3">
         {/* Atividade ao vivo */}
-        <Card className="p-5 lg:col-span-2">
+        <Card className="min-w-0 p-5 lg:col-span-2">
           <div className="mb-4 flex items-center justify-between">
             <div className="flex items-center gap-2 text-[14px] font-medium">
               <LiveDot /> Atividade ao vivo
@@ -91,7 +95,7 @@ export default function Dashboard({ health }: { health: Health | null }) {
         </Card>
 
         {/* Ferramentas mais usadas */}
-        <Card className="p-5">
+        <Card className="min-w-0 p-5">
           <div className="mb-4 text-[14px] font-medium">Ferramentas mais usadas</div>
           {toolUsage.length === 0 && <p className="text-sm text-ink-500">Nenhuma ferramenta chamada ainda.</p>}
           <div className="space-y-3">
@@ -113,7 +117,7 @@ export default function Dashboard({ health }: { health: Health | null }) {
       {/* Agentes */}
       <section>
         <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-lg font-semibold">Seus agentes</h2>
+          <h2 className="font-serif text-[22px] font-normal text-ink-100">Seus agentes</h2>
           <Link to="/agents" className="text-[12.5px] text-ink-400 hover:text-ink-200">gerenciar →</Link>
         </div>
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
@@ -141,9 +145,9 @@ function StatCard({ icon, label, value, color, suffix = "", decimals = 0 }: { ic
   return (
     <SpotlightCard className="p-4" color={hexRgb(color)}>
       <div className="flex items-center gap-2 text-[11.5px] text-ink-400">
-        <span style={{ color }}>{icon}</span> {label}
+        <span className="text-ink-400">{icon}</span> {label}
       </div>
-      <div className="mt-2 text-2xl font-semibold">
+      <div className="mt-2 text-2xl font-medium tracking-tight text-ink-100">
         <NumberTicker value={value} decimals={decimals} suffix={suffix} />
       </div>
     </SpotlightCard>

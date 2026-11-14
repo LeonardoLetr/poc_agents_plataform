@@ -77,16 +77,17 @@ function ProtocolStrip() {
   const steps = ["initialize", "tools/list", "tools/call", "resultado"];
   return (
     <Card className="mb-6 overflow-hidden p-4">
-      <div className="flex items-center gap-3 overflow-x-auto">
-        <div className="flex shrink-0 items-center gap-2 rounded-xl bg-accent/10 px-3 py-2 text-[12px] text-accent">🧪 Agent Lab (cliente)</div>
-        <div className="relative h-10 min-w-[260px] flex-1">
-          <div className="absolute inset-x-0 top-1/2 h-px bg-gradient-to-r from-accent/40 via-black/[0.075] to-mcp/40" />
+      {/* No celular os blocos empilham e a faixa animada ocupa a largura toda — nada passa da tela. */}
+      <div className="flex flex-col items-stretch gap-2 sm:flex-row sm:items-center sm:gap-3">
+        <div className="flex shrink-0 items-center gap-2 rounded-lg border border-black/[0.08] bg-ink-950 px-3 py-2 text-[12px] text-ink-200">Agent Lab (cliente)</div>
+        <div className="relative h-10 min-w-0 flex-1 overflow-hidden">
+          <div className="absolute inset-x-0 top-1/2 h-px bg-black/[0.12]" />
           {steps.map((s, i) => (
             <motion.div
               key={s}
               className={`absolute top-1/2 -translate-y-1/2 whitespace-nowrap rounded-full border px-2 py-0.5 font-mono text-[10px] ${i === 3 ? "border-ok/40 bg-ink-900 text-ok" : "border-black/[0.12] bg-ink-900 text-ink-200"}`}
-              initial={{ left: i === 3 ? "85%" : "0%", opacity: 0 }}
-              animate={{ left: i === 3 ? ["85%", "0%"] : ["0%", "85%"], opacity: [0, 1, 1, 0] }}
+              initial={{ left: i === 3 ? "70%" : "0%", opacity: 0 }}
+              animate={{ left: i === 3 ? ["70%", "0%"] : ["0%", "70%"], opacity: [0, 1, 1, 0] }}
               transition={{ duration: 2.4, delay: i * 1.2, repeat: Infinity, repeatDelay: steps.length * 1.2 - 2.4 + 1, ease: "easeInOut" }}
             >
               {i === 3 ? "← " : ""}
@@ -95,7 +96,7 @@ function ProtocolStrip() {
             </motion.div>
           ))}
         </div>
-        <div className="flex shrink-0 items-center gap-2 rounded-xl bg-mcp/10 px-3 py-2 text-[12px] text-mcp">
+        <div className="flex shrink-0 items-center gap-2 rounded-lg border border-mcp/25 bg-mcp/[0.06] px-3 py-2 text-[12px] text-mcp">
           <Plug size={13} /> Servidor MCP
         </div>
       </div>
@@ -122,12 +123,12 @@ function ServerCard({ server, onChange }: { server: McpServer; onChange: () => v
   return (
     <motion.div layout initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
       <Card className={`p-5 ${server.state.status === "connecting" ? "beam [--beam-color:var(--color-warn)]" : ""}`}>
-        <div className="flex items-start gap-3">
+        <div className="flex flex-wrap items-start gap-3">
           <div className={`flex h-11 w-11 items-center justify-center rounded-xl ${server.state.status === "connected" ? "bg-mcp/15 text-mcp" : "bg-black/[0.038] text-ink-400"}`}>
             {server.state.status === "connected" ? <PlugZap size={20} /> : <Plug size={20} />}
           </div>
           <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <span className="font-semibold">{server.name}</span>
               <Badge color={meta.badge}>
                 <LiveDot color={meta.color} active={server.state.status === "connected" || server.state.status === "connecting"} /> {meta.text}

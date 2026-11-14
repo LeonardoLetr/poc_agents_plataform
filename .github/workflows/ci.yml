@@ -20,3 +20,26 @@ jobs:
         run: npm run typecheck
       - name: Build completo (servidor + interface)
         run: npm run build
+
+  layout-mobile:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Build da interface (modo navegador)
+        working-directory: web
+        env:
+          VITE_RUNTIME: browser
+          BASE_PATH: /poc_agents_plataform/
+        run: npx vite build
+      - name: Nenhuma página mais larga que a tela do celular
+        run: |
+          npm install --no-save playwright@1.63.0
+          npx playwright install --with-deps chromium
+          (cd web && npx vite preview --port 4173 --base=/poc_agents_plataform/ &)
+          for i in $(seq 1 30); do curl -sf http://localhost:4173/poc_agents_plataform/ > /dev/null && break; sleep 1; done
+          node web/scripts/check-mobile.cjs

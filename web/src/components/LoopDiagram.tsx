@@ -1,4 +1,5 @@
 import { motion } from "motion/react";
+import { useEffect, useState } from "react";
 
 /**
  * Diagrama animado do loop agêntico: um "pacote" de informação circula por
@@ -11,23 +12,23 @@ const STATIONS = [
   { label: "Observar", sub: "resultado volta ao contexto", color: "#5e8c4a", angle: 180 },
 ];
 
-export function LoopDiagram({ size = 340, duration = 8 }: { size?: number; duration?: number }) {
-  const r = size * 0.36;
+export function LoopDiagram({ size: maxSize = 340, duration = 8 }: { size?: number; duration?: number }) {
+  // Encolhe em telas estreitas: os rótulos laterais (≈140px) precisam caber junto com o círculo.
+  const [size, setSize] = useState(maxSize);
+  useEffect(() => {
+    const fit = () => setSize(Math.min(maxSize, Math.max(200, window.innerWidth - 48)));
+    fit();
+    window.addEventListener("resize", fit);
+    return () => window.removeEventListener("resize", fit);
+  }, [maxSize]);
+  const r = Math.min(size * 0.36, (size - 140) / 2);
   const c = size / 2;
   const path = `M ${c} ${c - r} A ${r} ${r} 0 1 1 ${c - 0.01} ${c - r}`;
   return (
     <div className="relative mx-auto" style={{ width: size, height: size }}>
       <svg width={size} height={size} className="absolute inset-0 overflow-visible">
-        <defs>
-          <linearGradient id="loop-grad" x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0%" stopColor="#4a7a96" />
-            <stop offset="35%" stopColor="#c96442" />
-            <stop offset="65%" stopColor="#b07a1e" />
-            <stop offset="100%" stopColor="#5e8c4a" />
-          </linearGradient>
-        </defs>
-        <circle cx={c} cy={c} r={r} fill="none" stroke="url(#loop-grad)" strokeOpacity={0.25} strokeWidth={2} strokeDasharray="4 8" />
-        <motion.circle cx={c} cy={c} r={r} fill="none" stroke="url(#loop-grad)" strokeWidth={2} strokeLinecap="round" initial={{ pathLength: 0, rotate: -90 }} animate={{ pathLength: [0, 1, 1], opacity: [1, 1, 0] }} transition={{ duration, repeat: Infinity, ease: "linear", times: [0, 0.98, 1] }} style={{ originX: "50%", originY: "50%" }} />
+        <circle cx={c} cy={c} r={r} fill="none" stroke="var(--color-ink-600)" strokeWidth={1.2} strokeDasharray="3 7" />
+        <motion.circle cx={c} cy={c} r={r} fill="none" stroke="var(--color-accent)" strokeWidth={1.6} strokeLinecap="round" initial={{ pathLength: 0, rotate: -90 }} animate={{ pathLength: [0, 1, 1], opacity: [1, 1, 0] }} transition={{ duration, repeat: Infinity, ease: "linear", times: [0, 0.98, 1] }} style={{ originX: "50%", originY: "50%" }} />
         <circle r={5} fill="var(--color-accent)">
           <animateMotion dur={`${duration}s`} repeatCount="indefinite" path={path} />
         </circle>
@@ -51,9 +52,9 @@ export function LoopDiagram({ size = 340, duration = 8 }: { size?: number; durat
             >
               {i + 1}
             </motion.div>
-            <div className="mt-1.5 whitespace-nowrap text-center">
-              <div className="text-[12.5px] font-semibold text-ink-100">{s.label}</div>
-              <div className="max-w-[130px] text-[10.5px] leading-tight text-ink-400">{s.sub}</div>
+            <div className="mt-1.5 text-center">
+              <div className="whitespace-nowrap text-[12.5px] font-semibold text-ink-100">{s.label}</div>
+              <div className="w-[120px] text-[10.5px] leading-tight text-ink-400">{s.sub}</div>
             </div>
           </motion.div>
         );
