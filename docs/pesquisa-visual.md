@@ -48,21 +48,14 @@ Evite misturar várias bibliotecas de efeito na mesma tela.
 
 ## 3. O que foi aplicado no Agent Lab
 
-Em vez de instalar as bibliotecas, os efeitos foram **reimplementados** em
-[`web/src/components/effects.tsx`](../web/src/components/effects.tsx) e no CSS, com `motion`. Assim dá pra estudar o código de cada um:
+A primeira versão usava um tema escuro com aurora e brilhos. Depois de comparar
+[5 conceitos](design-concepts/README.md), a direção escolhida foi uma **mistura do minimal escuro (Linear) com o bento suave**,
+em papel bege no estilo das interfaces do Claude. Os detalhes estão na skill [`.claude/skills/agent-lab-ui`](../.claude/skills/agent-lab-ui/SKILL.md):
 
-| Efeito no Agent Lab | Inspiração | Onde aparece |
-|---|---|---|
-| `Aurora`: manchas de gradiente borradas flutuando + grade de laboratório | React Bits (Aurora) | Fundo de todas as páginas |
-| `SpotlightCard`: holofote que segue o mouse | Aceternity / React Bits | Cards de agentes, prompts, métricas |
-| `NumberTicker`: números que "contam" até o valor | Magic UI | Visão geral |
-| `.beam`: borda com feixe de luz girando | Magic UI (Border Beam) | Iteração ativa, ferramenta executando, resposta final |
-| `BlurText`: palavras surgindo com desfoque | React Bits (Blur Text) | Título da visão geral |
-| `.shimmer-text`: brilho passando pelo texto | Magic UI (Animated Shiny Text) | "pensando…" |
-| `BeamEdge`: partículas correndo pelas arestas do grafo | Magic UI (Animated Beam) | Grafo ao vivo do playground |
-| `LoopDiagram`: o loop agêntico animado | — | Visão geral e Aprender |
-
-Tipografia: **Geist** (interface), **Geist Mono** (dados/código) e **Instrument Serif** itálico (destaques editoriais).
+- fundo bege, cartões brancos com borda de 1px, um único acento terracota;
+- serifa (Source Serif 4) nos títulos, Geist na interface e Geist Mono nos dados;
+- **nada de gradiente, brilho ou neon**: cor só para estado, movimento só quando comunica algo (anel girando no agente,
+  partículas nas arestas do grafo, "pensando…").
 
 ## Fontes
 

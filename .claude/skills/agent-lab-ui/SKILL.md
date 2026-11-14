@@ -1,35 +1,32 @@
 ---
 name: agent-lab-ui
-description: Sistema visual do Agent Lab. Use ao criar ou alterar qualquer tela, componente ou animação em web/src para manter a identidade (tema escuro de laboratório, Geist/Instrument Serif, efeitos com motion).
+description: Sistema visual do Agent Lab (minimalista, papel bege, acento terracota). Use ao criar ou alterar qualquer tela, componente ou animação em web/src para manter a identidade.
 ---
 
-# Sistema visual do Agent Lab
+# Sistema visual do Agent Lab: "papel"
 
-## Identidade
-- Tema escuro de "laboratório": fundo `ink-950`, grade sutil (`.lab-grid`) e o `Aurora` atrás de tudo.
-- Superfícies em vidro: classe `.glass` (gradiente branco de 4% para 1.5% e borda `white/7`). Use o componente `Card`.
-- Cores semânticas (tokens em `web/src/index.css`):
-  - `violet`: LLM / raciocínio
-  - `cyan`: usuário / entrada
-  - `amber`: ferramentas nativas
-  - `pink`: MCP
-  - `mint`: sucesso / scratchpad
-  - `rose`: erro
-  - roxo claro `#a78bfa`: memória
-- Tipografia: Geist (UI), Geist Mono (dados, ids, JSON, rótulos pequenos em caixa alta com tracking largo),
-  Instrument Serif *itálico* só para destaques editoriais (uma palavra ou expressão por título).
+Minimalista, quente e calmo, com cara de ferramenta e não de "demo de IA". A estrutura enxuta vem do Linear
+(bordas de 1px, sidebar compacta) e os cartões espaçosos vêm de um layout bento.
+
+## Regras
+- **Fundo bege** (`ink-950` #f7f5ef), sidebar um tom mais escuro (`ink-900`), **cartões brancos** (`Card` / `.glass`)
+  com borda `black/8%` e sombra quase invisível.
+- **Um único acento**: terracota `accent` (#c96442). Use-o no botão principal e em poucos destaques.
+  **Um botão `primary` por tela**; o resto é `ghost`/`subtle`.
+- **Cor só comunica estado**: `ok`, `warn`, `bad`, `info`, `mcp`, `memory` (todas dessaturadas). Etiquetas neutras usam `Badge` sem cor.
+- **Proibido**: gradientes coloridos, brilho/glow, neon, blur decorativo, texto em gradiente, fundos animados.
+- **Escala ink**: 950 é o fundo mais claro e 100 o texto mais forte (`text-ink-100` títulos, `ink-300` apoio, `ink-400` secundário).
+
+## Tipografia
+- Títulos de página: **Source Serif 4**, peso normal (`font-serif font-normal`). Destaque de uma palavra: itálico + `.text-gradient` (que aqui é só a cor terracota).
+- Interface: **Geist**. Dados, ids e rótulos pequenos em caixa alta: **Geist Mono**.
+- O raciocínio do modelo aparece em serifa itálica (como uma anotação à mão).
 
 ## Movimento
-- Biblioteca: `motion` (`import { motion } from "motion/react"`).
-- Entradas: spring (stiffness 300, damping 28) com leve `y` e `scale`. Listas escalonadas em 0.04 a 0.06s.
-- Estado "ativo/ao vivo": `.beam` (borda com feixe), `LiveDot`, `.shimmer-text`. Nunca mais de um efeito chamativo por componente.
-- Respeite `prefers-reduced-motion` (já tratado globalmente no CSS).
-- Efeitos prontos ficam em `web/src/components/effects.tsx`. Reaproveite antes de criar outro.
+- `motion` só quando comunica algo: algo mudou (entrada de itens), algo está rodando (anel girando no agente, `LiveDot`, "pensando…").
+- Estado ativo = borda/anel na cor do contexto (`.beam` agora é só um contorno), nunca brilho.
+- Respeite `prefers-reduced-motion` (já tratado no CSS).
 
 ## Componentes
-- Use os primitivos de `web/src/components/ui.tsx` (`Button`, `Badge`, `Field`, `Input`, `Modal`, `Toggle`, `PageHeader`...).
-- Cada página começa com `PageHeader` (eyebrow em mono + título + descrição didática).
-- O tom dos textos é didático: explique o conceito que a tela demonstra.
-
-## Referências
-Veja `docs/pesquisa-visual.md` para as bibliotecas e skills que inspiraram estes padrões.
+- Primitivos em `web/src/components/ui.tsx`; efeitos em `effects.tsx`. Reaproveite antes de criar outro.
+- Toda página começa com `PageHeader` (eyebrow em mono, título serifado, descrição didática).
