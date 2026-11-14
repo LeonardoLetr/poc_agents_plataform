@@ -1,0 +1,16 @@
+{
+  "name": "agent-lab",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Plataforma visual para estudar agentes autônomos: loop de raciocínio, ferramentas, MCP, memória e auditoria.",
+  "workspaces": ["server", "web"],
+  "scripts": {
+    "dev": "concurrently -n server,web -c magenta,cyan \"npm run dev -w server\" \"npm run dev -w web\"",
+    "build": "npm run build -w server && npm run build -w web",
+    "start": "npm run start -w server",
+    "typecheck": "npm run typecheck -w server && npm run typecheck -w web"
+  },
+  "devDependencies": {
+    "concurrently": "^10.0.7"
+  }
+}
