@@ -10,12 +10,12 @@ import { toolLabel } from "../lib/format";
 import { useResource } from "../lib/hooks";
 
 const EMOJIS = ["🤖", "🔎", "📊", "🧠", "🎬", "🔌", "🛠️", "📚", "🧑‍💻", "🦉", "🚀", "🧪"];
-const COLORS = ["#8b5cf6", "#22d3ee", "#34d399", "#f59e0b", "#f472b6", "#fb7185", "#a78bfa", "#60a5fa"];
+const COLORS = ["#c96442", "#4a7a96", "#5e8c4a", "#b07a1e", "#9b5e86", "#7c6fa6", "#8a7a5c", "#5f6b73"];
 
 const blank: AgentInput = {
   name: "",
   emoji: "🤖",
-  color: "#8b5cf6",
+  color: "#c96442",
   description: "",
   llmId: "",
   systemPrompt: "Você é um agente prestativo. Planeje antes de agir e explique o que está fazendo. Responda em português.",
@@ -55,14 +55,14 @@ export default function Agents() {
           <motion.div key={a.id} initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}>
             <SpotlightCard className="h-full p-5" color={hexToRgb(a.color)}>
               <div className="flex items-start gap-3">
-                <div className="flex h-12 w-12 items-center justify-center rounded-2xl text-2xl" style={{ background: `${a.color}22`, boxShadow: `0 0 30px -8px ${a.color}` }}>
+                <div className="flex h-12 w-12 items-center justify-center rounded-2xl text-2xl" style={{ background: `${a.color}22` }}>
                   {a.emoji}
                 </div>
                 <div className="min-w-0 flex-1">
                   <div className="font-semibold">{a.name}</div>
                   <div className="font-mono text-[11px] text-ink-400">{(() => {
                       const l = llms.data?.find((x) => x.id === a.llmId);
-                      return l ? `${l.name} · ${l.model}${l.ready ? "" : " · sem chave"}` : "sem LLM";
+                      return l ? `${l.name}${l.ready ? "" : " · sem chave"}` : "sem LLM";
                     })()}</div>
                 </div>
               </div>
@@ -70,18 +70,18 @@ export default function Agents() {
               <div className="mt-3 flex flex-wrap gap-1">
                 {a.tools.slice(0, 6).map((t) => {
                   const { label, server } = toolLabel(t);
-                  return <Badge key={t} color={server ? "pink" : "amber"}>{server ? `${server}:${label}` : label}</Badge>;
+                  return <Badge key={t} color={server ? "mcp" : "ink"}>{server ? `${server}:${label}` : label}</Badge>;
                 })}
                 {a.tools.length > 6 && <Badge>+{a.tools.length - 6}</Badge>}
               </div>
               <div className="mt-3 flex flex-wrap gap-1">
-                {a.memory.autoRecall && <Badge color="violet">recall automático</Badge>}
-                {a.memory.autoEpisode && <Badge color="violet">memória episódica</Badge>}
-                {a.requireApproval && <Badge color="amber">aprovação humana</Badge>}
+                {a.memory.autoRecall && <Badge>recall automático</Badge>}
+                {a.memory.autoEpisode && <Badge>memória episódica</Badge>}
+                {a.requireApproval && <Badge color="warn">aprovação humana</Badge>}
                 <Badge>máx {a.maxIterations} it.</Badge>
               </div>
               <div className="mt-4 flex gap-2">
-                <Button size="sm" variant="primary" onClick={() => navigate("/playground")}>
+                <Button size="sm" onClick={() => navigate("/playground")}>
                   <Play size={13} /> Testar
                 </Button>
                 <Button size="sm" onClick={() => setEditing({ id: a.id, data: strip(a) })}>
@@ -90,7 +90,7 @@ export default function Agents() {
                 <Button size="sm" variant="subtle" onClick={() => setEditing({ data: { ...strip(a), name: `${a.name} (cópia)` } })} aria-label="Duplicar">
                   <Copy size={13} />
                 </Button>
-                <Button size="sm" variant="subtle" className="ml-auto hover:text-rose" onClick={() => remove(a)} aria-label="Remover">
+                <Button size="sm" variant="subtle" className="ml-auto hover:text-bad" onClick={() => remove(a)} aria-label="Remover">
                   <Trash2 size={13} />
                 </Button>
               </div>
@@ -159,7 +159,7 @@ function AgentEditor({ initial, id, onClose, onSaved }: { initial: AgentInput; i
               </Select>
               <div className="flex gap-1">
                 {COLORS.map((c) => (
-                  <button key={c} onClick={() => set("color", c)} className={`h-6 w-6 rounded-full transition ${form.color === c ? "ring-2 ring-white ring-offset-2 ring-offset-ink-900" : ""}`} style={{ background: c }} />
+                  <button key={c} onClick={() => set("color", c)} className={`h-6 w-6 rounded-full transition ${form.color === c ? "ring-2 ring-ink-100 ring-offset-2 ring-offset-white" : ""}`} style={{ background: c }} />
                 ))}
               </div>
             </div>
@@ -172,7 +172,7 @@ function AgentEditor({ initial, id, onClose, onSaved }: { initial: AgentInput; i
         <Field
           label="LLM"
           hint={
-            <Link to="/llms" className="text-cyan hover:underline">
+            <Link to="/llms" className="text-info hover:underline">
               gerenciar LLMs →
             </Link>
           }
@@ -183,11 +183,11 @@ function AgentEditor({ initial, id, onClose, onSaved }: { initial: AgentInput; i
                 key={l.id}
                 type="button"
                 onClick={() => set("llmId", l.id)}
-                className={`rounded-xl border p-2.5 text-left transition ${form.llmId === l.id ? "border-violet/50 bg-violet/10" : "border-white/8 hover:bg-white/[0.03]"}`}
+                className={`rounded-xl border p-2.5 text-left transition ${form.llmId === l.id ? "border-accent/50 bg-accent/10" : "border-black/[0.064] hover:bg-black/[0.022]"}`}
               >
                 <div className="flex items-center justify-between gap-2 text-[13px] font-medium text-ink-100">
                   <span className="truncate">{l.name}</span>
-                  <Badge color={l.ready ? "mint" : "amber"}>{l.ready ? "pronta" : "sem chave"}</Badge>
+                  <Badge color={l.ready ? "ok" : "warn"}>{l.ready ? "pronta" : "sem chave"}</Badge>
                 </div>
                 <div className="truncate font-mono text-[11px] text-ink-400">
                   {l.provider} · {l.model}
@@ -224,8 +224,8 @@ function AgentEditor({ initial, id, onClose, onSaved }: { initial: AgentInput; i
           <div className="mb-2 text-[13px] font-medium text-ink-200">Ferramentas</div>
           <div className="grid gap-2 md:grid-cols-2">
             {builtin.map((t) => (
-              <label key={t.name} className={`flex cursor-pointer gap-2.5 rounded-xl border p-2.5 transition ${form.tools.includes(t.name) ? "border-amber/40 bg-amber/5" : "border-white/8 hover:bg-white/[0.03]"}`}>
-                <input type="checkbox" className="mt-0.5 accent-[#f59e0b]" checked={form.tools.includes(t.name)} onChange={() => toggleTool(t.name)} />
+              <label key={t.name} className={`flex cursor-pointer gap-2.5 rounded-xl border p-2.5 transition ${form.tools.includes(t.name) ? "border-warn/40 bg-warn/5" : "border-black/[0.064] hover:bg-black/[0.022]"}`}>
+                <input type="checkbox" className="mt-0.5 accent-[#b07a1e]" checked={form.tools.includes(t.name)} onChange={() => toggleTool(t.name)} />
                 <span className="min-w-0">
                   <span className="flex items-center gap-1.5 font-mono text-[12px] text-ink-100">
                     {t.name} <Badge>{t.category}</Badge>
@@ -241,15 +241,15 @@ function AgentEditor({ initial, id, onClose, onSaved }: { initial: AgentInput; i
                 const wildcard = `mcp__${server}__*`;
                 const serverTools = tools.data!.filter((t) => t.server === server);
                 return (
-                  <div key={server} className="rounded-xl border border-pink/20 bg-pink/[0.03] p-3">
+                  <div key={server} className="rounded-xl border border-mcp/20 bg-mcp/[0.03] p-3">
                     <label className="flex cursor-pointer items-center gap-2 text-[13px]">
-                      <input type="checkbox" className="accent-[#f472b6]" checked={form.tools.includes(wildcard)} onChange={() => toggleTool(wildcard)} />
-                      <span className="font-medium text-pink">MCP: {server}</span> <span className="text-ink-400">— todas as {serverTools.length} ferramentas</span>
+                      <input type="checkbox" className="accent-[#9b5e86]" checked={form.tools.includes(wildcard)} onChange={() => toggleTool(wildcard)} />
+                      <span className="font-medium text-mcp">MCP: {server}</span> <span className="text-ink-400">— todas as {serverTools.length} ferramentas</span>
                     </label>
                     {!form.tools.includes(wildcard) && (
                       <div className="mt-2 flex flex-wrap gap-1.5">
                         {serverTools.map((t) => (
-                          <button key={t.name} onClick={() => toggleTool(t.name)} className={`rounded-full border px-2 py-0.5 font-mono text-[11px] ${form.tools.includes(t.name) ? "border-pink/50 bg-pink/15 text-pink" : "border-white/10 text-ink-400"}`}>
+                          <button key={t.name} onClick={() => toggleTool(t.name)} className={`rounded-full border px-2 py-0.5 font-mono text-[11px] ${form.tools.includes(t.name) ? "border-mcp/50 bg-mcp/15 text-mcp" : "border-black/[0.08] text-ink-400"}`}>
                             {toolLabel(t.name).label}
                           </button>
                         ))}
@@ -264,12 +264,12 @@ function AgentEditor({ initial, id, onClose, onSaved }: { initial: AgentInput; i
         </div>
 
         <div className="grid gap-4 md:grid-cols-2">
-          <div className="rounded-xl border border-white/8 p-2">
+          <div className="rounded-xl border border-black/[0.064] p-2">
             <div className="px-2 pt-1 text-[12px] font-medium text-ink-400">Memória</div>
             <Toggle checked={form.memory.autoRecall} onChange={(v) => set("memory", { ...form.memory, autoRecall: v })} label="Recall automático" description="Busca memórias relevantes e injeta no prompt de sistema antes de rodar." />
             <Toggle checked={form.memory.autoEpisode} onChange={(v) => set("memory", { ...form.memory, autoEpisode: v })} label="Memória episódica" description="Salva um resumo de cada execução concluída." />
           </div>
-          <div className="rounded-xl border border-white/8 p-2">
+          <div className="rounded-xl border border-black/[0.064] p-2">
             <div className="px-2 pt-1 text-[12px] font-medium text-ink-400">Controle e segurança</div>
             <Toggle checked={form.requireApproval} onChange={(v) => set("requireApproval", v)} label="Aprovação humana" description="Pausa antes de cada ferramenta e pede sua autorização." />
             <div className="px-2 pt-1">

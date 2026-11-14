@@ -6,10 +6,10 @@ import { LoopDiagram } from "../components/LoopDiagram";
 import { Badge, Card, PageHeader } from "../components/ui";
 
 const MESSAGES = [
-  { role: "user", tag: "texto", color: "#22d3ee", body: "Quanto é 1250 × 1,08²?" },
-  { role: "assistant", tag: "thinking + tool_use", color: "#8b5cf6", body: '💭 "preciso calcular com precisão"\n🔧 calculator({ expression: "1250*1.08^2" })' },
-  { role: "user", tag: "tool_result", color: "#f59e0b", body: '{ "result": 1458 }' },
-  { role: "assistant", tag: "texto · end_turn", color: "#34d399", body: "O resultado é 1.458." },
+  { role: "user", tag: "texto", color: "#4a7a96", body: "Quanto é 1250 × 1,08²?" },
+  { role: "assistant", tag: "thinking + tool_use", color: "#c96442", body: '💭 "preciso calcular com precisão"\n🔧 calculator({ expression: "1250*1.08^2" })' },
+  { role: "user", tag: "tool_result", color: "#b07a1e", body: '{ "result": 1458 }' },
+  { role: "assistant", tag: "texto · end_turn", color: "#5e8c4a", body: "O resultado é 1.458." },
 ];
 
 function MessageStack() {
@@ -104,10 +104,10 @@ export default function Learn() {
           <p className="text-[15px] leading-relaxed text-ink-300">
             Um LLM sozinho só transforma texto em texto. Ele vira um <b className="text-ink-100">agente</b> quando colocamos ele num loop com ferramentas: o
             modelo lê o contexto, decide o próximo passo, nós executamos a ação e devolvemos o resultado. Isso se repete até ele responder sem pedir
-            ferramentas (<code className="text-mint">stop_reason: end_turn</code>) ou até atingir o limite de iterações.
+            ferramentas (<code className="text-ok">stop_reason: end_turn</code>) ou até atingir o limite de iterações.
           </p>
           <p className="text-[15px] leading-relaxed text-ink-300">
-            O código desse loop está em <code className="text-cyan">server/src/agent/runner.ts</code> — leia junto com o <Link to="/playground" className="text-cyan underline">playground</Link>.
+            O código desse loop está em <code className="text-info">server/src/agent/runner.ts</code> — leia junto com o <Link to="/playground" className="text-info underline">playground</Link>.
           </p>
         </div>
       </section>
@@ -116,8 +116,8 @@ export default function Learn() {
         <div className="space-y-4">
           <h2 className="text-2xl font-semibold">2. Anatomia da conversa</h2>
           <p className="text-[15px] leading-relaxed text-ink-300">
-            Ferramentas funcionam por um protocolo simples: o assistente responde com um bloco <code className="text-violet-300">tool_use</code> (nome +
-            argumentos em JSON). A plataforma executa e responde com <code className="text-amber">tool_result</code> como se fosse o usuário. Ao lado,
+            Ferramentas funcionam por um protocolo simples: o assistente responde com um bloco <code className="text-accent">tool_use</code> (nome +
+            argumentos em JSON). A plataforma executa e responde com <code className="text-warn">tool_result</code> como se fosse o usuário. Ao lado,
             uma conversa real se montando.
           </p>
         </div>
@@ -130,14 +130,14 @@ export default function Learn() {
         <h2 className="mb-4 text-2xl font-semibold">3. As peças</h2>
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           {[
-            { icon: <Wrench />, color: "#f59e0b", title: "Ferramentas", to: "/agents", text: "Funções com nome, descrição e schema JSON. A descrição é o que o modelo lê para decidir quando usar — escreva bem!" },
-            { icon: <Plug />, color: "#f472b6", title: "MCP", to: "/mcp", text: "Em vez de programar cada ferramenta, conecte servidores que já as oferecem. O cliente descobre tudo via tools/list." },
-            { icon: <Brain />, color: "#a78bfa", title: "Memória", to: "/memory", text: "Curto prazo (histórico), trabalho (scratchpad), longo prazo (fatos) e episódica (o que já fez). Tudo vira texto no contexto." },
-            { icon: <ShieldCheck />, color: "#34d399", title: "Auditoria e limites", to: "/audit", text: "Limite de iterações, aprovação humana, bloqueio de IPs privados e registro de cada ação: autonomia com controle." },
+            { icon: <Wrench />, color: "#b07a1e", title: "Ferramentas", to: "/agents", text: "Funções com nome, descrição e schema JSON. A descrição é o que o modelo lê para decidir quando usar — escreva bem!" },
+            { icon: <Plug />, color: "#9b5e86", title: "MCP", to: "/mcp", text: "Em vez de programar cada ferramenta, conecte servidores que já as oferecem. O cliente descobre tudo via tools/list." },
+            { icon: <Brain />, color: "#7c6fa6", title: "Memória", to: "/memory", text: "Curto prazo (histórico), trabalho (scratchpad), longo prazo (fatos) e episódica (o que já fez). Tudo vira texto no contexto." },
+            { icon: <ShieldCheck />, color: "#5e8c4a", title: "Auditoria e limites", to: "/audit", text: "Limite de iterações, aprovação humana, bloqueio de IPs privados e registro de cada ação: autonomia com controle." },
           ].map((c, i) => (
             <motion.div key={c.title} initial={{ opacity: 0, y: 16 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: i * 0.08 }}>
               <Link to={c.to}>
-                <Card className="h-full p-5 transition hover:border-white/20">
+                <Card className="h-full p-5 transition hover:border-black/[0.16]">
                   <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-xl" style={{ background: `${c.color}1f`, color: c.color }}>
                     {c.icon}
                   </div>
@@ -156,7 +156,7 @@ export default function Learn() {
           <div className="space-y-2">
             {GLOSSARY.map(([term, def]) => (
               <Card key={term} className="p-3.5">
-                <div className="font-mono text-[12.5px] text-cyan">{term}</div>
+                <div className="font-mono text-[12.5px] text-info">{term}</div>
                 <div className="mt-0.5 text-[13px] text-ink-300">{def}</div>
               </Card>
             ))}
@@ -166,13 +166,13 @@ export default function Learn() {
           <h2 className="mb-4 text-2xl font-semibold">
             5. Experimentos <span className="text-[14px] font-normal text-ink-400">({done.size}/{EXERCISES.length})</span>
           </h2>
-          <div className="mb-3 h-1.5 overflow-hidden rounded-full bg-white/5">
-            <motion.div className="h-full bg-gradient-to-r from-violet to-mint" animate={{ width: `${(done.size / EXERCISES.length) * 100}%` }} />
+          <div className="mb-3 h-1.5 overflow-hidden rounded-full bg-black/[0.038]">
+            <motion.div className="h-full bg-accent/70" animate={{ width: `${(done.size / EXERCISES.length) * 100}%` }} />
           </div>
           <div className="space-y-2">
             {EXERCISES.map((ex, i) => (
-              <button key={i} onClick={() => toggle(i)} className={`flex w-full items-start gap-3 rounded-xl border p-3 text-left text-[13.5px] transition ${done.has(i) ? "border-mint/25 bg-mint/5 text-ink-400 line-through" : "border-white/8 bg-white/[0.02] text-ink-200 hover:bg-white/[0.04]"}`}>
-                {done.has(i) ? <CheckCircle2 size={17} className="mt-0.5 shrink-0 text-mint" /> : <Circle size={17} className="mt-0.5 shrink-0 text-ink-500" />}
+              <button key={i} onClick={() => toggle(i)} className={`flex w-full items-start gap-3 rounded-xl border p-3 text-left text-[13.5px] transition ${done.has(i) ? "border-ok/25 bg-ok/5 text-ink-400 line-through" : "border-black/[0.064] bg-black/[0.015] text-ink-200 hover:bg-black/[0.03]"}`}>
+                {done.has(i) ? <CheckCircle2 size={17} className="mt-0.5 shrink-0 text-ok" /> : <Circle size={17} className="mt-0.5 shrink-0 text-ink-500" />}
                 {ex}
               </button>
             ))}

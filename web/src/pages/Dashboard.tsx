@@ -27,15 +27,15 @@ export default function Dashboard({ health }: { health: Health | null }) {
       {/* Hero */}
       <section className="grid items-center gap-8 lg:grid-cols-[1.1fr_1fr]">
         <div>
-          <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} className="mb-4 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.03] px-3 py-1 text-[12px] text-ink-300">
-            <LiveDot color={health?.llmsReady && health.llmsReady > 1 ? "bg-mint" : "bg-amber"} />
+          <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} className="mb-4 inline-flex items-center gap-2 rounded-full border border-black/[0.08] bg-black/[0.022] px-3 py-1 text-[12px] text-ink-300">
+            <LiveDot color={health?.llmsReady && health.llmsReady > 1 ? "bg-ok" : "bg-warn"} />
             {health?.llmsReady && health.llmsReady > 1 ? `${health.llmsReady} LLMs prontas — agentes reais` : "Sem chave ainda: experimente o Agente Demo ou configure uma LLM"}
             {health?.runtime === "browser" && <span className="text-ink-500">· rodando no navegador</span>}
           </motion.div>
-          <h1 className="text-4xl font-semibold leading-[1.08] tracking-tight md:text-[3.5rem]">
-            <BlurText text="Um laboratório para ver" />{" "}
-            <BlurText text="agentes autônomos" delay={0.25} className="font-serif text-[1.12em] font-normal italic" wordClassName="text-gradient pr-[0.06em]" />{" "}
-            <BlurText text="por dentro." delay={0.45} />
+          <h1 className="font-serif text-[40px] font-normal leading-[1.1] tracking-[-0.02em] text-ink-100 md:text-[54px]">
+            <BlurText text="Um laboratório para ver" />
+            <BlurText text="agentes autônomos" delay={0.2} className="italic" wordClassName="text-gradient" />
+            <BlurText text="por dentro." delay={0.35} />
           </h1>
           <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.8 }} className="mt-5 max-w-xl text-[15.5px] leading-relaxed text-ink-300">
             Crie agentes, conecte ferramentas via MCP, gerencie memória e acompanhe cada decisão em tempo real — o raciocínio, as chamadas de ferramenta, os
@@ -59,12 +59,12 @@ export default function Dashboard({ health }: { health: Health | null }) {
 
       {/* Números */}
       <section className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
-        <StatCard icon={<Bot size={15} />} label="Agentes" value={s?.agents ?? 0} color="#8b5cf6" />
-        <StatCard icon={<Repeat size={15} />} label="Execuções" value={s?.runs ?? 0} color="#22d3ee" />
-        <StatCard icon={<Wrench size={15} />} label="Chamadas de ferramenta" value={s?.toolCalls ?? 0} color="#f59e0b" />
-        <StatCard icon={<Brain size={15} />} label="Memórias" value={s?.memories ?? 0} color="#a78bfa" />
-        <StatCard icon={<Plug size={15} />} label="MCP conectados" value={s?.mcpConnected ?? 0} suffix={` / ${s?.mcpServers ?? 0}`} color="#f472b6" />
-        <StatCard icon={<Coins size={15} />} label="Custo estimado (US$)" value={s?.estimatedCostUsd ?? 0} decimals={4} color="#34d399" />
+        <StatCard icon={<Bot size={15} />} label="Agentes" value={s?.agents ?? 0} color="#c96442" />
+        <StatCard icon={<Repeat size={15} />} label="Execuções" value={s?.runs ?? 0} color="#4a7a96" />
+        <StatCard icon={<Wrench size={15} />} label="Chamadas de ferramenta" value={s?.toolCalls ?? 0} color="#b07a1e" />
+        <StatCard icon={<Brain size={15} />} label="Memórias" value={s?.memories ?? 0} color="#7c6fa6" />
+        <StatCard icon={<Plug size={15} />} label="MCP conectados" value={s?.mcpConnected ?? 0} suffix={` / ${s?.mcpServers ?? 0}`} color="#9b5e86" />
+        <StatCard icon={<Coins size={15} />} label="Custo estimado (US$)" value={s?.estimatedCostUsd ?? 0} decimals={4} color="#5e8c4a" />
       </section>
 
       <section className="grid gap-6 lg:grid-cols-3">
@@ -81,9 +81,9 @@ export default function Dashboard({ health }: { health: Health | null }) {
           <div className="space-y-1">
             {activity.length === 0 && <p className="py-8 text-center text-sm text-ink-500">Nada por aqui ainda. Rode um agente no playground!</p>}
             {activity.map((e, i) => (
-              <motion.div key={e.id} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: Math.min(i * 0.03, 0.3) }} className="flex items-center gap-3 rounded-lg px-2 py-1.5 hover:bg-white/[0.02]">
+              <motion.div key={e.id} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: Math.min(i * 0.03, 0.3) }} className="flex items-center gap-3 rounded-lg px-2 py-1.5 hover:bg-black/[0.015]">
                 <span className="font-mono text-[10.5px] text-ink-500">{fmtTime(e.ts)}</span>
-                <span className="w-28 shrink-0 truncate font-mono text-[10.5px] text-cyan/80">{e.type}</span>
+                <span className="w-28 shrink-0 truncate font-mono text-[10.5px] text-info/80">{e.type}</span>
                 <span className="truncate text-[13px] text-ink-300">{e.summary}</span>
               </motion.div>
             ))}
@@ -101,8 +101,8 @@ export default function Dashboard({ health }: { health: Health | null }) {
                   <span className="truncate font-mono text-ink-200">{name}</span>
                   <span className="text-ink-400">{n}</span>
                 </div>
-                <div className="h-1.5 overflow-hidden rounded-full bg-white/5">
-                  <motion.div className="h-full rounded-full bg-gradient-to-r from-violet to-cyan" initial={{ width: 0 }} animate={{ width: `${(n / maxUse) * 100}%` }} transition={{ duration: 0.8, ease: "easeOut" }} />
+                <div className="h-1.5 overflow-hidden rounded-full bg-black/[0.038]">
+                  <motion.div className="h-full rounded-full bg-accent/70" initial={{ width: 0 }} animate={{ width: `${(n / maxUse) * 100}%` }} transition={{ duration: 0.8, ease: "easeOut" }} />
                 </div>
               </div>
             ))}

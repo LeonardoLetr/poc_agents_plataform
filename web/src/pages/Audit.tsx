@@ -20,11 +20,11 @@ const GROUPS = [
 ];
 
 const TYPE_STYLE: Record<string, { icon: typeof Bot; color: string }> = {
-  run: { icon: Play, color: "#22d3ee" },
-  llm: { icon: Cpu, color: "#8b5cf6" },
-  tool: { icon: Wrench, color: "#f59e0b" },
-  memory: { icon: Brain, color: "#a78bfa" },
-  mcp: { icon: Plug, color: "#f472b6" },
+  run: { icon: Play, color: "#4a7a96" },
+  llm: { icon: Cpu, color: "#c96442" },
+  tool: { icon: Wrench, color: "#b07a1e" },
+  memory: { icon: Brain, color: "#7c6fa6" },
+  mcp: { icon: Plug, color: "#9b5e86" },
   config: { icon: Settings2, color: "#9a9abd" },
 };
 
@@ -109,7 +109,7 @@ export default function Audit() {
         ].map(([label, value]) => (
           <Card key={label as string} className="p-3.5">
             <div className="text-[11px] text-ink-400">{label}</div>
-            <div className={`mt-1 text-xl font-semibold tabular-nums ${label === "Erros" && Number(value) > 0 ? "text-rose" : ""}`}>{fmtNumber(Number(value))}</div>
+            <div className={`mt-1 text-xl font-semibold tabular-nums ${label === "Erros" && Number(value) > 0 ? "text-bad" : ""}`}>{fmtNumber(Number(value))}</div>
           </Card>
         ))}
       </div>
@@ -118,7 +118,7 @@ export default function Audit() {
         <div className="flex gap-1 overflow-x-auto">
           {GROUPS.map((g) => (
             <button key={g.id} onClick={() => setGroup(g.id)} className="relative rounded-lg px-3 py-1.5 text-[12.5px]">
-              {group === g.id && <motion.div layoutId="audit-group" className="absolute inset-0 rounded-lg bg-white/[0.08]" />}
+              {group === g.id && <motion.div layoutId="audit-group" className="absolute inset-0 rounded-lg bg-black/[0.06]" />}
               <span className={`relative ${group === g.id ? "text-ink-100" : "text-ink-400"}`}>{g.label}</span>
             </button>
           ))}
@@ -128,7 +128,7 @@ export default function Audit() {
           {agents.data?.map((a) => <option key={a.id} value={a.id}>{a.emoji} {a.name}</option>)}
         </Select>
         <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="buscar no resumo…" className="!h-8 !w-56 text-xs" />
-        {runId && <Badge color="cyan">execução {runId}</Badge>}
+        {runId && <Badge color="info">execução {runId}</Badge>}
         <span className="ml-auto flex items-center gap-2 pr-2 text-[11.5px] text-ink-400">
           <LiveDot active={live && !paused} /> {paused ? "pausado" : live ? "ao vivo" : "reconectando"}
         </span>
@@ -142,8 +142,8 @@ export default function Audit() {
             const Icon = style.icon;
             const open = openId === e.id;
             return (
-              <motion.div key={e.id} layout="position" initial={{ opacity: 0, backgroundColor: "rgba(139,92,246,0.15)" }} animate={{ opacity: 1, backgroundColor: "rgba(0,0,0,0)" }} transition={{ duration: 1.2 }} className="border-b border-white/5 last:border-0">
-                <button onClick={() => setOpenId(open ? null : e.id)} className="flex w-full items-center gap-3 px-4 py-2.5 text-left transition hover:bg-white/[0.02]">
+              <motion.div key={e.id} layout="position" initial={{ opacity: 0, backgroundColor: "rgba(139,92,246,0.15)" }} animate={{ opacity: 1, backgroundColor: "rgba(0,0,0,0)" }} transition={{ duration: 1.2 }} className="border-b border-black/[0.04] last:border-0">
+                <button onClick={() => setOpenId(open ? null : e.id)} className="flex w-full items-center gap-3 px-4 py-2.5 text-left transition hover:bg-black/[0.015]">
                   <ChevronRight size={13} className={`shrink-0 text-ink-500 transition ${open ? "rotate-90" : ""}`} />
                   <span className="w-[68px] shrink-0 font-mono text-[11px] text-ink-500">{fmtTime(e.ts)}</span>
                   <span className="flex w-[150px] shrink-0 items-center gap-1.5 font-mono text-[11px]" style={{ color: style.color }}>
@@ -165,7 +165,7 @@ export default function Audit() {
                         <div className="space-y-1 font-mono text-[11px] text-ink-400">
                           <div>id: {e.id}</div>
                           <div>quando: {fmtDateTime(e.ts)}</div>
-                          {e.runId && <div>execução: <Link className="text-cyan" to={`/playground/${e.runId}`}>{e.runId}</Link></div>}
+                          {e.runId && <div>execução: <Link className="text-info" to={`/playground/${e.runId}`}>{e.runId}</Link></div>}
                           {e.agentId && <div>agente: {agentName(e.agentId) ?? e.agentId}</div>}
                         </div>
                         {e.data !== undefined ? <JsonView value={e.data} maxHeight={300} /> : <div className="text-[12px] text-ink-500">Sem dados adicionais.</div>}

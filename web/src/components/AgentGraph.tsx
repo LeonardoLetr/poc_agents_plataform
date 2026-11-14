@@ -43,21 +43,18 @@ function AgentNode({ data }: NodeProps<Node<{ agent: Agent; view: RunView; llmLa
   return (
     <div className="relative flex w-[210px] flex-col items-center">
       {handles}
-      <div className="relative h-[104px] w-[104px]">
+      <div className="relative h-[92px] w-[92px]">
+        {/* Anel fino girando enquanto o LLM pensa — o único movimento contínuo do grafo. */}
         {thinking && (
-          <div className="absolute -inset-2 rounded-full opacity-90 animate-spin-slow" style={{ background: `conic-gradient(from 0deg, transparent, ${agent.color}, transparent 40%)`, filter: "blur(6px)" }} />
+          <svg className="absolute -inset-[5px] h-[102px] w-[102px] animate-spin-slow" viewBox="0 0 102 102" aria-hidden>
+            <circle cx="51" cy="51" r="49" fill="none" stroke="var(--color-accent)" strokeWidth="1.6" strokeLinecap="round" strokeDasharray="70 238" />
+          </svg>
         )}
-        <div className="absolute inset-0 rounded-full border border-white/15 bg-ink-900" style={{ boxShadow: `0 0 50px -10px ${agent.color}` }} />
-        <motion.div
-          animate={thinking ? { scale: [1, 1.06, 1] } : { scale: 1 }}
-          transition={{ repeat: Infinity, duration: 1.4 }}
-          className="absolute inset-[6px] flex items-center justify-center rounded-full text-4xl"
-          style={{ background: `radial-gradient(circle at 30% 25%, ${agent.color}55, transparent 70%)` }}
-        >
+        <div className="absolute inset-0 flex items-center justify-center rounded-full border border-black/[0.1] bg-white text-[38px] shadow-[0_1px_3px_rgb(31_30_28/0.08)]">
           {agent.emoji}
-        </motion.div>
+        </div>
         {view.iteration > 0 && (
-          <div className="absolute -right-1 -top-1 rounded-full border border-white/15 bg-ink-800 px-1.5 py-0.5 font-mono text-[10px] text-ink-200">#{view.iteration}</div>
+          <div className="absolute -right-1 -top-1 rounded-full border border-black/[0.1] bg-white px-1.5 py-0.5 font-mono text-[10px] text-ink-300">#{view.iteration}</div>
         )}
       </div>
       <div className="mt-2 text-center">
@@ -74,25 +71,24 @@ function ToolNode({ data }: NodeProps<Node<{ label: string; sub?: string; icon: 
   return (
     <div className="relative">
       {handles}
-      {data.active && <div className="absolute -inset-1 rounded-2xl animate-pulse-ring" style={{ border: `1px solid ${data.color}` }} />}
       <motion.div
-        animate={{ scale: data.active ? 1.06 : 1 }}
-        className={`flex min-w-[150px] items-center gap-2.5 rounded-2xl border px-3 py-2 backdrop-blur ${data.dim ? "opacity-50" : ""}`}
+        animate={{ scale: data.active ? 1.03 : 1 }}
+        className={`flex min-w-[150px] items-center gap-2.5 rounded-xl border bg-white px-2.5 py-2 transition-colors ${data.dim ? "opacity-50" : ""}`}
         style={{
-          borderColor: data.active ? data.color : "rgb(255 255 255 / 0.1)",
-          background: data.active ? `color-mix(in oklab, ${data.color} 16%, #0f0f1a)` : "rgb(15 15 26 / 0.85)",
-          boxShadow: data.active ? `0 0 28px -6px ${data.color}` : undefined,
+          borderColor: data.active ? data.color : "rgb(31 30 28 / 0.1)",
+          background: data.active ? `color-mix(in oklab, ${data.color} 7%, #ffffff)` : "#ffffff",
+          boxShadow: data.active ? `0 0 0 3px color-mix(in oklab, ${data.color} 14%, transparent)` : "0 1px 2px rgb(31 30 28 / 0.05)",
         }}
       >
-        <div className="flex h-7 w-7 items-center justify-center rounded-lg" style={{ background: `color-mix(in oklab, ${data.color} 20%, transparent)`, color: data.color }}>
-          <Icon size={15} />
+        <div className="flex h-7 w-7 items-center justify-center rounded-md" style={{ background: `color-mix(in oklab, ${data.color} 12%, #ffffff)`, color: data.color }}>
+          <Icon size={14} strokeWidth={1.8} />
         </div>
         <div className="min-w-0">
           <div className="truncate text-[12px] font-medium text-ink-100">{data.label}</div>
           {data.sub && <div className="truncate font-mono text-[9.5px] text-ink-400">{data.sub}</div>}
         </div>
         {data.count > 0 && (
-          <motion.span key={data.count} initial={{ scale: 1.6 }} animate={{ scale: 1 }} className="ml-auto rounded-full bg-white/10 px-1.5 font-mono text-[10px] text-ink-200">
+          <motion.span key={data.count} initial={{ scale: 1.6 }} animate={{ scale: 1 }} className="ml-auto rounded-full bg-ink-900 px-1.5 font-mono text-[10px] text-ink-300">
             {data.count}×
           </motion.span>
         )}
@@ -104,15 +100,14 @@ function ToolNode({ data }: NodeProps<Node<{ label: string; sub?: string; icon: 
 function BeamEdge({ id, sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition, data }: EdgeProps<Edge<{ flow: Flow; color: string }>>) {
   const [path] = getBezierPath({ sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition });
   const flow = data?.flow ?? null;
-  const color = data?.color ?? "#8b5cf6";
+  const color = data?.color ?? "#c96442";
   return (
     <>
-      <BaseEdge id={id} path={path} style={{ stroke: flow ? color : "rgb(255 255 255 / 0.09)", strokeWidth: flow ? 1.8 : 1.2, opacity: flow ? 0.55 : 1, transition: "all .3s" }} />
+      <BaseEdge id={id} path={path} style={{ stroke: flow ? color : "rgb(31 30 28 / 0.14)", strokeWidth: flow ? 1.6 : 1.1, transition: "all .3s" }} />
       {flow && (
         <>
-          <path d={path} fill="none" stroke={color} strokeWidth={6} opacity={0.12} style={{ filter: "blur(3px)" }} />
           {[0, 0.45].map((offset) => (
-            <circle key={offset} r={3.5} fill={color} style={{ filter: `drop-shadow(0 0 6px ${color})` }}>
+            <circle key={offset} r={3} fill={color}>
               <animateMotion dur="1.1s" repeatCount="indefinite" path={path} begin={`${offset}s`} keyPoints={flow === "back" ? "1;0" : "0;1"} keyTimes="0;1" calcMode="linear" />
             </circle>
           ))}
@@ -171,17 +166,17 @@ function GraphInner({ agent, tools, view, llmLabel }: { agent: Agent; tools: Too
     if (view.status === "completed") flows.set("user", "back");
 
     const toolNodes: { id: string; label: string; sub?: string; icon: typeof Wrench; color: string; dim?: boolean }[] = [
-      ...builtin.map((t) => ({ id: `tool:${t}`, label: t, sub: "ferramenta nativa", icon: ICONS[t] ?? Wrench, color: "#f59e0b" })),
+      ...builtin.map((t) => ({ id: `tool:${t}`, label: t, sub: "ferramenta nativa", icon: ICONS[t] ?? Wrench, color: "#b07a1e" })),
       ...[...mcpServers].map((s) => {
         const available = tools.filter((t) => t.server === s).length;
-        return { id: `mcp:${s}`, label: s, sub: available ? `MCP · ${available} ferramentas` : "MCP · desconectado", icon: Plug, color: "#f472b6", dim: !available };
+        return { id: `mcp:${s}`, label: s, sub: available ? `MCP · ${available} ferramentas` : "MCP · desconectado", icon: Plug, color: "#9b5e86", dim: !available };
       }),
     ];
 
     const gap = 78;
     const startY = 150 - ((toolNodes.length - 1) * gap) / 2;
     const nodes: Node[] = [
-      { id: "user", type: "tool", position: { x: 0, y: 130 }, data: { label: "Usuário", sub: "tarefa / resposta", icon: User, active: view.active === "user", count: 0, color: "#22d3ee" } },
+      { id: "user", type: "tool", position: { x: 0, y: 130 }, data: { label: "Usuário", sub: "tarefa / resposta", icon: User, active: view.active === "user", count: 0, color: "#4a7a96" } },
       { id: "llm", type: "agent", position: { x: 250, y: 80 }, data: { agent, view, llmLabel } },
       ...toolNodes.map((t, i) => ({
         id: t.id,
@@ -190,8 +185,8 @@ function GraphInner({ agent, tools, view, llmLabel }: { agent: Agent; tools: Too
         data: { ...t, active: view.active === t.id, count: view.callCounts[t.id] ?? 0 },
       })),
     ];
-    if (hasMemory) nodes.push({ id: "memory", type: "tool", position: { x: 280, y: 330 }, data: { label: "Memória longo prazo", sub: "fatos · episódios", icon: Brain, active: view.active === "memory", count: view.callCounts.memory ?? 0, color: "#a78bfa" } });
-    if (hasScratch) nodes.push({ id: "scratchpad", type: "tool", position: { x: 280, y: -70 }, data: { label: "Scratchpad", sub: "memória de trabalho", icon: NotebookPen, active: view.active === "scratchpad", count: view.callCounts.scratchpad ?? 0, color: "#34d399" } });
+    if (hasMemory) nodes.push({ id: "memory", type: "tool", position: { x: 280, y: 330 }, data: { label: "Memória longo prazo", sub: "fatos · episódios", icon: Brain, active: view.active === "memory", count: view.callCounts.memory ?? 0, color: "#7c6fa6" } });
+    if (hasScratch) nodes.push({ id: "scratchpad", type: "tool", position: { x: 280, y: -70 }, data: { label: "Scratchpad", sub: "memória de trabalho", icon: NotebookPen, active: view.active === "scratchpad", count: view.callCounts.scratchpad ?? 0, color: "#5e8c4a" } });
 
     const edge = (id: string, source: string, target: string, sh: string, th: string, color: string): Edge => ({
       id,
@@ -202,10 +197,10 @@ function GraphInner({ agent, tools, view, llmLabel }: { agent: Agent; tools: Too
       type: "beam",
       data: { flow: flows.get(id === "e-user" ? "user" : target === "llm" ? source : target) ?? null, color },
     });
-    const edges: Edge[] = [edge("e-user", "user", "llm", "r", "l", "#22d3ee")];
+    const edges: Edge[] = [edge("e-user", "user", "llm", "r", "l", "#4a7a96")];
     for (const t of toolNodes) edges.push(edge(`e-${t.id}`, "llm", t.id, "r", "l", t.color));
-    if (hasMemory) edges.push(edge("e-memory", "llm", "memory", "b", "t", "#a78bfa"));
-    if (hasScratch) edges.push(edge("e-scratch", "llm", "scratchpad", "ts", "bt", "#34d399"));
+    if (hasMemory) edges.push(edge("e-memory", "llm", "memory", "b", "t", "#7c6fa6"));
+    if (hasScratch) edges.push(edge("e-scratch", "llm", "scratchpad", "ts", "bt", "#5e8c4a"));
     return { nodes, edges };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [agent, tools, signature, llmLabel]);

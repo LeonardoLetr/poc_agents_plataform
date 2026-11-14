@@ -118,9 +118,9 @@ export default function Playground() {
     <div>
       <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
         <div>
-          <div className="mb-2 font-mono text-[11px] uppercase tracking-[0.2em] text-cyan/80">playground</div>
-          <h1 className="text-3xl font-semibold tracking-tight md:text-4xl">
-            Veja o agente <span className="font-serif text-[1.15em] font-normal italic text-gradient">pensar</span> e agir
+          <div className="mb-2 font-mono text-[11px] uppercase tracking-[0.16em] text-ink-400">playground</div>
+          <h1 className="font-serif text-[34px] font-normal leading-tight tracking-[-0.015em] text-ink-100 md:text-[40px]">
+            Veja o agente <span className="italic text-gradient">pensar</span> e agir
           </h1>
         </div>
         <RecentRuns runs={runs.data ?? []} current={runId} />
@@ -137,7 +137,7 @@ export default function Playground() {
               if (runId) navigate("/playground");
             }}
             className={`relative flex shrink-0 items-center gap-2.5 rounded-2xl border px-3.5 py-2.5 text-left transition ${
-              agent?.id === a.id ? "border-white/20 bg-white/[0.07]" : "border-white/8 bg-white/[0.02] hover:bg-white/[0.05]"
+              agent?.id === a.id ? "border-black/[0.16] bg-black/[0.053]" : "border-black/[0.064] bg-black/[0.015] hover:bg-black/[0.038]"
             } disabled:opacity-50`}
           >
             {agent?.id === a.id && <motion.div layoutId="agent-pick" className="absolute inset-x-3 -bottom-px h-px" style={{ background: a.color }} />}
@@ -173,16 +173,16 @@ export default function Playground() {
         <div className="flex flex-wrap gap-1.5 px-2 pb-1 pt-1">
           <Wand2 size={13} className="mt-1 text-ink-500" />
           {examples.map((ex) => (
-            <button key={ex} onClick={() => setInput(ex)} className="rounded-full border border-white/8 bg-white/[0.03] px-2.5 py-1 text-[11.5px] text-ink-300 transition hover:border-violet/40 hover:text-ink-100">
+            <button key={ex} onClick={() => setInput(ex)} className="rounded-full border border-black/[0.064] bg-black/[0.022] px-2.5 py-1 text-[11.5px] text-ink-300 transition hover:border-accent/40 hover:text-ink-100">
               {ex.length > 60 ? `${ex.slice(0, 58)}…` : ex}
             </button>
           ))}
         </div>
       </Card>
       {agentLlm && !agentLlm.ready && !live && (
-        <div className="mb-4 rounded-xl border border-amber/25 bg-amber/[0.06] px-3.5 py-2.5 text-[13px] text-ink-300">
-          🔑 A LLM <b className="text-amber">{agentLlm.name}</b> deste agente ainda não tem chave.{" "}
-          <Link to="/llms" className="text-cyan underline">Configure em LLMs</Link> ou escolha o <b>Agente Demo</b>, que roda sem chave.
+        <div className="mb-4 rounded-xl border border-warn/25 bg-warn/[0.06] px-3.5 py-2.5 text-[13px] text-ink-300">
+          🔑 A LLM <b className="text-warn">{agentLlm.name}</b> deste agente ainda não tem chave.{" "}
+          <Link to="/llms" className="text-info underline">Configure em LLMs</Link> ou escolha o <b>Agente Demo</b>, que roda sem chave.
         </div>
       )}
       <ErrorNote message={error} />
@@ -192,7 +192,7 @@ export default function Playground() {
         <div className="space-y-4 xl:col-span-7">
           <Card className="relative h-[460px] overflow-hidden">
             <div className="absolute left-4 top-3 z-10 flex items-center gap-2 text-[12px] text-ink-300">
-              <LiveDot color={live ? "bg-mint" : "bg-ink-500"} active={live} />
+              <LiveDot color={live ? "bg-ok" : "bg-ink-500"} active={live} />
               {live ? "execução ao vivo" : view.status === "idle" ? "mapa do agente" : `execução ${view.status === "completed" ? "concluída" : view.status === "failed" ? "falhou" : "cancelada"}`}
             </div>
             {live && (
@@ -213,7 +213,7 @@ export default function Playground() {
           {runId && (
             <Card className="p-4">
               <div className="mb-3 flex items-center gap-2 text-[13px] font-medium">
-                <Layers size={15} className="text-cyan" /> Inspecionar o contexto enviado ao LLM
+                <Layers size={15} className="text-info" /> Inspecionar o contexto enviado ao LLM
               </div>
               <div className="flex flex-wrap gap-2">
                 <Button size="sm" onClick={() => openInspector("system")}>Prompt de sistema</Button>
@@ -230,9 +230,9 @@ export default function Playground() {
         {/* Timeline */}
         <div className="xl:col-span-5">
           <Card className="flex h-[720px] flex-col overflow-hidden">
-            <div className="flex items-center justify-between border-b border-white/5 px-4 py-3">
+            <div className="flex items-center justify-between border-b border-black/[0.04] px-4 py-3">
               <div className="text-[13px] font-medium">Linha do tempo do raciocínio</div>
-              {view.model && <Badge color={view.provider === "demo" ? "mint" : "violet"}>{view.model}</Badge>}
+              {view.model && <Badge color={view.provider === "demo" ? "ok" : "accent"}>{view.model}</Badge>}
             </div>
             <div ref={timelineRef} className="flex-1 overflow-y-auto p-4">
               {view.steps.length === 0 ? (
@@ -246,7 +246,7 @@ export default function Playground() {
               )}
             </div>
             {runId && !live && view.status !== "idle" && (
-              <div className="border-t border-white/5 p-3">
+              <div className="border-t border-black/[0.04] p-3">
                 <div className="flex gap-2">
                   <Textarea
                     rows={1}
@@ -276,8 +276,8 @@ export default function Playground() {
         {approval && (
           <div className="space-y-4">
             <p className="text-sm text-ink-300">
-              Este agente exige aprovação humana. Ele pediu para executar <b className="font-mono text-amber">{toolLabel(approval.name).label}</b>
-              {approval.server && <> no servidor MCP <b className="text-pink">{approval.server}</b></>} com estes argumentos:
+              Este agente exige aprovação humana. Ele pediu para executar <b className="font-mono text-warn">{toolLabel(approval.name).label}</b>
+              {approval.server && <> no servidor MCP <b className="text-mcp">{approval.server}</b></>} com estes argumentos:
             </p>
             <JsonView value={approval.input} />
             <div className="flex justify-end gap-2">
@@ -290,17 +290,17 @@ export default function Playground() {
 
       <Modal open={inspect !== null} onClose={() => setInspect(null)} wide title={inspect === "system" ? "Prompt de sistema montado para esta execução" : inspect === "messages" ? `Janela de contexto (${detail?.messages.length ?? 0} mensagens)` : "Scratchpad (memória de trabalho)"}>
         {detail && inspect === "system" && (
-          <pre className="max-h-[60vh] overflow-auto whitespace-pre-wrap rounded-xl bg-black/35 p-4 font-mono text-[12px] leading-relaxed text-ink-200">{detail.systemPrompt}</pre>
+          <pre className="max-h-[60vh] overflow-auto whitespace-pre-wrap rounded-xl bg-ink-900 p-4 font-mono text-[12px] leading-relaxed text-ink-200">{detail.systemPrompt}</pre>
         )}
         {detail && inspect === "messages" && (
           <div className="space-y-3">
             <p className="text-[13px] text-ink-400">
-              É exatamente isto que é reenviado ao modelo a cada iteração. Repare como as mensagens <code className="text-cyan">tool_use</code> (do assistente) e{" "}
-              <code className="text-cyan">tool_result</code> (do "usuário") se alternam — esse é o protocolo de ferramentas.
+              É exatamente isto que é reenviado ao modelo a cada iteração. Repare como as mensagens <code className="text-info">tool_use</code> (do assistente) e{" "}
+              <code className="text-info">tool_result</code> (do "usuário") se alternam — esse é o protocolo de ferramentas.
             </p>
             {detail.messages.map((m, i) => (
               <div key={i}>
-                <Badge color={(m as { role: string }).role === "user" ? "cyan" : "violet"}>
+                <Badge color={(m as { role: string }).role === "user" ? "info" : "accent"}>
                   #{i} {(m as { role: string }).role}
                 </Badge>
                 <JsonView value={(m as { content: unknown }).content} className="mt-1" maxHeight={220} />
@@ -312,8 +312,8 @@ export default function Playground() {
           (detail.scratchpad.length ? (
             <ol className="space-y-2">
               {detail.scratchpad.map((n, i) => (
-                <li key={i} className="rounded-xl bg-mint/5 px-3 py-2 text-sm text-ink-200">
-                  <span className="mr-2 font-mono text-mint">{i + 1}.</span>
+                <li key={i} className="rounded-xl bg-ok/5 px-3 py-2 text-sm text-ink-200">
+                  <span className="mr-2 font-mono text-ok">{i + 1}.</span>
                   {n}
                 </li>
               ))}
@@ -343,7 +343,7 @@ function Metric({ icon, label, value }: { icon: React.ReactNode; label: string; 
 
 function RecentRuns({ runs, current }: { runs: RunSummary[]; current?: string }) {
   const [open, setOpen] = useState(false);
-  const color = { running: "text-amber", awaiting_approval: "text-amber", completed: "text-mint", failed: "text-rose", cancelled: "text-ink-400" };
+  const color = { running: "text-warn", awaiting_approval: "text-warn", completed: "text-ok", failed: "text-bad", cancelled: "text-ink-400" };
   return (
     <div className="relative">
       <Button size="sm" onClick={() => setOpen(!open)}>
@@ -351,10 +351,10 @@ function RecentRuns({ runs, current }: { runs: RunSummary[]; current?: string })
       </Button>
       <AnimatePresence>
         {open && (
-          <motion.div initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }} className="absolute right-0 z-30 mt-2 max-h-96 w-80 overflow-y-auto rounded-2xl border border-white/10 bg-ink-900/95 p-1.5 shadow-2xl backdrop-blur-xl">
+          <motion.div initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }} className="absolute right-0 z-30 mt-2 max-h-96 w-80 overflow-y-auto rounded-2xl border border-black/[0.08] bg-white p-1.5 shadow-2xl backdrop-blur-xl">
             {runs.length === 0 && <div className="p-3 text-sm text-ink-400">Nenhuma execução ainda.</div>}
             {runs.map((r) => (
-              <Link key={r.id} to={`/playground/${r.id}`} onClick={() => setOpen(false)} className={`block rounded-xl px-3 py-2 transition hover:bg-white/5 ${r.id === current ? "bg-white/5" : ""}`}>
+              <Link key={r.id} to={`/playground/${r.id}`} onClick={() => setOpen(false)} className={`block rounded-xl px-3 py-2 transition hover:bg-black/[0.038] ${r.id === current ? "bg-black/[0.038]" : ""}`}>
                 <div className="truncate text-[13px] text-ink-100">{r.input}</div>
                 <div className="mt-0.5 flex items-center gap-2 font-mono text-[10.5px] text-ink-500">
                   <span className={color[r.status]}>●</span> {r.agentName} · {timeAgo(r.startedAt)} · {r.iterations} it.

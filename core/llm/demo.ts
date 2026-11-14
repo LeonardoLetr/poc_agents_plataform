@@ -188,7 +188,7 @@ export async function demoTurn(call: LlmCall): Promise<AssistantTurn> {
     ? `Já tenho ${results.length} observações. Vou sintetizar a resposta final a partir delas.`
     : "Nenhuma ferramenta parece necessária para esta tarefa no modo demo. Vou responder diretamente e explicar como o loop funcionaria.";
   const answer = results.length
-    ? `Pronto! Aqui está o que descobri em ${stepIndex} iterações com ferramentas:\n\n${summarize(results)}\n\n> _Modo demonstração: o "LLM" é simulado, mas as ferramentas, a memória e a auditoria são reais. Configure uma chave da Anthropic para usar o Claude de verdade._`
+    ? `Pronto! Aqui está o que descobri em ${stepIndex} iterações com ferramentas:\n\n${summarize(results)}\n\n> _Modo demonstração: o "LLM" é simulado, mas as ferramentas, a memória e a auditoria são reais. Cadastre uma LLM real em “LLMs” para usar um modelo de verdade._`
     : `Recebi: "${task}".\n\nNo modo demonstração eu reajo a palavras-chave. Experimente pedir:\n- uma conta (ex.: **quanto é (1250 * 1.08) ^ 2**)\n- **que horas são agora?**\n- **lembre que eu prefiro café sem açúcar**\n- ler uma URL (ex.: **resuma https://example.com**)`;
   await streamText(thinking, "thinking.delta", emit, signal);
   content.push({ type: "thinking", thinking, signature: "demo" });

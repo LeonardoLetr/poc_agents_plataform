@@ -21,36 +21,33 @@ export function Sidebar({ health }: { health: Health | null }) {
   const { pathname } = useLocation();
   const isActive = (to: string) => (to === "/" ? pathname === "/" : pathname.startsWith(to));
   return (
-    <aside className="sticky top-0 z-20 flex h-auto shrink-0 flex-col border-b border-white/5 bg-ink-950/70 backdrop-blur-xl md:h-screen md:w-60 md:border-r md:border-b-0">
-      <div className="flex items-center gap-2.5 px-5 py-4 md:py-6">
-        <div className="relative flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-violet to-cyan text-lg shadow-[0_0_24px_-4px_rgb(139_92_246/0.8)]">
-          🧪
-        </div>
-        <div>
-          <div className="font-semibold leading-none tracking-tight">Agent Lab</div>
-          <div className="mt-1 font-mono text-[10px] uppercase tracking-[0.18em] text-ink-400">estudo de agentes</div>
-        </div>
+    <aside className="sticky top-0 z-20 flex h-auto shrink-0 flex-col border-b border-black/[0.07] bg-ink-900 md:h-screen md:w-56 md:border-r md:border-b-0">
+      <div className="flex items-center gap-2.5 px-5 py-4 md:pb-6 md:pt-5">
+        <svg width="22" height="22" viewBox="0 0 24 24" aria-hidden className="text-accent">
+          <path fill="currentColor" d="M9 2h6v2h-1v5.2l5.6 9.3A2.3 2.3 0 0 1 17.6 22H6.4a2.3 2.3 0 0 1-2-3.5L10 9.2V4H9V2Zm3 9.3L8.3 17.5h7.4L12 11.3Z" />
+        </svg>
+        <div className="font-serif text-[19px] leading-none tracking-[-0.01em] text-ink-100">Agent Lab</div>
       </div>
 
-      <nav className="flex gap-1 overflow-x-auto px-3 pb-3 md:flex-col md:overflow-visible md:pb-0">
+      <nav className="flex gap-0.5 overflow-x-auto px-2.5 pb-3 md:flex-col md:overflow-visible md:pb-0">
         {NAV.map(({ to, label, icon: Icon, highlight }) => (
           <NavLink key={to} to={to} className="relative shrink-0">
             {isActive(to) && (
-              <motion.div layoutId="nav-active" className="absolute inset-0 rounded-xl border border-white/10 bg-white/[0.06]" transition={{ type: "spring", stiffness: 420, damping: 34 }} />
+              <motion.div layoutId="nav-active" className="absolute inset-0 rounded-lg bg-black/[0.06]" transition={{ type: "spring", stiffness: 500, damping: 38 }} />
             )}
-            <span className={`relative flex items-center gap-3 rounded-xl px-3 py-2 text-[13.5px] transition-colors ${isActive(to) ? "text-ink-100" : "text-ink-400 hover:text-ink-200"}`}>
-              <Icon size={16} className={isActive(to) ? "text-cyan" : ""} />
+            <span className={`relative flex items-center gap-2.5 rounded-lg px-2.5 py-[7px] text-[13.5px] transition-colors ${isActive(to) ? "font-medium text-ink-100" : "text-ink-300 hover:text-ink-100"}`}>
+              <Icon size={15} strokeWidth={1.8} className={isActive(to) ? "text-ink-100" : "text-ink-400"} />
               <span className="whitespace-nowrap">{label}</span>
-              {highlight && <span className="ml-auto hidden h-1.5 w-1.5 rounded-full bg-cyan shadow-[0_0_8px_var(--color-cyan)] md:block" />}
+              {highlight && <span className="ml-auto hidden h-1.5 w-1.5 rounded-full bg-accent md:block" />}
             </span>
           </NavLink>
         ))}
       </nav>
 
       <div className="mt-auto hidden space-y-2 p-3 md:block">
-        <div className="glass rounded-xl p-3">
+        <div className="rounded-lg border border-black/[0.07] bg-white/60 p-3">
           <div className="flex items-center gap-2 text-[12px] text-ink-300">
-            <LiveDot color={health?.llmsReady ? "bg-mint" : "bg-amber"} active={health !== null} />
+            <LiveDot color={health?.llmsReady ? "bg-ok" : "bg-warn"} active={health !== null} />
             {health === null ? "Conectando…" : `${health.llmsReady}/${health.llmsTotal} LLMs prontas`}
           </div>
           <div className="mt-1 flex items-center gap-1.5 font-mono text-[10px] text-ink-500">
@@ -60,7 +57,7 @@ export function Sidebar({ health }: { health: Health | null }) {
           {health?.runtime === "browser" && (
             <button
               onClick={() => confirm("Apagar todos os dados salvos neste navegador (agentes, LLMs, chaves, memórias)?") && resetBrowserData()}
-              className="mt-2 flex items-center gap-1 text-[10.5px] text-ink-500 transition hover:text-rose"
+              className="mt-2 flex items-center gap-1 text-[10.5px] text-ink-500 transition hover:text-bad"
             >
               <Trash2 size={10} /> apagar dados locais
             </button>

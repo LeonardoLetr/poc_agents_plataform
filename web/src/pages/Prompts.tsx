@@ -19,7 +19,7 @@ export default function Prompts() {
         description={
           <>
             Prompts de <b>sistema</b> definem o comportamento do agente (ex.: ReAct, planejador). Prompts de <b>tarefa</b> são modelos com variáveis{" "}
-            <code className="text-cyan">{"{{assim}}"}</code>. Insira prompts de sistema direto no editor de agentes.
+            <code className="text-info">{"{{assim}}"}</code>. Insira prompts de sistema direto no editor de agentes.
           </>
         }
         actions={
@@ -35,20 +35,20 @@ export default function Prompts() {
             <motion.div key={p.id} initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}>
               <SpotlightCard className="h-full p-5" color={p.category === "system" ? "139 92 246" : "34 211 238"}>
                 <div className="flex items-start gap-3">
-                  <div className={`flex h-9 w-9 items-center justify-center rounded-xl ${p.category === "system" ? "bg-violet/15 text-violet-300" : "bg-cyan/15 text-cyan"}`}>
+                  <div className={`flex h-9 w-9 items-center justify-center rounded-xl ${p.category === "system" ? "bg-accent/15 text-accent" : "bg-info/15 text-info"}`}>
                     <FileText size={16} />
                   </div>
                   <div className="flex-1">
                     <div className="flex items-center gap-2 font-semibold">
-                      {p.name} <Badge color={p.category === "system" ? "violet" : "cyan"}>{p.category === "system" ? "sistema" : "tarefa"}</Badge>
+                      {p.name} <Badge color={p.category === "system" ? "accent" : "info"}>{p.category === "system" ? "sistema" : "tarefa"}</Badge>
                     </div>
                     <div className="text-[12.5px] text-ink-400">{p.description}</div>
                   </div>
                 </div>
-                <pre className="mt-3 max-h-36 overflow-auto whitespace-pre-wrap rounded-xl bg-black/30 p-3 font-mono text-[11.5px] leading-relaxed text-ink-300">
-                  {p.content.split(/(\{\{\w+\}\})/).map((part, j) => (part.startsWith("{{") ? <span key={j} className="rounded bg-cyan/15 text-cyan">{part}</span> : part))}
+                <pre className="mt-3 max-h-36 overflow-auto whitespace-pre-wrap rounded-xl bg-ink-900 p-3 font-mono text-[11.5px] leading-relaxed text-ink-300">
+                  {p.content.split(/(\{\{\w+\}\})/).map((part, j) => (part.startsWith("{{") ? <span key={j} className="rounded bg-info/15 text-info">{part}</span> : part))}
                 </pre>
-                {vars.length > 0 && <div className="mt-2 flex gap-1">{vars.map((v) => <Badge key={v} color="cyan">{v}</Badge>)}</div>}
+                {vars.length > 0 && <div className="mt-2 flex gap-1">{vars.map((v) => <Badge key={v} color="info">{v}</Badge>)}</div>}
                 <div className="mt-3 flex gap-2">
                   <Button
                     size="sm"
@@ -66,7 +66,7 @@ export default function Prompts() {
                   <Button
                     size="sm"
                     variant="subtle"
-                    className="ml-auto hover:text-rose"
+                    className="ml-auto hover:text-bad"
                     aria-label="Remover"
                     onClick={async () => {
                       if (!confirm(`Remover "${p.name}"?`)) return;

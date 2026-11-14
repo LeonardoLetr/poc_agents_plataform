@@ -6,7 +6,7 @@ import { api, type Agent, type Memory, type MemoryKind } from "../lib/api";
 import { kindLabel, timeAgo } from "../lib/format";
 import { useResource } from "../lib/hooks";
 
-const KIND_COLOR: Record<MemoryKind, string> = { fact: "#22d3ee", preference: "#f472b6", procedure: "#f59e0b", episode: "#a78bfa" };
+const KIND_COLOR: Record<MemoryKind, string> = { fact: "#4a7a96", preference: "#9b5e86", procedure: "#b07a1e", episode: "#7c6fa6" };
 
 interface Scored {
   memory: Memory;
@@ -55,10 +55,10 @@ export default function MemoryPage() {
       />
 
       <div className="mb-6 grid gap-3 md:grid-cols-4">
-        <LayerCard icon={<MessagesSquare size={16} />} color="#22d3ee" title="Curto prazo" value="histórico" text="As mensagens da conversa atual, reenviadas a cada iteração do loop." />
-        <LayerCard icon={<NotebookPen size={16} />} color="#34d399" title="Trabalho" value="scratchpad" text="Anotações temporárias da execução: planos e resultados parciais." />
-        <LayerCard icon={<Brain size={16} />} color="#f472b6" title="Longo prazo" value={`${counts.fact + counts.preference + counts.procedure} itens`} text="Fatos, preferências e procedimentos que sobrevivem entre execuções." />
-        <LayerCard icon={<History size={16} />} color="#a78bfa" title="Episódica" value={`${counts.episode} episódios`} text="Resumos automáticos do que o agente já fez." />
+        <LayerCard icon={<MessagesSquare size={16} />} color="#4a7a96" title="Curto prazo" value="histórico" text="As mensagens da conversa atual, reenviadas a cada iteração do loop." />
+        <LayerCard icon={<NotebookPen size={16} />} color="#5e8c4a" title="Trabalho" value="scratchpad" text="Anotações temporárias da execução: planos e resultados parciais." />
+        <LayerCard icon={<Brain size={16} />} color="#9b5e86" title="Longo prazo" value={`${counts.fact + counts.preference + counts.procedure} itens`} text="Fatos, preferências e procedimentos que sobrevivem entre execuções." />
+        <LayerCard icon={<History size={16} />} color="#7c6fa6" title="Episódica" value={`${counts.episode} episódios`} text="Resumos automáticos do que o agente já fez." />
       </div>
 
       <div className="mb-6 grid gap-6 lg:grid-cols-5">
@@ -76,7 +76,7 @@ export default function MemoryPage() {
 
         <Card className="flex flex-col p-4 lg:col-span-2">
           <div className="mb-1 flex items-center gap-2 text-[13px] font-medium">
-            <Sparkles size={14} className="text-violet-300" /> Laboratório de recuperação
+            <Sparkles size={14} className="text-accent" /> Laboratório de recuperação
           </div>
           <p className="mb-3 text-[12px] text-ink-400">Simule o que o agente recupera para uma tarefa. Pontuação = 70% termos em comum + 20% importância + 10% recência.</p>
           <div className="flex gap-2">
@@ -88,15 +88,15 @@ export default function MemoryPage() {
           <div className="mt-3 flex-1 space-y-2 overflow-y-auto">
             {results?.length === 0 && <p className="text-[12px] text-ink-500">Nenhuma memória relevante — o agente rodaria sem contexto extra.</p>}
             {results?.map((r, i) => (
-              <motion.div key={r.memory.id} initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.05 }} className="rounded-xl bg-white/[0.03] p-2.5">
+              <motion.div key={r.memory.id} initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.05 }} className="rounded-xl bg-black/[0.022] p-2.5">
                 <div className="flex items-center justify-between text-[12px]">
                   <span className="line-clamp-1 text-ink-200">{r.memory.content}</span>
-                  <span className="ml-2 font-mono text-cyan">{r.score.toFixed(2)}</span>
+                  <span className="ml-2 font-mono text-info">{r.score.toFixed(2)}</span>
                 </div>
-                <div className="mt-1.5 flex h-1.5 overflow-hidden rounded-full bg-white/5">
-                  <motion.div initial={{ width: 0 }} animate={{ width: `${r.breakdown.overlap * 70}%` }} className="bg-cyan" title="termos" />
-                  <motion.div initial={{ width: 0 }} animate={{ width: `${r.breakdown.importance * 20}%` }} className="bg-pink" title="importância" />
-                  <motion.div initial={{ width: 0 }} animate={{ width: `${r.breakdown.recency * 10}%` }} className="bg-mint" title="recência" />
+                <div className="mt-1.5 flex h-1.5 overflow-hidden rounded-full bg-black/[0.038]">
+                  <motion.div initial={{ width: 0 }} animate={{ width: `${r.breakdown.overlap * 70}%` }} className="bg-info" title="termos" />
+                  <motion.div initial={{ width: 0 }} animate={{ width: `${r.breakdown.importance * 20}%` }} className="bg-mcp" title="importância" />
+                  <motion.div initial={{ width: 0 }} animate={{ width: `${r.breakdown.recency * 10}%` }} className="bg-ok" title="recência" />
                 </div>
               </motion.div>
             ))}
@@ -119,8 +119,8 @@ export default function MemoryPage() {
         <AnimatePresence initial={false}>
           {list.map((m) => (
             <motion.div key={m.id} layout initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, x: -20 }}>
-              <Card className={`flex items-start gap-3 p-3.5 ${highlighted.has(m.id) ? "border-cyan/40" : ""}`}>
-                <div className="mt-1 h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: KIND_COLOR[m.kind], boxShadow: `0 0 10px ${KIND_COLOR[m.kind]}` }} />
+              <Card className={`flex items-start gap-3 p-3.5 ${highlighted.has(m.id) ? "border-info/40" : ""}`}>
+                <div className="mt-1 h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: KIND_COLOR[m.kind] }} />
                 <div className="min-w-0 flex-1">
                   <div className="text-[13.5px] text-ink-100">{m.content}</div>
                   <div className="mt-1.5 flex flex-wrap items-center gap-1.5 text-[11px] text-ink-500">
@@ -129,7 +129,7 @@ export default function MemoryPage() {
                     <span>· {agentName(m.agentId)}</span>
                     <span>· criada por {m.source === "user" ? "você" : m.source === "agent" ? "agente" : "automação"} {timeAgo(m.createdAt)}</span>
                     <span>· acessada {m.accessCount}×</span>
-                    {m.tags.map((t) => <Badge key={t} color="violet">#{t}</Badge>)}
+                    {m.tags.map((t) => <Badge key={t} color="accent">#{t}</Badge>)}
                   </div>
                 </div>
                 <Button size="sm" variant="subtle" onClick={() => setEditing(m)} aria-label="Editar">
@@ -138,7 +138,7 @@ export default function MemoryPage() {
                 <Button
                   size="sm"
                   variant="subtle"
-                  className="hover:text-rose"
+                  className="hover:text-bad"
                   aria-label="Remover"
                   onClick={async () => {
                     await api.del(`/api/memories/${m.id}`);
@@ -204,7 +204,7 @@ function Constellation({ memories, highlighted }: { memories: Memory[]; highligh
     <div className="absolute inset-0">
       <svg className="absolute inset-0 h-full w-full" preserveAspectRatio="none">
         {[0.3, 0.55, 0.75, 0.9].map((r) => (
-          <ellipse key={r} cx="50%" cy="52%" rx={`${r * 44}%`} ry={`${r * 40}%`} fill="none" stroke="rgb(255 255 255 / 0.05)" strokeDasharray="3 6" />
+          <ellipse key={r} cx="50%" cy="52%" rx={`${r * 44}%`} ry={`${r * 40}%`} fill="none" stroke="rgb(31 30 28 / 0.1)" strokeDasharray="3 6" />
         ))}
       </svg>
       <div className="absolute left-1/2 top-[52%] -translate-x-1/2 -translate-y-1/2 text-3xl opacity-80">🧠</div>
@@ -217,7 +217,7 @@ function Constellation({ memories, highlighted }: { memories: Memory[]; highligh
             onMouseEnter={() => setHover(m)}
             onMouseLeave={() => setHover(null)}
             className="absolute rounded-full"
-            style={{ left: `${x}%`, top: `${y}%`, width: r, height: r, marginLeft: -r / 2, marginTop: -r / 2, background: KIND_COLOR[m.kind], boxShadow: `0 0 ${lit ? 24 : 6 + m.accessCount * 3}px ${KIND_COLOR[m.kind]}` }}
+            style={{ left: `${x}%`, top: `${y}%`, width: r, height: r, marginLeft: -r / 2, marginTop: -r / 2, background: KIND_COLOR[m.kind], boxShadow: lit ? `0 0 0 4px color-mix(in oklab, ${KIND_COLOR[m.kind]} 25%, transparent)` : "none" }}
             initial={{ scale: 0 }}
             animate={{ scale: lit ? 1.6 : 1, opacity: dim ? 0.18 : 1, y: [0, -5, 0] }}
             transition={{ y: { repeat: Infinity, duration: 4 + delay, ease: "easeInOut" }, scale: { type: "spring" } }}
@@ -226,7 +226,7 @@ function Constellation({ memories, highlighted }: { memories: Memory[]; highligh
       })}
       <AnimatePresence>
         {hover && (
-          <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="absolute bottom-3 left-3 right-3 rounded-xl border border-white/10 bg-ink-900/95 p-3 text-[12.5px] text-ink-200 backdrop-blur">
+          <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="absolute bottom-3 left-3 right-3 rounded-xl border border-black/[0.08] bg-white p-3 text-[12.5px] text-ink-200 backdrop-blur">
             <Badge>{kindLabel[hover.kind]}</Badge> {hover.content}
           </motion.div>
         )}
@@ -267,7 +267,7 @@ function MemoryEditor({ memory, agents, onClose, onSaved }: { memory: Partial<Me
             </Select>
           </Field>
           <Field label="Importância" hint={`${form.importance}/5`}>
-            <input type="range" min={1} max={5} value={form.importance} onChange={(e) => setForm({ ...form, importance: Number(e.target.value) })} className="mt-3 w-full accent-[#8b5cf6]" />
+            <input type="range" min={1} max={5} value={form.importance} onChange={(e) => setForm({ ...form, importance: Number(e.target.value) })} className="mt-3 w-full accent-[#c96442]" />
           </Field>
         </div>
         <Field label="Escopo">

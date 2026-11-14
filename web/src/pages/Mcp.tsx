@@ -18,9 +18,9 @@ const PRESETS = [
 ] as const;
 
 const statusMeta = {
-  connected: { color: "bg-mint", text: "conectado", badge: "mint" as const },
-  connecting: { color: "bg-amber", text: "conectando…", badge: "amber" as const },
-  error: { color: "bg-rose", text: "erro", badge: "rose" as const },
+  connected: { color: "bg-ok", text: "conectado", badge: "ok" as const },
+  connecting: { color: "bg-warn", text: "conectando…", badge: "warn" as const },
+  error: { color: "bg-bad", text: "erro", badge: "bad" as const },
   disconnected: { color: "bg-ink-500", text: "desconectado", badge: "ink" as const },
 };
 
@@ -40,9 +40,9 @@ export default function Mcp() {
         title="Servidores MCP"
         description={
           <>
-            MCP é um protocolo aberto: o servidor anuncia suas ferramentas (<code className="text-cyan">tools/list</code>) e o cliente as executa (
-            <code className="text-cyan">tools/call</code>). Conecte um servidor e as ferramentas dele ficam disponíveis para seus agentes como{" "}
-            <code className="text-pink">mcp__servidor__ferramenta</code>.
+            MCP é um protocolo aberto: o servidor anuncia suas ferramentas (<code className="text-info">tools/list</code>) e o cliente as executa (
+            <code className="text-info">tools/call</code>). Conecte um servidor e as ferramentas dele ficam disponíveis para seus agentes como{" "}
+            <code className="text-mcp">mcp__servidor__ferramenta</code>.
           </>
         }
         actions={
@@ -78,13 +78,13 @@ function ProtocolStrip() {
   return (
     <Card className="mb-6 overflow-hidden p-4">
       <div className="flex items-center gap-3 overflow-x-auto">
-        <div className="flex shrink-0 items-center gap-2 rounded-xl bg-violet/10 px-3 py-2 text-[12px] text-violet-300">🧪 Agent Lab (cliente)</div>
+        <div className="flex shrink-0 items-center gap-2 rounded-xl bg-accent/10 px-3 py-2 text-[12px] text-accent">🧪 Agent Lab (cliente)</div>
         <div className="relative h-10 min-w-[260px] flex-1">
-          <div className="absolute inset-x-0 top-1/2 h-px bg-gradient-to-r from-violet/40 via-white/10 to-pink/40" />
+          <div className="absolute inset-x-0 top-1/2 h-px bg-gradient-to-r from-accent/40 via-black/[0.075] to-mcp/40" />
           {steps.map((s, i) => (
             <motion.div
               key={s}
-              className={`absolute top-1/2 -translate-y-1/2 whitespace-nowrap rounded-full border px-2 py-0.5 font-mono text-[10px] ${i === 3 ? "border-mint/40 bg-ink-900 text-mint" : "border-white/15 bg-ink-900 text-ink-200"}`}
+              className={`absolute top-1/2 -translate-y-1/2 whitespace-nowrap rounded-full border px-2 py-0.5 font-mono text-[10px] ${i === 3 ? "border-ok/40 bg-ink-900 text-ok" : "border-black/[0.12] bg-ink-900 text-ink-200"}`}
               initial={{ left: i === 3 ? "85%" : "0%", opacity: 0 }}
               animate={{ left: i === 3 ? ["85%", "0%"] : ["0%", "85%"], opacity: [0, 1, 1, 0] }}
               transition={{ duration: 2.4, delay: i * 1.2, repeat: Infinity, repeatDelay: steps.length * 1.2 - 2.4 + 1, ease: "easeInOut" }}
@@ -95,7 +95,7 @@ function ProtocolStrip() {
             </motion.div>
           ))}
         </div>
-        <div className="flex shrink-0 items-center gap-2 rounded-xl bg-pink/10 px-3 py-2 text-[12px] text-pink">
+        <div className="flex shrink-0 items-center gap-2 rounded-xl bg-mcp/10 px-3 py-2 text-[12px] text-mcp">
           <Plug size={13} /> Servidor MCP
         </div>
       </div>
@@ -121,9 +121,9 @@ function ServerCard({ server, onChange }: { server: McpServer; onChange: () => v
 
   return (
     <motion.div layout initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
-      <Card className={`p-5 ${server.state.status === "connecting" ? "beam [--beam-color:var(--color-amber)]" : ""}`}>
+      <Card className={`p-5 ${server.state.status === "connecting" ? "beam [--beam-color:var(--color-warn)]" : ""}`}>
         <div className="flex items-start gap-3">
-          <div className={`flex h-11 w-11 items-center justify-center rounded-xl ${server.state.status === "connected" ? "bg-pink/15 text-pink" : "bg-white/5 text-ink-400"}`}>
+          <div className={`flex h-11 w-11 items-center justify-center rounded-xl ${server.state.status === "connected" ? "bg-mcp/15 text-mcp" : "bg-black/[0.038] text-ink-400"}`}>
             {server.state.status === "connected" ? <PlugZap size={20} /> : <Plug size={20} />}
           </div>
           <div className="min-w-0 flex-1">
@@ -151,7 +151,7 @@ function ServerCard({ server, onChange }: { server: McpServer; onChange: () => v
             <Button
               size="sm"
               variant="subtle"
-              className="hover:text-rose"
+              className="hover:text-bad"
               aria-label="Remover"
               onClick={async () => {
                 if (!confirm(`Remover o servidor "${server.name}"?`)) return;
@@ -164,7 +164,7 @@ function ServerCard({ server, onChange }: { server: McpServer; onChange: () => v
           </div>
         </div>
 
-        {server.state.error && <div className="mt-3 rounded-lg bg-rose/10 px-3 py-2 font-mono text-[11.5px] text-rose">{server.state.error}</div>}
+        {server.state.error && <div className="mt-3 rounded-lg bg-bad/10 px-3 py-2 font-mono text-[11.5px] text-bad">{server.state.error}</div>}
         {server.state.instructions && <p className="mt-3 text-[12.5px] text-ink-300">📋 {server.state.instructions}</p>}
 
         {server.state.tools.length > 0 && (
@@ -178,11 +178,11 @@ function ServerCard({ server, onChange }: { server: McpServer; onChange: () => v
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: i * 0.04 }}
                   onClick={() => setTesting(t)}
-                  className="group rounded-xl border border-white/8 bg-white/[0.02] px-3 py-2 text-left transition hover:border-pink/40 hover:bg-pink/5"
+                  className="group rounded-xl border border-black/[0.064] bg-black/[0.015] px-3 py-2 text-left transition hover:border-mcp/40 hover:bg-mcp/5"
                 >
                   <div className="flex items-center justify-between font-mono text-[12px] text-ink-100">
                     {t.name}
-                    <span className="text-[10px] text-pink opacity-0 transition group-hover:opacity-100">testar →</span>
+                    <span className="text-[10px] text-mcp opacity-0 transition group-hover:opacity-100">testar →</span>
                   </div>
                   <div className="line-clamp-1 text-[11px] text-ink-400">{t.description}</div>
                 </motion.button>
@@ -196,7 +196,7 @@ function ServerCard({ server, onChange }: { server: McpServer; onChange: () => v
         </button>
         <AnimatePresence>
           {showLogs && (
-            <motion.pre initial={{ height: 0 }} animate={{ height: "auto" }} exit={{ height: 0 }} className="mt-2 max-h-56 overflow-auto rounded-xl bg-black/50 p-3 font-mono text-[11px] leading-relaxed text-mint/80">
+            <motion.pre initial={{ height: 0 }} animate={{ height: "auto" }} exit={{ height: 0 }} className="mt-2 max-h-56 overflow-auto rounded-xl bg-ink-900 p-3 font-mono text-[11px] leading-relaxed text-ok/80">
               {server.state.logs.join("\n") || "(sem logs)"}
             </motion.pre>
           )}
@@ -261,7 +261,7 @@ function ToolTester({ server, tool, onClose }: { server: McpServer; tool: McpSer
           {result && (
             <>
               <div className="flex items-center gap-2 font-mono text-[10.5px] uppercase tracking-wider text-ink-500">
-                resultado <Badge color={result.isError ? "rose" : "mint"}>{result.isError ? "isError" : "ok"} · {fmtMs(result.durationMs)}</Badge>
+                resultado <Badge color={result.isError ? "bad" : "ok"}>{result.isError ? "isError" : "ok"} · {fmtMs(result.durationMs)}</Badge>
               </div>
               <JsonView value={result.text} maxHeight={220} />
             </>
@@ -332,7 +332,7 @@ function AddServer({ health, onClose, onSaved }: { health: Health | null; onClos
                   url: "url" in p ? p.url : "",
                 })
               }
-              className="rounded-xl border border-white/8 bg-white/[0.02] p-2.5 text-left transition hover:border-pink/40 hover:bg-pink/5 disabled:cursor-not-allowed disabled:opacity-35"
+              className="rounded-xl border border-black/[0.064] bg-black/[0.015] p-2.5 text-left transition hover:border-mcp/40 hover:bg-mcp/5 disabled:cursor-not-allowed disabled:opacity-35"
             >
               <div className="text-[12.5px] font-medium text-ink-100">{p.label}</div>
               <div className="mt-0.5 line-clamp-2 text-[11px] text-ink-400">{p.note}</div>

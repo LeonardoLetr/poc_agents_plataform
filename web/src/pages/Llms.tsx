@@ -7,9 +7,9 @@ import { api, type Agent, type Effort, type Health, type Llm, type LlmInput, typ
 import { useResource } from "../lib/hooks";
 
 const PROVIDERS: { id: Provider; label: string; color: string; rgb: string; text: string }[] = [
-  { id: "anthropic", label: "Anthropic (Claude)", color: "violet", rgb: "139 92 246", text: "SDK oficial, pensamento adaptativo, cache de prompt e fallback em recusas." },
-  { id: "openai", label: "Compatível com OpenAI", color: "cyan", rgb: "34 211 238", text: "Qualquer API no formato Chat Completions: OpenAI, OpenRouter, Groq, Ollama…" },
-  { id: "demo", label: "Demo (offline)", color: "mint", rgb: "52 211 153", text: "LLM simulado: segue palavras-chave, sem chave e sem custo." },
+  { id: "anthropic", label: "Anthropic (Claude)", color: "accent", rgb: "139 92 246", text: "SDK oficial, pensamento adaptativo, cache de prompt e fallback em recusas." },
+  { id: "openai", label: "Compatível com OpenAI", color: "info", rgb: "34 211 238", text: "Qualquer API no formato Chat Completions: OpenAI, OpenRouter, Groq, Ollama…" },
+  { id: "demo", label: "Demo (offline)", color: "ok", rgb: "52 211 153", text: "LLM simulado: segue palavras-chave, sem chave e sem custo." },
 ];
 
 const EFFORT_HINT: Record<Effort, string> = {
@@ -52,10 +52,10 @@ export default function Llms({ health, onChange }: { health: Health | null; onCh
       />
 
       {browser && (
-        <div className="mb-6 flex items-start gap-3 rounded-2xl border border-amber/25 bg-amber/[0.06] p-4 text-[13px] leading-relaxed text-ink-300">
-          <ShieldAlert size={18} className="mt-0.5 shrink-0 text-amber" />
+        <div className="mb-6 flex items-start gap-3 rounded-2xl border border-warn/25 bg-warn/[0.06] p-4 text-[13px] leading-relaxed text-ink-300">
+          <ShieldAlert size={18} className="mt-0.5 shrink-0 text-warn" />
           <div>
-            <b className="text-amber">Modo navegador.</b> As chaves ficam salvas só no <code>localStorage</code> deste navegador e são enviadas direto do seu
+            <b className="text-warn">Modo navegador.</b> As chaves ficam salvas só no <code>localStorage</code> deste navegador e são enviadas direto do seu
             browser para o provedor. Para um ambiente compartilhado, rode o servidor local (<code>npm run dev</code>) e use variáveis de ambiente.
           </div>
         </div>
@@ -77,10 +77,10 @@ export default function Llms({ health, onChange }: { health: Health | null; onCh
                     <div className="truncate font-semibold">{l.name}</div>
                     <div className="truncate font-mono text-[11px] text-ink-400">{l.model}</div>
                   </div>
-                  <Badge color={l.ready ? "mint" : "amber"}>{l.ready ? "pronta" : "sem chave"}</Badge>
+                  <Badge color={l.ready ? "ok" : "warn"}>{l.ready ? "pronta" : "sem chave"}</Badge>
                 </div>
                 <div className="mt-3 flex flex-wrap gap-1">
-                  <Badge color={p.color as "violet"}>{p.label}</Badge>
+                  <Badge color={p.color as "accent"}>{p.label}</Badge>
                   {l.provider === "anthropic" && <Badge>effort {l.effort}</Badge>}
                   {l.provider === "anthropic" && l.refusalFallback && <Badge>fallback</Badge>}
                   {l.apiKeySet && (
@@ -117,7 +117,7 @@ export default function Llms({ health, onChange }: { health: Health | null; onCh
                   >
                     <Pencil size={13} /> Editar
                   </Button>
-                  <Button size="sm" variant="subtle" className="ml-auto hover:text-rose" onClick={() => remove(l)} aria-label="Remover">
+                  <Button size="sm" variant="subtle" className="ml-auto hover:text-bad" onClick={() => remove(l)} aria-label="Remover">
                     <Trash2 size={13} />
                   </Button>
                 </div>
@@ -184,7 +184,7 @@ function LlmEditor({ initial, id, existing, health, onClose, onSaved }: { initia
             <button
               key={p.id}
               onClick={() => pickProvider(p.id)}
-              className={`rounded-xl border p-3 text-left transition ${form.provider === p.id ? "border-white/25 bg-white/[0.06]" : "border-white/8 hover:bg-white/[0.03]"}`}
+              className={`rounded-xl border p-3 text-left transition ${form.provider === p.id ? "border-black/[0.2] bg-black/[0.045]" : "border-black/[0.064] hover:bg-black/[0.022]"}`}
               style={form.provider === p.id ? { boxShadow: `inset 0 0 0 1px rgb(${p.rgb} / 0.5)` } : undefined}
             >
               <div className="text-[13px] font-medium" style={{ color: `rgb(${p.rgb})` }}>{p.label}</div>
@@ -198,7 +198,7 @@ function LlmEditor({ initial, id, existing, health, onClose, onSaved }: { initia
             <div className="mb-1.5 text-[12px] text-ink-400">Atalhos</div>
             <div className="flex flex-wrap gap-1.5">
               {health?.catalog.openai.map((p) => (
-                <button key={p.id} onClick={() => setForm((f) => ({ ...f, baseUrl: p.baseUrl, model: p.model, name: f.name || p.label }))} className="rounded-full border border-white/10 px-2.5 py-1 text-[12px] text-ink-300 hover:border-cyan/40 hover:text-ink-100">
+                <button key={p.id} onClick={() => setForm((f) => ({ ...f, baseUrl: p.baseUrl, model: p.model, name: f.name || p.label }))} className="rounded-full border border-black/[0.08] px-2.5 py-1 text-[12px] text-ink-300 hover:border-info/40 hover:text-ink-100">
                   {p.label}
                 </button>
               ))}

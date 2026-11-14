@@ -1,89 +1,76 @@
 @import "tailwindcss";
 
+/*
+ * Sistema visual "papel": minimalista, quente e calmo.
+ * - Fundo bege, cartões brancos com borda de 1px, um único acento terracota.
+ * - Escala "ink": 950 é o fundo mais claro e 100 é o texto mais forte.
+ * - Cores semânticas dessaturadas (nada de neon ou gradiente).
+ */
 @theme {
   --font-sans: "Geist", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "Geist Mono", ui-monospace, monospace;
-  --font-serif: "Instrument Serif", ui-serif, serif;
+  --font-serif: "Source Serif 4", ui-serif, Georgia, serif;
 
-  --color-ink-950: #05050a;
-  --color-ink-900: #0a0a12;
-  --color-ink-850: #0f0f1a;
-  --color-ink-800: #141422;
-  --color-ink-700: #1d1d30;
-  --color-ink-600: #2a2a42;
-  --color-ink-500: #3d3d5c;
-  --color-ink-400: #6b6b8f;
-  --color-ink-300: #9a9abd;
-  --color-ink-200: #c8c8e0;
-  --color-ink-100: #ececf7;
+  --color-ink-950: #f7f5ef; /* fundo da página */
+  --color-ink-900: #f1eee6; /* sidebar, blocos de código */
+  --color-ink-850: #ebe7dc; /* realces suaves, balão do usuário */
+  --color-ink-800: #e4dfd2;
+  --color-ink-700: #dbd5c6; /* bordas fortes */
+  --color-ink-600: #cdc6b5;
+  --color-ink-500: #a8a193; /* ícones apagados */
+  --color-ink-400: #7d776b; /* texto secundário */
+  --color-ink-300: #5f5a50; /* texto de apoio */
+  --color-ink-200: #3d3a34; /* corpo */
+  --color-ink-100: #1f1e1c; /* títulos */
 
-  --color-violet: #8b5cf6;
-  --color-cyan: #22d3ee;
-  --color-mint: #34d399;
-  --color-amber: #f59e0b;
-  --color-rose: #fb7185;
-  --color-pink: #f472b6;
+  --color-accent: #c96442; /* terracota: ação principal e LLM */
+  --color-info: #4a7a96; /* usuário / entrada */
+  --color-ok: #5e8c4a; /* sucesso, scratchpad */
+  --color-warn: #b07a1e; /* ferramentas nativas, atenção */
+  --color-bad: #b4483a; /* erro */
+  --color-mcp: #9b5e86; /* MCP */
+  --color-memory: #7c6fa6; /* memória */
 
-  --animate-shimmer: shimmer 2.2s linear infinite;
-  --animate-float: float 14s ease-in-out infinite;
-  --animate-pulse-ring: pulse-ring 1.6s cubic-bezier(0.2, 0.6, 0.4, 1) infinite;
-  --animate-spin-slow: spin 6s linear infinite;
+  --animate-shimmer: shimmer 2.4s linear infinite;
+  --animate-pulse-ring: pulse-ring 1.8s cubic-bezier(0.2, 0.6, 0.4, 1) infinite;
+  --animate-spin-slow: spin 2.4s linear infinite;
 
   @keyframes shimmer {
     from { background-position: 200% 0; }
     to { background-position: -200% 0; }
   }
-  @keyframes float {
-    0%, 100% { transform: translate(0, 0) scale(1); }
-    33% { transform: translate(6%, -8%) scale(1.08); }
-    66% { transform: translate(-6%, 6%) scale(0.95); }
-  }
   @keyframes pulse-ring {
-    0% { transform: scale(0.9); opacity: 0.8; }
-    100% { transform: scale(1.8); opacity: 0; }
+    0% { transform: scale(0.95); opacity: 0.7; }
+    100% { transform: scale(1.6); opacity: 0; }
   }
 }
 
-:root {
-  color-scheme: dark;
-}
+:root { color-scheme: light; }
 
-html, body, #root {
-  height: 100%;
-}
+html, body, #root { height: 100%; }
 
 body {
   background: var(--color-ink-950);
-  color: var(--color-ink-100);
+  color: var(--color-ink-200);
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
   font-feature-settings: "ss01", "cv11";
 }
 
-::selection { background: color-mix(in oklab, var(--color-violet) 45%, transparent); }
+::selection { background: color-mix(in oklab, var(--color-accent) 22%, transparent); }
 
-* { scrollbar-width: thin; scrollbar-color: var(--color-ink-600) transparent; }
+* { scrollbar-width: thin; scrollbar-color: var(--color-ink-700) transparent; }
 
-/* Grade sutil de "laboratório" ao fundo */
-.lab-grid {
-  background-image:
-    linear-gradient(to right, rgb(255 255 255 / 0.035) 1px, transparent 1px),
-    linear-gradient(to bottom, rgb(255 255 255 / 0.035) 1px, transparent 1px);
-  background-size: 44px 44px;
-  mask-image: radial-gradient(ellipse 80% 60% at 50% 0%, black 30%, transparent 100%);
-}
-
+/* Cartão: branco, borda fina, sombra quase imperceptível. */
 .glass {
-  background: linear-gradient(180deg, rgb(255 255 255 / 0.045), rgb(255 255 255 / 0.015));
-  border: 1px solid rgb(255 255 255 / 0.07);
-  backdrop-filter: blur(14px);
+  background: #fff;
+  border: 1px solid rgb(31 30 28 / 0.08);
+  box-shadow: 0 1px 2px rgb(31 30 28 / 0.04);
 }
 
+/* Destaque de palavra em títulos: serifa itálica no acento. */
 .text-gradient {
-  background: linear-gradient(100deg, #c4b5fd 0%, #67e8f9 50%, #a7f3d0 100%);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
+  color: var(--color-accent);
 }
 
 .shimmer-text {
@@ -95,41 +82,20 @@ body {
   animation: var(--animate-shimmer);
 }
 
-/* Borda animada ("border beam") para cartões ativos */
+/* Estado "ativo": só uma borda na cor do contexto, sem brilho. */
 .beam {
-  position: relative;
-  isolation: isolate;
+  box-shadow: 0 0 0 1px var(--beam-color, var(--color-accent)), 0 1px 2px rgb(31 30 28 / 0.04);
+  border-color: transparent !important;
 }
-.beam::before {
-  content: "";
-  position: absolute;
-  inset: -1px;
-  border-radius: inherit;
-  padding: 1px;
-  background: conic-gradient(from var(--beam-angle), transparent 0%, var(--beam-color, var(--color-violet)) 10%, transparent 22%);
-  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
-  -webkit-mask-composite: xor;
-  mask-composite: exclude;
-  animation: beam-rotate 3s linear infinite;
-  pointer-events: none;
-  z-index: -1;
-}
-@property --beam-angle {
-  syntax: "<angle>";
-  initial-value: 0deg;
-  inherits: false;
-}
-@keyframes beam-rotate { to { --beam-angle: 360deg; } }
 
 .caret::after {
   content: "▍";
   margin-left: 1px;
-  color: var(--color-cyan);
+  color: var(--color-accent);
   animation: blink 1s steps(2) infinite;
 }
 @keyframes blink { 50% { opacity: 0; } }
 
-/* React Flow — tema escuro */
 .react-flow { --xy-background-color: transparent; }
 .react-flow__attribution { display: none; }
 .react-flow__handle { opacity: 0; }
