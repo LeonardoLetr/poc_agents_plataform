@@ -1,7 +1,29 @@
 // Tipos de domínio compartilhados pelo servidor.
 
-export type Provider = "anthropic" | "demo";
+export type Provider = "anthropic" | "openai" | "demo";
 export type Effort = "low" | "medium" | "high" | "xhigh" | "max";
+
+/**
+ * Uma "LLM" configurada em tempo de execução: provedor + modelo + credenciais.
+ * Vários agentes podem compartilhar a mesma LLM, e você troca a LLM de um agente quando quiser.
+ */
+export interface LlmConfig {
+  id: string;
+  name: string;
+  provider: Provider;
+  model: string;
+  /** Nunca é devolvida pela API — só `apiKeySet`/`apiKeyHint`. */
+  apiKey?: string;
+  /** Opcional. Anthropic: proxy/gateway. OpenAI-compatível: ex. https://openrouter.ai/api/v1 */
+  baseUrl?: string;
+  /** Só Anthropic: esforço de raciocínio. */
+  effort: Effort;
+  /** Só Anthropic: fallback no servidor quando o modelo recusa. */
+  refusalFallback: boolean;
+  maxTokens: number;
+  createdAt: string;
+  updatedAt: string;
+}
 
 export interface AgentConfig {
   id: string;
@@ -9,9 +31,8 @@ export interface AgentConfig {
   emoji: string;
   color: string;
   description: string;
-  provider: Provider;
-  model: string;
-  effort: Effort;
+  /** Qual LLM este agente usa. */
+  llmId: string;
   systemPrompt: string;
   /** Nomes das ferramentas habilitadas (builtin ou `mcp__servidor__tool`). */
   tools: string[];
@@ -25,8 +46,6 @@ export interface AgentConfig {
     autoEpisode: boolean;
     recallLimit: number;
   };
-  /** Ativa o fallback no servidor quando o modelo recusa (classificadores de segurança). */
-  refusalFallback: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -47,7 +66,8 @@ export interface Memory {
   source: "user" | "agent" | "auto";
 }
 
-export type McpTransport = "stdio" | "http";
+/** stdio: processo local (só no modo servidor) · http: servidor remoto · builtin: servidor embutido que roda em memória. */
+export type McpTransport = "stdio" | "http" | "builtin";
 
 export interface McpServerConfig {
   id: string;
@@ -106,7 +126,7 @@ export interface AuditEntry {
 
 /** Eventos ao vivo de uma execução (enviados via SSE para a UI). */
 export type RunEvent =
-  | { type: "run.started"; runId: string; agentId: string; input: string; provider: Provider; model: string }
+  | { type: "run.started"; runId: string; agentId: string; input: string; provider: Provider; model: string; llmName: string }
   | { type: "memory.recalled"; memories: { id: string; content: string; score: number; kind: MemoryKind }[] }
   | { type: "iteration.started"; iteration: number }
   | { type: "llm.request"; iteration: number; messageCount: number; toolCount: number; systemPrompt: string }

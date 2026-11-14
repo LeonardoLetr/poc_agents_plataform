@@ -1,14 +1,12 @@
-import Anthropic from "@anthropic-ai/sdk";
+import type Anthropic from "@anthropic-ai/sdk";
 import { audit } from "../audit.js";
-import { bus } from "../bus.js";
+import { callLlm, friendlyLlmError, llmHasCredentials, type Msg } from "../llm/index.js";
 import { createMemory, searchMemories } from "../memory.js";
 import { allMcpTools, callMcpTool, resolveMcpTool } from "../mcp/manager.js";
 import { db, persist } from "../store.js";
 import { builtinTools, type ToolContext } from "../tools/builtin.js";
-import type { AgentConfig, RunEvent, RunRecord } from "../types.js";
-import { clip, errorMessage, now, uid } from "../util.js";
-import { demoTurn } from "./demo.js";
-import { getClient, hasCredentials, supportsServerFallback } from "./llm.js";
+import type { AgentConfig, LlmConfig, RunEvent, RunRecord } from "../types.js";
+import { bus, clip, errorMessage, now, uid } from "../util.js";
 
 /**
  * O CORAÇÃO DA PLATAFORMA: o loop agêntico.
@@ -21,19 +19,10 @@ import { getClient, hasCredentials, supportsServerFallback } from "./llm.js";
  * Cada passo emite um evento (para a visualização ao vivo) e um registro de auditoria.
  */
 
-type Msg = Anthropic.Beta.BetaMessageParam;
-type ContentBlock = Anthropic.Beta.BetaContentBlock;
-
-export interface AssistantTurn {
-  content: ContentBlock[] | Anthropic.Beta.BetaContentBlockParam[];
-  stopReason: string | null;
-  usage: { input: number; output: number; cacheRead?: number };
-  model: string;
-}
-
 interface LiveRun {
   record: RunRecord;
   agent: AgentConfig;
+  llm: LlmConfig;
   abort: AbortController;
   approvals: Map<string, (approved: boolean) => void>;
   busy: boolean;
@@ -151,42 +140,8 @@ async function executeTool(run: LiveRun, block: { id: string; name: string; inpu
   return { type: "tool_result", tool_use_id: block.id, content: output, is_error: isError || undefined };
 }
 
-async function callClaude(run: LiveRun, system: string, tools: Anthropic.Tool[]): Promise<AssistantTurn> {
-  const agent = run.agent;
-  const useFallback = agent.refusalFallback && supportsServerFallback(agent.model);
-  const params = {
-    model: agent.model,
-    max_tokens: 64000,
-    system,
-    messages: run.record.messages as Msg[],
-    tools: tools as Anthropic.Beta.BetaToolUnion[],
-    // Pensamento adaptativo com resumo visível: você vê o "raciocínio" na timeline.
-    thinking: { type: "adaptive" as const, display: "summarized" as const },
-    output_config: { effort: agent.effort },
-    // Cache automático do prefixo: no loop agêntico o histórico cresce e é reenviado a cada iteração.
-    cache_control: { type: "ephemeral" as const },
-    ...(useFallback ? { betas: ["server-side-fallback-2026-07-01"], fallbacks: "default" } : {}),
-  };
-  const stream = getClient().beta.messages.stream(params as Parameters<Anthropic["beta"]["messages"]["stream"]>[0], {
-    signal: run.abort.signal,
-  });
-  stream.on("streamEvent", (event) => {
-    if (event.type !== "content_block_delta") return;
-    const d = event.delta as { type: string; text?: string; thinking?: string };
-    if (d.type === "text_delta" && d.text) emit(run, { type: "text.delta", text: d.text });
-    else if (d.type === "thinking_delta" && d.thinking) emit(run, { type: "thinking.delta", text: d.thinking });
-  });
-  const msg = await stream.finalMessage();
-  return {
-    content: msg.content,
-    stopReason: msg.stop_reason,
-    usage: { input: msg.usage.input_tokens, output: msg.usage.output_tokens, cacheRead: msg.usage.cache_read_input_tokens ?? undefined },
-    model: msg.model,
-  };
-}
-
 async function loop(run: LiveRun) {
-  const { agent, record } = run;
+  const { agent, record, llm } = run;
   run.busy = true;
   record.status = "running";
   const ctx: ToolContext = {
@@ -198,15 +153,15 @@ async function loop(run: LiveRun) {
   const tools = resolveTools(agent);
 
   try {
-    if (agent.provider === "anthropic" && !hasCredentials()) {
+    if (!llmHasCredentials(llm)) {
       throw new Error(
-        "Nenhuma credencial da Anthropic configurada. Defina ANTHROPIC_API_KEY no arquivo .env ou em Configurações — " +
-          "ou use um agente com provedor 'demo' para ver o loop funcionando offline.",
+        `A LLM "${llm.name}" não tem chave de API. Abra “LLMs”, cole a chave e tente de novo — ` +
+          "ou troque o agente para a LLM “Demo (offline)” para ver o loop funcionando sem chave.",
       );
     }
 
     let finalText = "";
-    let startIteration = record.iterations;
+    const startIteration = record.iterations;
     for (let i = 1; ; i++) {
       const iteration = startIteration + i;
       if (i > agent.maxIterations) throw new Error(`Limite de ${agent.maxIterations} iterações atingido sem concluir a tarefa.`);
@@ -225,15 +180,21 @@ async function loop(run: LiveRun) {
         actor: "agent",
         agentId: agent.id,
         runId: record.id,
-        summary: `Iteração ${iteration}: ${record.messages.length} mensagens, ${tools.length} ferramentas → ${agent.model}`,
-        data: { model: agent.model, effort: agent.effort, tools: tools.map((t) => t.name) },
+        summary: `Iteração ${iteration}: ${record.messages.length} mensagens, ${tools.length} ferramentas → ${llm.name} (${llm.model})`,
+        data: { llm: llm.name, provider: llm.provider, model: llm.model, effort: llm.provider === "anthropic" ? llm.effort : undefined, tools: tools.map((t) => t.name) },
       });
 
       const started = Date.now();
-      const turn =
-        agent.provider === "demo"
-          ? await demoTurn({ run: record, agent, tools, signal: run.abort.signal, emit: (ev) => emit(run, ev) })
-          : await callClaude(run, record.systemPrompt, tools);
+      const turn = await callLlm({
+        llm,
+        agent,
+        run: record,
+        system: record.systemPrompt,
+        messages: record.messages as Msg[],
+        tools,
+        signal: run.abort.signal,
+        emit: (ev) => emit(run, ev),
+      });
       const durationMs = Date.now() - started;
       record.usage.input += turn.usage.input;
       record.usage.output += turn.usage.output;
@@ -311,10 +272,7 @@ async function loop(run: LiveRun) {
       emit(run, { type: "run.cancelled" });
       audit({ type: "run.cancelled", actor: "user", agentId: agent.id, runId: record.id, summary: "Execução cancelada pelo usuário" });
     } else {
-      let message = errorMessage(err);
-      if (err instanceof Anthropic.AuthenticationError) message = "Chave da API inválida (401). Verifique em Configurações.";
-      else if (err instanceof Anthropic.RateLimitError) message = "Limite de requisições atingido (429). Tente novamente em instantes.";
-      else if (err instanceof Anthropic.APIError) message = `Erro da API (${err.status ?? "?"}): ${err.message}`;
+      const message = friendlyLlmError(err) ?? errorMessage(err);
       record.status = "failed";
       record.error = message;
       emit(run, { type: "run.failed", error: message });
@@ -326,7 +284,14 @@ async function loop(run: LiveRun) {
   }
 }
 
+function llmFor(agent: AgentConfig): LlmConfig {
+  const llm = db.llms.find((l) => l.id === agent.llmId);
+  if (!llm) throw new Error(`O agente "${agent.name}" não tem uma LLM válida. Escolha uma no editor do agente.`);
+  return structuredClone(llm);
+}
+
 export function startRun(agent: AgentConfig, input: string): RunRecord {
+  const llm = llmFor(agent);
   const recalled = agent.memory.autoRecall ? searchMemories(input, { agentId: agent.id, limit: agent.memory.recallLimit, touch: true }) : [];
   const record: RunRecord = {
     id: uid("run"),
@@ -346,17 +311,17 @@ export function startRun(agent: AgentConfig, input: string): RunRecord {
     scratchpad: [],
   };
   db.runs.push(record);
-  const run: LiveRun = { record, agent: structuredClone(agent), abort: new AbortController(), approvals: new Map(), busy: false };
+  const run: LiveRun = { record, agent: structuredClone(agent), llm, abort: new AbortController(), approvals: new Map(), busy: false };
   live.set(record.id, run);
 
-  emit(run, { type: "run.started", runId: record.id, agentId: agent.id, input, provider: agent.provider, model: agent.model });
+  emit(run, { type: "run.started", runId: record.id, agentId: agent.id, input, provider: llm.provider, model: llm.model, llmName: llm.name });
   audit({
     type: "run.started",
     actor: "user",
     agentId: agent.id,
     runId: record.id,
     summary: `Nova execução de "${agent.name}": ${clip(input, 100)}`,
-    data: { input, model: agent.model, provider: agent.provider },
+    data: { input, llm: llm.name, provider: llm.provider, model: llm.model },
   });
   if (recalled.length) {
     emit(run, {
@@ -384,11 +349,14 @@ export function continueRun(id: string, text: string): RunRecord {
   if (run?.busy) throw new Error("A execução ainda está em andamento.");
   const agent = db.agents.find((a) => a.id === record.agentId);
   if (!agent) throw new Error("Agente desta execução foi removido.");
+  // A conversa continua com a configuração ATUAL do agente (inclusive se você trocou a LLM dele).
+  const llm = llmFor(agent);
   if (!run) {
-    run = { record, agent: structuredClone(agent), abort: new AbortController(), approvals: new Map(), busy: false };
+    run = { record, agent: structuredClone(agent), llm, abort: new AbortController(), approvals: new Map(), busy: false };
     live.set(id, run);
   } else {
     run.agent = structuredClone(agent);
+    run.llm = llm;
     run.abort = new AbortController();
   }
   record.messages.push({ role: "user", content: text });

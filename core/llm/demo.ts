@@ -1,6 +1,5 @@
-import type Anthropic from "@anthropic-ai/sdk";
-import type { AgentConfig, RunEvent, RunRecord } from "../types.js";
-import type { AssistantTurn } from "./runner.js";
+import type { RunEvent } from "../types.js";
+import type { AssistantTurn, LlmCall } from "./types.js";
 
 /**
  * "LLM" simulado para o modo demonstração. Não é inteligente: segue um plano
@@ -144,15 +143,8 @@ function summarize(results: { name: string; content: string }[]): string {
   return lines.join("\n");
 }
 
-export async function demoTurn(opts: {
-  run: RunRecord;
-  agent: AgentConfig;
-  tools: Anthropic.Tool[];
-  signal: AbortSignal;
-  emit: (ev: RunEvent) => void;
-}): Promise<AssistantTurn> {
-  const { run, tools, signal, emit } = opts;
-  const messages = run.messages as Anthropic.Beta.BetaMessageParam[];
+export async function demoTurn(call: LlmCall): Promise<AssistantTurn> {
+  const { run, tools, signal, emit, messages } = call;
 
   // Encontra a última mensagem do usuário que é texto (a tarefa atual).
   let taskIdx = messages.length - 1;
@@ -163,7 +155,7 @@ export async function demoTurn(opts: {
 
   const toolNames = tools.map((t) => t.name);
   const steps = plan(task, toolNames);
-  const content: Anthropic.Beta.BetaContentBlockParam[] = [];
+  const content: AssistantTurn["content"] = [];
 
   await sleep(350, signal); // "latência de rede"
 

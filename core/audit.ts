@@ -1,7 +1,6 @@
-import { bus } from "./bus.js";
 import { db, persist } from "./store.js";
 import type { AuditEntry } from "./types.js";
-import { now, uid } from "./util.js";
+import { bus, now, uid } from "./util.js";
 
 /** Registra um evento na trilha de auditoria e o transmite ao vivo. */
 export function audit(entry: Omit<AuditEntry, "id" | "ts">): AuditEntry {

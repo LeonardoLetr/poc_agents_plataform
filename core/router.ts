@@ -1,0 +1,425 @@
+import { z } from "zod";
+import { cancelRun, continueRun, resolveApproval, startRun } from "./agent/runner.js";
+import { audit } from "./audit.js";
+import { hostEnv } from "./env.js";
+import { ANTHROPIC_MODELS, OPENAI_PRESETS, PRICING } from "./llm/catalog.js";
+import { llmHasCredentials, publicLlm } from "./llm/index.js";
+import { BUILTIN_MCP_SERVERS, allMcpTools, callMcpTool, connect, disconnect, forget, publicState, supportsStdio } from "./mcp/manager.js";
+import { createMemory, deleteMemory, searchMemories } from "./memory.js";
+import { newLlm } from "./seed.js";
+import { db, persist } from "./store.js";
+import { builtinTools } from "./tools/builtin.js";
+import type { AgentConfig, AuditEntry, McpServerConfig, PromptTemplate } from "./types.js";
+import { bus, errorMessage, now, uid } from "./util.js";
+
+/**
+ * A API inteira da plataforma, independente de framework. O servidor Express
+ * repassa as requisições HTTP para `handle`; no navegador o cliente chama
+ * `handle` direto. Streams (SSE no servidor) passam por `subscribe`.
+ */
+
+export interface ApiRequest {
+  method: string;
+  path: string;
+  query: Record<string, string>;
+  body: unknown;
+}
+export interface ApiResponse {
+  status: number;
+  body: unknown;
+  headers?: Record<string, string>;
+}
+
+class HttpError extends Error {
+  constructor(public status: number, message: string) {
+    super(message);
+  }
+}
+const notFound = (what: string): never => {
+  throw new HttpError(404, `${what} não encontrado(a)`);
+};
+
+type Handler = (p: Record<string, string>, req: ApiRequest) => unknown | Promise<unknown>;
+const routes: { method: string; pattern: RegExp; keys: string[]; handler: Handler }[] = [];
+function route(method: string, path: string, handler: Handler) {
+  const keys: string[] = [];
+  const pattern = new RegExp(`^${path.replace(/:(\w+)/g, (_, k) => (keys.push(k), "([^/]+)"))}$`);
+  routes.push({ method, pattern, keys, handler });
+}
+
+// ───────────────────────── Sistema ─────────────────────────
+route("GET", "/api/health", () => ({
+  ok: true,
+  runtime: hostEnv.runtime,
+  capabilities: { stdio: supportsStdio(), builtinMcp: Object.keys(BUILTIN_MCP_SERVERS) },
+  llmsReady: db.llms.filter(llmHasCredentials).length,
+  llmsTotal: db.llms.length,
+  catalog: { anthropic: ANTHROPIC_MODELS, openai: OPENAI_PRESETS },
+}));
+
+route("GET", "/api/stats", () => {
+  const runs = db.runs;
+  const tokens = runs.reduce((acc, r) => ({ input: acc.input + r.usage.input, output: acc.output + r.usage.output }), { input: 0, output: 0 });
+  let cost = 0;
+  for (const r of runs) {
+    const model = r.events.find((e) => e.type === "run.started") as { model?: string } | undefined;
+    const p = model?.model ? PRICING[model.model] : undefined;
+    if (p) cost += (r.usage.input * p.input + r.usage.output * p.output) / 1e6;
+  }
+  const toolCalls = db.audit.filter((a) => a.type === "tool.call");
+  const toolUsage: Record<string, number> = {};
+  for (const t of toolCalls) {
+    const name = String((t.summary.match(/Chamou (\S+)/) ?? [])[1] ?? "?");
+    toolUsage[name] = (toolUsage[name] ?? 0) + 1;
+  }
+  return {
+    agents: db.agents.length,
+    llms: db.llms.length,
+    runs: runs.length,
+    runsByStatus: runs.reduce<Record<string, number>>((acc, r) => ((acc[r.status] = (acc[r.status] ?? 0) + 1), acc), {}),
+    memories: db.memories.length,
+    mcpServers: db.mcpServers.length,
+    mcpConnected: db.mcpServers.filter((s) => publicState(s.id).status === "connected").length,
+    toolCalls: toolCalls.length,
+    toolUsage,
+    tokens,
+    estimatedCostUsd: +cost.toFixed(4),
+    auditEntries: db.audit.length,
+  };
+});
+
+// ───────────────────────── LLMs ─────────────────────────
+const LlmInput = z.object({
+  name: z.string().min(1).max(60),
+  provider: z.enum(["anthropic", "openai", "demo"]),
+  model: z.string().min(1),
+  /** undefined = manter a chave atual · "" = remover */
+  apiKey: z.string().optional(),
+  baseUrl: z.string().optional(),
+  effort: z.enum(["low", "medium", "high", "xhigh", "max"]).default("medium"),
+  refusalFallback: z.boolean().default(true),
+  maxTokens: z.number().int().min(256).max(128000).optional(),
+});
+
+route("GET", "/api/llms", () => db.llms.map((l) => ({ ...publicLlm(l), agents: db.agents.filter((a) => a.llmId === l.id).map((a) => a.id) })));
+route("POST", "/api/llms", (_p, req) => {
+  const body = LlmInput.parse(req.body);
+  const llm = newLlm({ ...body, apiKey: body.apiKey?.trim() || undefined, baseUrl: body.baseUrl?.trim() || undefined });
+  if (body.maxTokens) llm.maxTokens = body.maxTokens;
+  db.llms.push(llm);
+  persist();
+  audit({ type: "config.changed", actor: "user", summary: `LLM "${llm.name}" criada (${llm.provider} · ${llm.model})`, data: publicLlm(llm) });
+  return publicLlm(llm);
+});
+route("PUT", "/api/llms/:id", ({ id }, req) => {
+  const llm = db.llms.find((l) => l.id === id) ?? notFound("LLM");
+  const body = LlmInput.parse(req.body);
+  const before = publicLlm(llm);
+  Object.assign(llm, {
+    name: body.name,
+    provider: body.provider,
+    model: body.model,
+    baseUrl: body.baseUrl?.trim() || undefined,
+    effort: body.effort,
+    refusalFallback: body.refusalFallback,
+    maxTokens: body.maxTokens ?? llm.maxTokens,
+    updatedAt: now(),
+  });
+  if (body.apiKey !== undefined) llm.apiKey = body.apiKey.trim() || undefined;
+  persist();
+  audit({
+    type: "config.changed",
+    actor: "user",
+    summary: `LLM "${llm.name}" atualizada${body.apiKey !== undefined ? (body.apiKey ? " (chave trocada)" : " (chave removida)") : ""}`,
+    data: { before, after: publicLlm(llm) },
+  });
+  return publicLlm(llm);
+});
+route("DELETE", "/api/llms/:id", ({ id }) => {
+  const idx = db.llms.findIndex((l) => l.id === id);
+  if (idx < 0) notFound("LLM");
+  const users = db.agents.filter((a) => a.llmId === id);
+  if (users.length) throw new HttpError(409, `Esta LLM é usada por: ${users.map((a) => a.name).join(", ")}. Troque a LLM desses agentes antes.`);
+  const [removed] = db.llms.splice(idx, 1);
+  persist();
+  audit({ type: "config.changed", actor: "user", summary: `LLM "${removed.name}" removida` });
+  return { ok: true };
+});
+
+// ───────────────────────── Ferramentas ─────────────────────────
+route("GET", "/api/tools", () => {
+  const builtin = Object.values(builtinTools).map((t) => ({
+    name: t.definition.name,
+    description: t.definition.description,
+    inputSchema: t.definition.input_schema,
+    source: "builtin" as const,
+    category: t.category,
+  }));
+  const mcp = allMcpTools(db.mcpServers).map((t) => ({
+    name: t.definition.name,
+    description: t.tool.description,
+    inputSchema: t.tool.inputSchema,
+    source: "mcp" as const,
+    server: t.server.name,
+    category: "mcp",
+  }));
+  return [...builtin, ...mcp];
+});
+
+// ───────────────────────── Agentes ─────────────────────────
+const AgentInput = z.object({
+  name: z.string().min(1).max(60),
+  emoji: z.string().max(8).default("🤖"),
+  color: z.string().default("#8b5cf6"),
+  description: z.string().max(400).default(""),
+  llmId: z.string().min(1, "Escolha uma LLM"),
+  systemPrompt: z.string().default(""),
+  tools: z.array(z.string()).default([]),
+  maxIterations: z.number().int().min(1).max(50).default(10),
+  requireApproval: z.boolean().default(false),
+  memory: z
+    .object({ autoRecall: z.boolean(), autoEpisode: z.boolean(), recallLimit: z.number().int().min(0).max(20) })
+    .default({ autoRecall: true, autoEpisode: true, recallLimit: 5 }),
+});
+const checkLlm = (llmId: string) => db.llms.some((l) => l.id === llmId) || notFound("LLM");
+
+route("GET", "/api/agents", () => db.agents);
+route("GET", "/api/agents/:id", ({ id }) => db.agents.find((a) => a.id === id) ?? notFound("Agente"));
+route("POST", "/api/agents", (_p, req) => {
+  const body = AgentInput.parse(req.body);
+  checkLlm(body.llmId);
+  const agent: AgentConfig = { id: uid("agt"), ...body, createdAt: now(), updatedAt: now() };
+  db.agents.push(agent);
+  persist();
+  audit({ type: "config.changed", actor: "user", agentId: agent.id, summary: `Agente "${agent.name}" criado`, data: agent });
+  return agent;
+});
+route("PUT", "/api/agents/:id", ({ id }, req) => {
+  const agent = db.agents.find((a) => a.id === id) ?? notFound("Agente");
+  const body = AgentInput.parse(req.body);
+  checkLlm(body.llmId);
+  const before = structuredClone(agent);
+  Object.assign(agent, body, { updatedAt: now() });
+  persist();
+  const changed = Object.keys(body).filter((k) => JSON.stringify((before as never)[k]) !== JSON.stringify((agent as never)[k]));
+  audit({ type: "config.changed", actor: "user", agentId: agent.id, summary: `Agente "${agent.name}" atualizado (${changed.join(", ") || "sem mudanças"})`, data: { before, after: agent } });
+  return agent;
+});
+route("DELETE", "/api/agents/:id", ({ id }) => {
+  const idx = db.agents.findIndex((a) => a.id === id);
+  if (idx < 0) notFound("Agente");
+  const [removed] = db.agents.splice(idx, 1);
+  persist();
+  audit({ type: "config.changed", actor: "user", agentId: removed.id, summary: `Agente "${removed.name}" removido` });
+  return { ok: true };
+});
+
+// ───────────────────────── Prompts ─────────────────────────
+const PromptInput = z.object({
+  name: z.string().min(1),
+  description: z.string().default(""),
+  content: z.string().min(1),
+  category: z.enum(["system", "task"]).default("system"),
+});
+route("GET", "/api/prompts", () => db.prompts);
+route("POST", "/api/prompts", (_p, req) => {
+  const prompt: PromptTemplate = { id: uid("prm"), ...PromptInput.parse(req.body), createdAt: now() };
+  db.prompts.push(prompt);
+  persist();
+  audit({ type: "config.changed", actor: "user", summary: `Prompt "${prompt.name}" criado` });
+  return prompt;
+});
+route("PUT", "/api/prompts/:id", ({ id }, req) => {
+  const prompt = db.prompts.find((p) => p.id === id) ?? notFound("Prompt");
+  Object.assign(prompt, PromptInput.parse(req.body));
+  persist();
+  audit({ type: "config.changed", actor: "user", summary: `Prompt "${prompt.name}" atualizado` });
+  return prompt;
+});
+route("DELETE", "/api/prompts/:id", ({ id }) => {
+  const idx = db.prompts.findIndex((p) => p.id === id);
+  if (idx < 0) notFound("Prompt");
+  const [removed] = db.prompts.splice(idx, 1);
+  persist();
+  audit({ type: "config.changed", actor: "user", summary: `Prompt "${removed.name}" removido` });
+  return { ok: true };
+});
+
+// ───────────────────────── Memória ─────────────────────────
+const MemoryInput = z.object({
+  content: z.string().min(1),
+  kind: z.enum(["fact", "episode", "preference", "procedure"]).default("fact"),
+  tags: z.array(z.string()).default([]),
+  importance: z.number().min(1).max(5).default(3),
+  agentId: z.string().nullable().default(null),
+});
+route("GET", "/api/memories", (_p, req) => (req.query.agentId ? db.memories.filter((m) => m.agentId === req.query.agentId || m.agentId === null) : db.memories));
+route("GET", "/api/memories/search", (_p, req) => searchMemories(req.query.q ?? "", { agentId: req.query.agentId || undefined, limit: 20 }));
+route("POST", "/api/memories", (_p, req) => createMemory({ ...MemoryInput.parse(req.body), source: "user" }));
+route("PUT", "/api/memories/:id", ({ id }, req) => {
+  const memory = db.memories.find((m) => m.id === id) ?? notFound("Memória");
+  const before = structuredClone(memory);
+  Object.assign(memory, MemoryInput.parse(req.body));
+  persist();
+  audit({ type: "memory.updated", actor: "user", summary: `Memória editada: ${memory.content.slice(0, 80)}`, data: { before, after: memory } });
+  return memory;
+});
+route("DELETE", "/api/memories/:id", ({ id }) => (deleteMemory(id, "user") ? { ok: true } : notFound("Memória")));
+
+// ───────────────────────── MCP ─────────────────────────
+const McpInput = z.object({
+  name: z.string().min(1).max(32).regex(/^[a-zA-Z0-9_-]+$/, "Use apenas letras, números, _ e -"),
+  transport: z.enum(["stdio", "http", "builtin"]),
+  command: z.string().optional(),
+  args: z.array(z.string()).default([]),
+  env: z.record(z.string(), z.string()).default({}),
+  url: z.string().optional(),
+  headers: z.record(z.string(), z.string()).default({}),
+  enabled: z.boolean().default(true),
+});
+const mcpView = (s: McpServerConfig) => ({
+  ...s,
+  env: Object.fromEntries(Object.keys(s.env ?? {}).map((k) => [k, "••••"])),
+  headers: Object.fromEntries(Object.keys(s.headers ?? {}).map((k) => [k, "••••"])),
+  state: publicState(s.id),
+});
+const findServer = (id: string) => db.mcpServers.find((s) => s.id === id) ?? notFound("Servidor MCP");
+
+route("GET", "/api/mcp", () => db.mcpServers.map(mcpView));
+route("POST", "/api/mcp", async (_p, req) => {
+  const body = McpInput.parse(req.body);
+  if (db.mcpServers.some((s) => s.name === body.name)) throw new HttpError(409, "Já existe um servidor com esse nome");
+  const server: McpServerConfig = { id: uid("mcp"), ...body, createdAt: now() };
+  db.mcpServers.push(server);
+  persist();
+  audit({ type: "config.changed", actor: "user", summary: `Servidor MCP "${server.name}" adicionado`, data: { ...server, env: Object.keys(server.env ?? {}), headers: Object.keys(server.headers ?? {}) } });
+  if (server.enabled) await connect(server);
+  return mcpView(server);
+});
+route("POST", "/api/mcp/:id/connect", async ({ id }) => {
+  const server = findServer(id);
+  server.enabled = true;
+  persist();
+  await connect(server);
+  return mcpView(server);
+});
+route("POST", "/api/mcp/:id/disconnect", async ({ id }) => {
+  const server = findServer(id);
+  server.enabled = false;
+  persist();
+  await disconnect(server.id);
+  return mcpView(server);
+});
+route("DELETE", "/api/mcp/:id", async ({ id }) => {
+  const server = findServer(id);
+  db.mcpServers.splice(db.mcpServers.indexOf(server), 1);
+  await disconnect(server.id, false);
+  forget(server.id);
+  persist();
+  audit({ type: "config.changed", actor: "user", summary: `Servidor MCP "${server.name}" removido` });
+  return { ok: true };
+});
+route("POST", "/api/mcp/:id/tools/:tool/call", async ({ id, tool }, req) => {
+  const server = findServer(id);
+  const started = Date.now();
+  const args = ((req.body as { arguments?: unknown })?.arguments ?? {}) as Record<string, unknown>;
+  try {
+    const result = await callMcpTool(server.id, decodeURIComponent(tool), args);
+    audit({ type: "tool.call", actor: "user", summary: `Chamou mcp__${server.name}__${tool} (teste manual)`, durationMs: Date.now() - started, data: { args, result } });
+    return { ...result, durationMs: Date.now() - started };
+  } catch (err) {
+    throw new HttpError(400, errorMessage(err));
+  }
+});
+
+// ───────────────────────── Execuções ─────────────────────────
+route("GET", "/api/runs", (_p, req) =>
+  db.runs
+    .filter((r) => !req.query.agentId || r.agentId === req.query.agentId)
+    .slice(-50)
+    .reverse()
+    .map(({ events, messages, ...rest }) => ({ ...rest, eventCount: events.length, messageCount: messages.length })),
+);
+route("POST", "/api/runs", (_p, req) => {
+  const body = z.object({ agentId: z.string(), input: z.string().min(1) }).parse(req.body);
+  const agent = db.agents.find((a) => a.id === body.agentId) ?? notFound("Agente");
+  try {
+    return { id: startRun(agent, body.input).id };
+  } catch (err) {
+    throw new HttpError(400, errorMessage(err));
+  }
+});
+route("GET", "/api/runs/:id", ({ id }) => db.runs.find((r) => r.id === id) ?? notFound("Execução"));
+route("POST", "/api/runs/:id/messages", ({ id }, req) => {
+  const { text } = z.object({ text: z.string().min(1) }).parse(req.body);
+  try {
+    continueRun(id, text);
+    return { ok: true };
+  } catch (err) {
+    throw new HttpError(400, errorMessage(err));
+  }
+});
+route("POST", "/api/runs/:id/cancel", ({ id }) => ({ ok: cancelRun(id) }));
+route("POST", "/api/runs/:id/approve", ({ id }, req) => {
+  const { toolUseId, approved } = z.object({ toolUseId: z.string(), approved: z.boolean() }).parse(req.body);
+  return { ok: resolveApproval(id, toolUseId, approved) };
+});
+
+// ───────────────────────── Auditoria ─────────────────────────
+function filterAudit(q: Record<string, string>): AuditEntry[] {
+  const types = q.type ? q.type.split(",") : null;
+  const text = (q.q ?? "").toLowerCase();
+  return db.audit.filter(
+    (a) =>
+      (!types || types.some((t) => a.type === t || a.type.startsWith(`${t}.`))) &&
+      (!q.agentId || a.agentId === q.agentId) &&
+      (!q.runId || a.runId === q.runId) &&
+      (!q.actor || a.actor === q.actor) &&
+      (!text || a.summary.toLowerCase().includes(text)),
+  );
+}
+route("GET", "/api/audit", (_p, req) => {
+  const limit = Math.min(1000, Number(req.query.limit ?? 300));
+  const list = filterAudit(req.query);
+  return { total: list.length, entries: list.slice(-limit).reverse() };
+});
+route("GET", "/api/audit/export", (_p, req) => filterAudit(req.query));
+
+// ───────────────────────── Despacho ─────────────────────────
+export async function handle(req: ApiRequest): Promise<ApiResponse> {
+  for (const r of routes) {
+    if (r.method !== req.method) continue;
+    const m = r.pattern.exec(req.path);
+    if (!m) continue;
+    const params = Object.fromEntries(r.keys.map((k, i) => [k, decodeURIComponent(m[i + 1])]));
+    try {
+      const body = await r.handler(params, req);
+      return { status: req.method === "POST" && !req.path.match(/\/(connect|disconnect|cancel|approve|messages|call)$/) ? 201 : 200, body };
+    } catch (err) {
+      if (err instanceof z.ZodError) return { status: 400, body: { error: "Dados inválidos", issues: err.issues } };
+      if (err instanceof HttpError) return { status: err.status, body: { error: err.message } };
+      console.error(err);
+      return { status: 500, body: { error: errorMessage(err) } };
+    }
+  }
+  return { status: 404, body: { error: `Rota não encontrada: ${req.method} ${req.path}` } };
+}
+
+/**
+ * Streams ao vivo. Devolve a função de cancelamento, ou null se o caminho não for um stream.
+ *  - /api/runs/:id/stream → snapshot + eventos da execução
+ *  - /api/audit/stream    → novos registros de auditoria
+ *  - /api/mcp/events      → mudanças de status dos servidores MCP
+ */
+export function subscribe(path: string, send: (data: unknown) => void): (() => void) | null {
+  const run = path.match(/^\/api\/runs\/([^/]+)\/stream$/);
+  if (run) {
+    const record = db.runs.find((r) => r.id === run[1]);
+    if (!record) return null;
+    send({ type: "snapshot", run: { ...record, events: undefined, messages: undefined }, events: record.events });
+    return bus.on(`run:${record.id}`, send);
+  }
+  if (path === "/api/audit/stream") return bus.on("audit", send);
+  if (path === "/api/mcp/events") return bus.on("mcp", send);
+  return null;
+}

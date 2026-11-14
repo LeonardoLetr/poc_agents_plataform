@@ -1,18 +1,37 @@
-import type { AgentConfig, McpServerConfig, Memory, PromptTemplate } from "./types.js";
+import type { DB } from "./store.js";
+import type { AgentConfig, LlmConfig, McpServerConfig, Memory, PromptTemplate } from "./types.js";
 import { now, uid } from "./util.js";
+
+export const newLlm = (l: Partial<LlmConfig> & Pick<LlmConfig, "name" | "provider" | "model">): LlmConfig => ({
+  id: uid("llm"),
+  effort: "medium",
+  refusalFallback: true,
+  maxTokens: l.provider === "openai" ? 4096 : 64000,
+  createdAt: now(),
+  updatedAt: now(),
+  ...l,
+});
+
+/** IDs fixos para as LLMs de exemplo, para os agentes de exemplo poderem referenciá-las. */
+export const SEED_LLM = { opus: "llm_claude_opus", haiku: "llm_claude_haiku", demo: "llm_demo" };
+
+export function seedLlms(): LlmConfig[] {
+  return [
+    newLlm({ id: SEED_LLM.opus, name: "Claude Opus 5.5", provider: "anthropic", model: "claude-opus-5-5", effort: "medium" }),
+    newLlm({ id: SEED_LLM.haiku, name: "Claude Haiku 5.5 (rápido)", provider: "anthropic", model: "claude-haiku-5-5", effort: "low", refusalFallback: false }),
+    newLlm({ id: SEED_LLM.demo, name: "Demo (offline)", provider: "demo", model: "demo-simulado" }),
+  ];
+}
 
 const baseAgent = (a: Partial<AgentConfig> & Pick<AgentConfig, "name" | "systemPrompt" | "tools">): AgentConfig => ({
   id: uid("agt"),
   emoji: "🤖",
   color: "#8b5cf6",
   description: "",
-  provider: "anthropic",
-  model: "claude-opus-5-5",
-  effort: "medium",
+  llmId: SEED_LLM.opus,
   maxIterations: 10,
   requireApproval: false,
   memory: { autoRecall: true, autoEpisode: true, recallLimit: 5 },
-  refusalFallback: true,
   createdAt: now(),
   updatedAt: now(),
   ...a,
@@ -39,7 +58,6 @@ export function seedAgents(): AgentConfig[] {
         "Você é um analista quantitativo. Quebre problemas em etapas, use `calculator` para TODA conta " +
         "(nunca calcule de cabeça) e registre resultados intermediários no `scratchpad_write`. Responda em português.",
       tools: ["calculator", "scratchpad_write", "scratchpad_read", "current_time"],
-      effort: "high",
     }),
     baseAgent({
       name: "Assistente com Memória",
@@ -56,8 +74,7 @@ export function seedAgents(): AgentConfig[] {
       emoji: "🎬",
       color: "#34d399",
       description: "Roda sem chave de API: um LLM simulado que usa as ferramentas reais para você ver o loop funcionando.",
-      provider: "demo",
-      model: "demo-simulado",
+      llmId: SEED_LLM.demo,
       systemPrompt: "Você é um agente de demonstração que explica cada passo do loop agêntico.",
       tools: ["calculator", "current_time", "memory_save", "memory_search", "scratchpad_write", "http_fetch", "mcp__laboratorio__*"],
     }),
@@ -69,6 +86,7 @@ export function seedAgents(): AgentConfig[] {
       systemPrompt:
         "Você é um agente que usa ferramentas externas via MCP. Explique qual servidor e ferramenta está usando e por quê. Responda em português.",
       tools: ["mcp__laboratorio__*", "calculator"],
+      llmId: SEED_LLM.haiku,
     }),
   ];
 }
@@ -94,20 +112,22 @@ export function seedMemories(): Memory[] {
   ];
 }
 
-export function seedMcpServers(): McpServerConfig[] {
-  return [
+export function seedMcpServers(runtime: "server" | "browser"): McpServerConfig[] {
+  const servers: McpServerConfig[] = [
     {
-      // Servidor de exemplo incluído no repositório (mcp-servers/laboratorio).
+      // Servidor de exemplo embutido (core/mcp/lab-server.ts) — roda em memória, até no navegador.
       id: uid("mcp"),
       name: "laboratorio",
-      transport: "stdio",
-      command: "node",
-      args: ["--import", "tsx", "../mcp-servers/laboratorio/index.ts"],
+      transport: "builtin",
+      command: "laboratorio",
+      args: [],
       env: {},
       enabled: true,
       createdAt: now(),
     },
-    {
+  ];
+  if (runtime === "server") {
+    servers.push({
       id: uid("mcp"),
       name: "everything",
       transport: "stdio",
@@ -116,8 +136,9 @@ export function seedMcpServers(): McpServerConfig[] {
       env: {},
       enabled: false,
       createdAt: now(),
-    },
-  ];
+    });
+  }
+  return servers;
 }
 
 export function seedPrompts(): PromptTemplate[] {
@@ -157,4 +178,55 @@ export function seedPrompts(): PromptTemplate[] {
       "task",
     ),
   ];
+}
+
+export function seedDb(runtime: "server" | "browser"): DB {
+  return {
+    version: 2,
+    llms: seedLlms(),
+    agents: seedAgents(),
+    memories: seedMemories(),
+    mcpServers: seedMcpServers(runtime),
+    prompts: seedPrompts(),
+    audit: [],
+    runs: [],
+  };
+}
+
+/** Converte dados da versão 1 (provedor/modelo dentro do agente) para LLMs separadas. */
+export function migrate(raw: Record<string, unknown>, runtime: "server" | "browser"): DB {
+  const data = raw as Partial<DB> & { settings?: { anthropicApiKey?: string }; version?: number };
+  const out: DB = {
+    version: 2,
+    llms: data.llms ?? [],
+    agents: data.agents ?? [],
+    memories: data.memories ?? [],
+    mcpServers: data.mcpServers ?? [],
+    prompts: data.prompts ?? [],
+    audit: data.audit ?? [],
+    runs: data.runs ?? [],
+  };
+  if ((data.version ?? 1) < 2) {
+    const legacyKey = data.settings?.anthropicApiKey;
+    if (!out.llms.length) out.llms = seedLlms().map((l) => (l.provider === "anthropic" && legacyKey ? { ...l, apiKey: legacyKey } : l));
+    for (const agent of out.agents as (AgentConfig & { provider?: string; model?: string; effort?: LlmConfig["effort"] })[]) {
+      if (agent.llmId) continue;
+      if (agent.provider === "demo") agent.llmId = SEED_LLM.demo;
+      else {
+        let llm = out.llms.find((l) => l.provider === "anthropic" && l.model === agent.model && l.effort === (agent.effort ?? "medium"));
+        if (!llm) {
+          llm = newLlm({ name: `${agent.model} (${agent.effort})`, provider: "anthropic", model: agent.model ?? "claude-opus-5-5", effort: agent.effort ?? "medium", apiKey: legacyKey });
+          out.llms.push(llm);
+        }
+        agent.llmId = llm.id;
+      }
+      delete agent.provider;
+      delete agent.model;
+      delete agent.effort;
+    }
+    // O laboratorio agora é embutido (funciona sem processo externo).
+    for (const s of out.mcpServers) if (s.name === "laboratorio" && s.transport === "stdio") Object.assign(s, { transport: "builtin", command: "laboratorio", args: [] });
+  }
+  if (!out.llms.length && !out.agents.length) return seedDb(runtime);
+  return out;
 }

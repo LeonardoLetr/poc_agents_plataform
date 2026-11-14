@@ -1,13 +1,29 @@
 import type Anthropic from "@anthropic-ai/sdk";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { SSEClientTransport } from "@modelcontextprotocol/sdk/client/sse.js";
-import { StdioClientTransport, getDefaultEnvironment } from "@modelcontextprotocol/sdk/client/stdio.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
+import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import type { Transport } from "@modelcontextprotocol/sdk/shared/transport.js";
 import { audit } from "../audit.js";
-import { bus } from "../bus.js";
 import type { McpServerConfig } from "../types.js";
-import { clip, errorMessage, now } from "../util.js";
+import { bus, clip, errorMessage, now } from "../util.js";
+import { createLabServer } from "./lab-server.js";
+
+/** Servidores MCP embutidos (rodam no mesmo processo, via transporte em memória). */
+export const BUILTIN_MCP_SERVERS: Record<string, { description: string; create: typeof createLabServer }> = {
+  laboratorio: { description: "Notas, dados, estatísticas de texto e conversão de unidades.", create: createLabServer },
+};
+
+/**
+ * O hospedeiro pode fornecer transportes extras. O servidor Node registra o
+ * `stdio` (processos locais); no navegador ele simplesmente não existe.
+ */
+type StdioFactory = (cfg: McpServerConfig, log: (line: string) => void) => Transport;
+let stdioFactory: StdioFactory | null = null;
+export function registerStdioTransport(factory: StdioFactory) {
+  stdioFactory = factory;
+}
+export const supportsStdio = () => stdioFactory !== null;
 
 /**
  * Gerencia conexões com servidores MCP. Cada servidor expõe ferramentas que
@@ -72,19 +88,19 @@ export function publicState(id: string) {
   };
 }
 
-function buildTransport(cfg: McpServerConfig): Transport {
+async function buildTransport(cfg: McpServerConfig): Promise<Transport> {
+  if (cfg.transport === "builtin") {
+    const builtin = BUILTIN_MCP_SERVERS[cfg.command ?? cfg.name];
+    if (!builtin) throw new Error(`Servidor embutido desconhecido: ${cfg.command ?? cfg.name}`);
+    const [clientSide, serverSide] = InMemoryTransport.createLinkedPair();
+    await builtin.create().connect(serverSide);
+    log(cfg.id, "Servidor embutido iniciado (transporte em memória).");
+    return clientSide;
+  }
   if (cfg.transport === "stdio") {
+    if (!stdioFactory) throw new Error("Transporte stdio só está disponível no modo servidor (npm run dev). No navegador use HTTP ou um servidor embutido.");
     if (!cfg.command) throw new Error("Comando obrigatório para transporte stdio.");
-    const t = new StdioClientTransport({
-      command: cfg.command,
-      args: cfg.args ?? [],
-      env: { ...getDefaultEnvironment(), ...(cfg.env ?? {}) },
-      stderr: "pipe",
-    });
-    t.stderr?.on("data", (chunk: Buffer) => {
-      for (const line of chunk.toString().split("\n").filter(Boolean)) log(cfg.id, `stderr: ${line}`);
-    });
-    return t;
+    return stdioFactory(cfg, (line) => log(cfg.id, line));
   }
   if (!cfg.url) throw new Error("URL obrigatória para transporte HTTP.");
   return new StreamableHTTPClientTransport(new URL(cfg.url), { requestInit: { headers: cfg.headers ?? {} } });
@@ -101,7 +117,7 @@ export async function connect(cfg: McpServerConfig): Promise<void> {
   const started = Date.now();
   try {
     let client = new Client({ name: "agent-lab", version: "0.1.0" });
-    let transport = buildTransport(cfg);
+    let transport = await buildTransport(cfg);
     try {
       await client.connect(transport);
     } catch (err) {
