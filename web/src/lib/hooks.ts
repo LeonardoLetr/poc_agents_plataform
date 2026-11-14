@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { api } from "./api";
+import { api, subscribeStream } from "./api";
 
 /** Busca um recurso e expõe `reload` para atualizar depois de mutações. */
 export function useResource<T>(url: string | null, deps: unknown[] = []) {
@@ -35,20 +35,7 @@ export function useEventStream<T>(url: string | null, onMessage: (data: T) => vo
 
   useEffect(() => {
     if (!url) return;
-    const es = new EventSource(url);
-    es.onopen = () => setConnected(true);
-    es.onerror = () => setConnected(false);
-    es.onmessage = (e) => {
-      try {
-        handler.current(JSON.parse(e.data) as T);
-      } catch {
-        /* ignora eventos malformados */
-      }
-    };
-    return () => {
-      es.close();
-      setConnected(false);
-    };
+    return subscribeStream(url, (data) => handler.current(data as T), setConnected);
   }, [url]);
 
   return connected;

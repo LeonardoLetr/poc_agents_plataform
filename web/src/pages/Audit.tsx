@@ -1,7 +1,7 @@
 import { AnimatePresence, motion } from "motion/react";
 import { Bot, Brain, ChevronRight, Cpu, Download, Pause, Play, Plug, Settings2, ShieldCheck, User, Wrench } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { LiveDot } from "../components/effects";
 import { JsonView } from "../components/JsonView";
 import { Badge, Button, Card, Input, PageHeader, Select } from "../components/ui";
@@ -83,11 +83,18 @@ export default function Audit() {
             <Button onClick={() => setPaused(!paused)}>
               {paused ? <Play size={14} /> : <Pause size={14} />} {paused ? "Retomar" : "Pausar"} ao vivo
             </Button>
-            <a href={`/api/audit/export?${query}`}>
-              <Button>
-                <Download size={14} /> Exportar JSON
-              </Button>
-            </a>
+            <Button
+              onClick={async () => {
+                // Funciona nos dois modos: busca os dados e gera o arquivo no próprio navegador.
+                const data = await api.get(`/api/audit/export?${query}`);
+                const url = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], { type: "application/json" }));
+                const a = Object.assign(document.createElement("a"), { href: url, download: `auditoria-${Date.now()}.json` });
+                a.click();
+                URL.revokeObjectURL(url);
+              }}
+            >
+              <Download size={14} /> Exportar JSON
+            </Button>
           </>
         }
       />
@@ -158,7 +165,7 @@ export default function Audit() {
                         <div className="space-y-1 font-mono text-[11px] text-ink-400">
                           <div>id: {e.id}</div>
                           <div>quando: {fmtDateTime(e.ts)}</div>
-                          {e.runId && <div>execução: <a className="text-cyan" href={`/playground/${e.runId}`}>{e.runId}</a></div>}
+                          {e.runId && <div>execução: <Link className="text-cyan" to={`/playground/${e.runId}`}>{e.runId}</Link></div>}
                           {e.agentId && <div>agente: {agentName(e.agentId) ?? e.agentId}</div>}
                         </div>
                         {e.data !== undefined ? <JsonView value={e.data} maxHeight={300} /> : <div className="text-[12px] text-ink-500">Sem dados adicionais.</div>}

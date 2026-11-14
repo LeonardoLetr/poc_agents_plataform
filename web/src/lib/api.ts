@@ -1,6 +1,7 @@
-// Tipos espelhados do servidor + cliente HTTP mínimo.
+// Tipos espelhados do núcleo + cliente que fala com o servidor OU com o núcleo no navegador.
+import { getCore, getMode } from "./runtime";
 
-export type Provider = "anthropic" | "demo";
+export type Provider = "anthropic" | "openai" | "demo";
 export type Effort = "low" | "medium" | "high" | "xhigh" | "max";
 
 export interface Agent {
@@ -9,18 +10,43 @@ export interface Agent {
   emoji: string;
   color: string;
   description: string;
-  provider: Provider;
-  model: string;
-  effort: Effort;
+  llmId: string;
   systemPrompt: string;
   tools: string[];
   maxIterations: number;
   requireApproval: boolean;
   memory: { autoRecall: boolean; autoEpisode: boolean; recallLimit: number };
-  refusalFallback: boolean;
   createdAt: string;
   updatedAt: string;
 }
+
+export interface Llm {
+  id: string;
+  name: string;
+  provider: Provider;
+  model: string;
+  baseUrl?: string;
+  effort: Effort;
+  refusalFallback: boolean;
+  maxTokens: number;
+  apiKeySet: boolean;
+  apiKeyHint: string | null;
+  ready: boolean;
+  agents: string[];
+  createdAt: string;
+  updatedAt: string;
+}
+export interface LlmInput {
+  name: string;
+  provider: Provider;
+  model: string;
+  apiKey?: string;
+  baseUrl?: string;
+  effort: Effort;
+  refusalFallback: boolean;
+  maxTokens?: number;
+}
+
 export type AgentInput = Omit<Agent, "id" | "createdAt" | "updatedAt">;
 
 export type MemoryKind = "fact" | "episode" | "preference" | "procedure";
@@ -49,7 +75,7 @@ export interface ToolInfo {
 export interface McpServer {
   id: string;
   name: string;
-  transport: "stdio" | "http";
+  transport: "stdio" | "http" | "builtin";
   command?: string;
   args?: string[];
   env?: Record<string, string>;
@@ -112,7 +138,7 @@ export interface RunDetail extends RunSummary {
 }
 
 export type RunEvent = { ts: string } & (
-  | { type: "run.started"; runId: string; agentId: string; input: string; provider: Provider; model: string }
+  | { type: "run.started"; runId: string; agentId: string; input: string; provider: Provider; model: string; llmName?: string }
   | { type: "memory.recalled"; memories: { id: string; content: string; score: number; kind: MemoryKind }[] }
   | { type: "iteration.started"; iteration: number }
   | { type: "llm.request"; iteration: number; messageCount: number; toolCount: number; systemPrompt: string }
@@ -132,13 +158,19 @@ export type RunEvent = { ts: string } & (
 
 export interface Health {
   ok: boolean;
-  anthropicConfigured: boolean;
-  keySource: "ui" | "env" | null;
-  models: { id: string; label: string; note: string; fallback: boolean }[];
+  runtime: "server" | "browser";
+  capabilities: { stdio: boolean; builtinMcp: string[] };
+  llmsReady: number;
+  llmsTotal: number;
+  catalog: {
+    anthropic: { id: string; label: string; note: string; fallback: boolean }[];
+    openai: { id: string; label: string; baseUrl: string; model: string; needsKey: boolean }[];
+  };
 }
 
 export interface Stats {
   agents: number;
+  llms: number;
   runs: number;
   runsByStatus: Record<string, number>;
   memories: number;
@@ -151,19 +183,70 @@ export interface Stats {
   auditEntries: number;
 }
 
+const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
+
 async function request<T>(method: string, url: string, body?: unknown): Promise<T> {
-  const res = await fetch(url, {
-    method,
-    headers: body !== undefined ? { "content-type": "application/json" } : undefined,
-    body: body !== undefined ? JSON.stringify(body) : undefined,
-  });
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok) {
+  let status: number;
+  let data: unknown;
+  if ((await getMode()) === "browser") {
+    // Modo navegador: a "requisição" é uma chamada de função ao núcleo, na mesma aba.
+    const core = await getCore();
+    const parsed = new URL(url, "http://local");
+    const res = await core.handle({ method, path: parsed.pathname, query: Object.fromEntries(parsed.searchParams), body: body ?? {} });
+    status = res.status;
+    data = JSON.parse(JSON.stringify(res.body ?? null)); // cópia: a UI não pode mutar o estado do núcleo
+  } else {
+    const res = await fetch(BASE + url, {
+      method,
+      headers: body !== undefined ? { "content-type": "application/json" } : undefined,
+      body: body !== undefined ? JSON.stringify(body) : undefined,
+    });
+    status = res.status;
+    data = await res.json().catch(() => ({}));
+  }
+  if (status >= 400) {
     const issues = (data as { issues?: { path: string[]; message: string }[] }).issues;
     const detail = issues?.map((i) => `${i.path.join(".")}: ${i.message}`).join("; ");
-    throw new Error(detail || (data as { error?: string }).error || `HTTP ${res.status}`);
+    throw new Error(detail || (data as { error?: string }).error || `HTTP ${status}`);
   }
   return data as T;
+}
+
+/** Assina um stream ao vivo (SSE no servidor; evento direto no navegador). Devolve o cancelamento. */
+export function subscribeStream(url: string, onMessage: (data: unknown) => void, onStatus: (connected: boolean) => void): () => void {
+  let cancel = () => {};
+  let closed = false;
+  void getMode().then(async (mode) => {
+    if (closed) return;
+    if (mode === "browser") {
+      const core = await getCore();
+      if (closed) return;
+      // Entrega assíncrona e com cópia, como aconteceria pela rede.
+      const stop = core.subscribe(url, (data) => {
+        const copy = JSON.parse(JSON.stringify(data));
+        queueMicrotask(() => onMessage(copy));
+      });
+      onStatus(Boolean(stop));
+      cancel = () => stop?.();
+    } else {
+      const es = new EventSource(BASE + url);
+      es.onopen = () => onStatus(true);
+      es.onerror = () => onStatus(false);
+      es.onmessage = (e) => {
+        try {
+          onMessage(JSON.parse(e.data));
+        } catch {
+          /* ignora eventos malformados */
+        }
+      };
+      cancel = () => es.close();
+    }
+  });
+  return () => {
+    closed = true;
+    cancel();
+    onStatus(false);
+  };
 }
 
 export const api = {
