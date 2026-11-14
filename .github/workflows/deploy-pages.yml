@@ -7,8 +7,7 @@ on:
   push:
     branches:
       - main
-      - feat/plataforma-agentes-autonomos
-      - feat/llms-configuraveis-e-deploy-web
+      - "feat/**"
   workflow_dispatch:
 
 permissions:
