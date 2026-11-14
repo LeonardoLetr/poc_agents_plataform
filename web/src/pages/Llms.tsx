@@ -5,11 +5,12 @@ import { SpotlightCard } from "../components/effects";
 import { Badge, Button, ErrorNote, Field, Input, Modal, PageHeader, Select, Toggle } from "../components/ui";
 import { api, type Agent, type Effort, type Health, type Llm, type LlmInput, type Provider } from "../lib/api";
 import { useResource } from "../lib/hooks";
+import { getRememberKeys, setRememberKeys } from "../lib/runtime";
 
 const PROVIDERS: { id: Provider; label: string; color: string; rgb: string; text: string }[] = [
-  { id: "anthropic", label: "Anthropic (Claude)", color: "accent", rgb: "139 92 246", text: "SDK oficial, pensamento adaptativo, cache de prompt e fallback em recusas." },
-  { id: "openai", label: "Compatível com OpenAI", color: "info", rgb: "34 211 238", text: "Qualquer API no formato Chat Completions: OpenAI, OpenRouter, Groq, Ollama…" },
-  { id: "demo", label: "Demo (offline)", color: "ok", rgb: "52 211 153", text: "LLM simulado: segue palavras-chave, sem chave e sem custo." },
+  { id: "anthropic", label: "Anthropic (Claude)", color: "accent", rgb: "201 100 66", text: "SDK oficial, pensamento adaptativo, cache de prompt e fallback em recusas." },
+  { id: "openai", label: "Compatível com OpenAI", color: "info", rgb: "74 122 150", text: "Qualquer API no formato Chat Completions: OpenAI, OpenRouter, Groq, Ollama…" },
+  { id: "demo", label: "Demo (offline)", color: "ok", rgb: "94 140 74", text: "LLM simulado: segue palavras-chave, sem chave e sem custo." },
 ];
 
 const EFFORT_HINT: Record<Effort, string> = {
@@ -26,6 +27,7 @@ export default function Llms({ health, onChange }: { health: Health | null; onCh
   const [editing, setEditing] = useState<{ id?: string; data: LlmInput; llm?: Llm } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const browser = health?.runtime === "browser";
+  const [remember, setRemember] = useState(getRememberKeys);
 
   async function remove(l: Llm) {
     if (!confirm(`Remover a LLM "${l.name}"?`)) return;
@@ -52,11 +54,26 @@ export default function Llms({ health, onChange }: { health: Health | null; onCh
       />
 
       {browser && (
-        <div className="mb-6 flex items-start gap-3 rounded-2xl border border-warn/25 bg-warn/[0.06] p-4 text-[13px] leading-relaxed text-ink-300">
-          <ShieldAlert size={18} className="mt-0.5 shrink-0 text-warn" />
-          <div>
-            <b className="text-warn">Modo navegador.</b> As chaves ficam salvas só no <code>localStorage</code> deste navegador e são enviadas direto do seu
-            browser para o provedor. Para um ambiente compartilhado, rode o servidor local (<code>npm run dev</code>) e use variáveis de ambiente.
+        <div className="mb-6 rounded-2xl border border-black/[0.08] bg-white p-4 text-[13px] leading-relaxed text-ink-300">
+          <div className="flex items-start gap-3">
+            <ShieldAlert size={18} className="mt-0.5 shrink-0 text-warn" />
+            <div>
+              <b className="font-medium text-ink-100">Onde fica a sua chave.</b> Só neste navegador: ela nunca vai para o GitHub nem para um servidor nosso,
+              e é enviada direto do seu browser para o provedor (HTTPS). Por padrão ela fica só nesta sessão e{" "}
+              <b className="font-medium text-ink-200">some quando você fecha o navegador</b>. Use uma chave dedicada, com limite de gastos, e revogue quando
+              terminar de testar.
+            </div>
+          </div>
+          <div className="mt-2 border-t border-black/[0.06] pt-2">
+            <Toggle
+              checked={remember}
+              onChange={(v) => {
+                setRememberKeys(v);
+                setRemember(v);
+              }}
+              label="Lembrar chaves neste navegador"
+              description="Guarda as chaves no localStorage para não precisar colar de novo. Só ligue em um computador pessoal."
+            />
           </div>
         </div>
       )}
@@ -70,7 +87,7 @@ export default function Llms({ health, onChange }: { health: Health | null; onCh
             <motion.div key={l.id} initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}>
               <SpotlightCard className="h-full p-5" color={p.rgb}>
                 <div className="flex items-start gap-3">
-                  <div className="flex h-11 w-11 items-center justify-center rounded-xl" style={{ background: `rgb(${p.rgb} / 0.15)`, color: `rgb(${p.rgb})` }}>
+                  <div className="flex h-11 w-11 items-center justify-center rounded-xl" style={{ background: `rgb(${p.rgb} / 0.1)`, color: `rgb(${p.rgb})` }}>
                     <Cpu size={19} />
                   </div>
                   <div className="min-w-0 flex-1">

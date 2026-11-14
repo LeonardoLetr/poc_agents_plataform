@@ -118,13 +118,19 @@ o comando. As ferramentas aparecem como `mcp__<servidor>__<ferramenta>` e podem 
 (todas com `mcp__<servidor>__*` ou uma a uma). Para criar o seu, copie `core/mcp/lab-server.ts`. O mesmo servidor roda
 como processo stdio em `mcp-servers/laboratorio/index.ts`.
 
-### Segurança (é um laboratório local)
+### Segurança
 
 - `http_fetch` bloqueia endereços locais e privados; a calculadora não usa `eval`.
 - O Markdown renderizado só gera links `http(s)`.
 - Limite de iterações por agente e aprovação humana opcional para cada ferramenta.
-- A API nunca devolve chaves (só os 4 últimos caracteres). No modo servidor elas ficam em `server/data/` (fora do git); no
-  modo navegador, no `localStorage`. Não exponha o servidor na internet sem autenticação.
+- A API nunca devolve chaves (só os 4 últimos caracteres). No modo servidor elas ficam em `server/data/` (fora do git).
+- **Modo navegador (GitHub Pages):** a chave nunca vai para o GitHub nem para um servidor intermediário. Ela é enviada direto do
+  seu browser ao provedor por HTTPS e fica num cofre separado dos outros dados. Por padrão o cofre é o `sessionStorage`, que
+  some quando você fecha o navegador. A opção *Lembrar chaves neste navegador* passa para o `localStorage`.
+  O build publicado tem uma **Content-Security-Policy** que só permite scripts do próprio site.
+  Mesmo assim, use uma **chave dedicada, com limite de gastos**, e revogue quando terminar. Extensões de navegador e outros
+  projetos publicados em `leonardoletr.github.io` (mesma origem) conseguem ler o armazenamento da página.
+- Não exponha o servidor local na internet sem autenticação.
 
 ## Visual
 
