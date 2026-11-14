@@ -1,0 +1,73 @@
+name: Deploy no GitHub Pages
+
+# Publica a interface no GitHub Pages em "modo navegador": o núcleo do Agent Lab
+# roda dentro do browser e cada visitante configura as próprias LLMs/chaves
+# (salvas só no localStorage dele). Nenhum segredo é usado no build.
+on:
+  push:
+    branches:
+      - main
+      - feat/plataforma-agentes-autonomos
+      - feat/llms-configuraveis-e-deploy-web
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Instalar dependências
+        run: npm ci
+
+      - name: Checar tipos
+        run: npm run typecheck
+
+      - name: Configurar Pages
+        id: pages
+        uses: actions/configure-pages@v5
+        with:
+          # Tenta ativar o Pages automaticamente. Se o token não tiver permissão,
+          # ative em Settings → Pages → Source: GitHub Actions.
+          enablement: true
+        continue-on-error: true
+
+      - name: Build da interface (modo navegador)
+        working-directory: web
+        env:
+          VITE_RUNTIME: browser
+          BASE_PATH: /${{ github.event.repository.name }}/
+        run: |
+          npx vite build
+          # SPA no Pages: rotas como /playground caem no 404.html, que é a própria app.
+          cp dist/index.html dist/404.html
+          touch dist/.nojekyll
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: web/dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Publicar
+        id: deployment
+        uses: actions/deploy-pages@v4
