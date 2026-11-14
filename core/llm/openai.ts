@@ -4,9 +4,8 @@ import type { AssistantTurn, Block, LlmCall, Msg } from "./types.js";
 
 /**
  * Provedores compatíveis com a API de Chat Completions (OpenAI, OpenRouter,
- * Groq, Ollama…). O histórico interno está no formato da Anthropic, então
- * aqui convertemos nos dois sentidos — ótimo para ver como os protocolos de
- * ferramentas se parecem (tool_use ↔ tool_calls, tool_result ↔ role "tool").
+ * Groq, Ollama). O histórico interno usa o formato da Anthropic e é convertido
+ * nos dois sentidos: tool_use ↔ tool_calls e tool_result ↔ mensagens com role "tool".
  */
 
 interface OaMessage {

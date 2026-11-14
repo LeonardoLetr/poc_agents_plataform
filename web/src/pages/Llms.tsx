@@ -58,7 +58,7 @@ export default function Llms({ health, onChange }: { health: Health | null; onCh
           <div className="flex items-start gap-3">
             <ShieldAlert size={18} className="mt-0.5 shrink-0 text-warn" />
             <div>
-              <b className="font-medium text-ink-100">Onde fica a sua chave.</b> Só neste navegador: ela nunca vai para o GitHub nem para um servidor nosso,
+              <b className="font-medium text-ink-100">Onde fica a sua chave.</b> Fica apenas neste navegador: não é enviada ao GitHub nem a servidores intermediários
               e é enviada direto do seu browser para o provedor (HTTPS). Por padrão ela fica só nesta sessão e{" "}
               <b className="font-medium text-ink-200">some quando você fecha o navegador</b>. Use uma chave dedicada, com limite de gastos, e revogue quando
               terminar de testar.

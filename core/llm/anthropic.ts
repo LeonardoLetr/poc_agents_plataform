@@ -35,7 +35,7 @@ export async function callAnthropic(call: LlmCall): Promise<AssistantTurn> {
     system: call.system,
     messages: call.messages,
     tools: call.tools as Anthropic.Beta.BetaToolUnion[],
-    // Pensamento adaptativo com resumo visível: você vê o "raciocínio" na timeline.
+    // Pensamento adaptativo com resumo, exibido na linha do tempo.
     thinking: { type: "adaptive" as const, display: "summarized" as const },
     output_config: { effort: llm.effort },
     // Cache automático do prefixo: no loop agêntico o histórico cresce e é reenviado a cada iteração.

@@ -1,37 +1,55 @@
 ---
 name: agent-lab-ui
-description: Sistema visual do Agent Lab (minimalista, papel bege, acento terracota). Use ao criar ou alterar qualquer tela, componente ou animação em web/src para manter a identidade.
+description: Guia do sistema visual do Agent Lab. Consultar ao criar ou alterar telas, componentes ou animações em web/src.
 ---
 
-# Sistema visual do Agent Lab: "papel"
+# Sistema visual do Agent Lab
 
-Minimalista, quente e calmo, com cara de ferramenta e não de "demo de IA". A estrutura enxuta vem do Linear
-(bordas de 1px, sidebar compacta) e os cartões espaçosos vêm de um layout bento.
+Interface minimalista em tons quentes, orientada à leitura de informação técnica. A estrutura combina
+navegação compacta com bordas de 1px e conteúdo organizado em cartões.
 
-## Regras
-- **Fundo bege** (`ink-950` #f7f5ef), sidebar um tom mais escuro (`ink-900`), **cartões brancos** (`Card` / `.glass`)
-  com borda `black/8%` e sombra quase invisível.
-- **Um único acento**: terracota `accent` (#c96442). Use-o no botão principal e em poucos destaques.
-  **Um botão `primary` por tela**; o resto é `ghost`/`subtle`.
-- **Cor só comunica estado**: `ok`, `warn`, `bad`, `info`, `mcp`, `memory` (todas dessaturadas). Etiquetas neutras usam `Badge` sem cor.
-- **Proibido**: gradientes coloridos, brilho/glow, neon, blur decorativo, texto em gradiente, fundos animados.
-- **Escala ink**: 950 é o fundo mais claro e 100 o texto mais forte (`text-ink-100` títulos, `ink-300` apoio, `ink-400` secundário).
+## Cores
+
+| Token | Valor | Uso |
+|---|---|---|
+| `ink-950` | `#f7f5ef` | Fundo da página |
+| `ink-900` | `#f1eee6` | Barra lateral, blocos de código |
+| `ink-100` | `#1f1e1c` | Títulos |
+| `ink-300` / `ink-400` | `#5f5a50` / `#6f6a5f` | Texto de apoio / secundário |
+| `accent` | `#c96442` | Ação principal e destaques pontuais |
+| `ok`, `warn`, `bad`, `info`, `mcp`, `memory` | dessaturadas | Indicação de estado |
+
+- Na escala `ink`, 950 é o tom mais claro e 100 o mais escuro.
+- Superfícies de conteúdo usam `Card` (fundo branco, borda `black/8%`, sombra mínima).
+- Cada tela tem no máximo um botão `primary`; as demais ações usam `ghost` ou `subtle`.
+- Cores semânticas são reservadas para estado. Etiquetas informativas usam `Badge` neutro.
+- Não utilizar gradientes coloridos, efeitos de brilho, desfoque decorativo ou fundos animados.
 
 ## Tipografia
-- Títulos de página: **Source Serif 4**, peso normal (`font-serif font-normal`). Destaque de uma palavra: itálico + `.text-gradient` (que aqui é só a cor terracota).
-- Interface: **Geist**. Dados, ids e rótulos pequenos em caixa alta: **Geist Mono**.
-- O raciocínio do modelo aparece em serifa itálica (como uma anotação à mão).
+
+- Títulos de página e de seção: Source Serif 4, peso regular (`font-serif font-normal`).
+  Para destacar uma palavra, usar itálico com a classe `.text-gradient` (cor `accent`).
+- Interface: Geist.
+- Identificadores, valores e rótulos em caixa alta: Geist Mono.
+- O raciocínio do modelo é exibido em serifa itálica, diferenciando-o da resposta.
 
 ## Movimento
-- `motion` só quando comunica algo: algo mudou (entrada de itens), algo está rodando (anel girando no agente, `LiveDot`, "pensando…").
-- Estado ativo = borda/anel na cor do contexto (`.beam` agora é só um contorno), nunca brilho.
-- Respeite `prefers-reduced-motion` (já tratado no CSS).
 
-## Celular
-- **Nada pode ser mais largo que a tela** (sem rolagem lateral). Itens de grid já têm `min-width: 0`; cabeçalhos com vários itens usam `flex-wrap`;
-  elementos com tamanho fixo (diagramas) encolhem com a largura da janela.
-- `node web/scripts/check-mobile.cjs` testa 9 páginas em 3 celulares e roda no CI; o deploy do Pages não publica se falhar.
+- Animações apenas para comunicar mudança ou atividade: entrada de itens, execução em andamento
+  (anel no nó do agente, `LiveDot`, indicador "pensando…") e fluxo nas arestas do grafo.
+- Estado ativo é indicado por contorno na cor do contexto (`.beam`).
+- A preferência `prefers-reduced-motion` é respeitada globalmente em `index.css`.
+
+## Responsividade
+
+- Nenhuma página pode exceder a largura da tela (sem rolagem horizontal).
+- Itens de grid têm `min-width: 0`; cabeçalhos com múltiplos elementos usam `flex-wrap`;
+  elementos de tamanho fixo se ajustam à largura da janela.
+- `node web/scripts/check-mobile.cjs` valida 9 páginas em 3 dispositivos. A verificação roda no CI
+  e é pré-requisito para a publicação no GitHub Pages.
 
 ## Componentes
-- Primitivos em `web/src/components/ui.tsx`; efeitos em `effects.tsx`. Reaproveite antes de criar outro.
-- Toda página começa com `PageHeader` (eyebrow em mono, título serifado, descrição didática).
+
+- Primitivos em `web/src/components/ui.tsx`; efeitos em `web/src/components/effects.tsx`.
+  Reutilizar os existentes antes de criar novos.
+- Toda página começa com `PageHeader` (rótulo em mono, título em serifa e descrição).

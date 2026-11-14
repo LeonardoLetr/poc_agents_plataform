@@ -349,7 +349,7 @@ export function continueRun(id: string, text: string): RunRecord {
   if (run?.busy) throw new Error("A execução ainda está em andamento.");
   const agent = db.agents.find((a) => a.id === record.agentId);
   if (!agent) throw new Error("Agente desta execução foi removido.");
-  // A conversa continua com a configuração ATUAL do agente (inclusive se você trocou a LLM dele).
+  // A conversa continua com a configuração atual do agente, inclusive se a LLM tiver sido trocada.
   const llm = llmFor(agent);
   if (!run) {
     run = { record, agent: structuredClone(agent), llm, abort: new AbortController(), approvals: new Map(), busy: false };

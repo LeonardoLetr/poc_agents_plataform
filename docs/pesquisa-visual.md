@@ -1,61 +1,57 @@
-# Pesquisa: repositórios de animação, visual e *skills* de design
+# Referências de design: bibliotecas de animação e skills de interface
 
-Pesquisa feita em novembro de 2026 sobre os repositórios que aparecem com frequência em posts no X sobre
-"skills e tools para deixar o visual melhor". Os números de estrelas vêm de agregadores e mudam rápido;
-confira no GitHub antes de adotar.
+Levantamento de referências (novembro de 2026) que embasaram o sistema visual do Agent Lab. Os indicadores de
+popularidade vêm de agregadores públicos e devem ser conferidos nos respectivos repositórios antes de qualquer adoção.
 
-## 1. *Skills* de design para agentes de código (Claude Code e similares)
+## 1. Skills de design para agentes de código
 
-Uma *skill* é uma pasta com um `SKILL.md` (instruções + exemplos) que o agente carrega quando a tarefa pede.
-As de design ensinam o modelo a fugir do visual genérico de IA (o famoso *AI slop*: gradiente roxo, Inter, cards iguais).
+Uma *skill* é um diretório com um arquivo `SKILL.md` (instruções e exemplos) carregado pelo agente quando a tarefa é
+pertinente. As skills de design definem diretrizes de tipografia, cor, layout e movimento para orientar a geração de
+interfaces.
 
-| Repositório | O que traz | Quando usar |
+| Repositório | Conteúdo | Aplicação |
 |---|---|---|
-| [anthropics/skills](https://github.com/anthropics/skills): skill `frontend-design` | A skill oficial de design da Anthropic, a mais popular da lista. Direção estética ousada, tipografia, cor, movimento. | Ponto de partida para qualquer interface. |
-| [Koomook/claude-frontend-skills](https://github.com/Koomook/claude-frontend-skills) | Plugin focado em evitar a estética genérica: temas de cor, tipografia, animações escalonadas no carregamento, texturas de fundo. | Landing pages e telas de impacto. |
-| [Leonxlnx/taste-skill](https://github.com/Leonxlnx/taste-skill) | Regras objetivas e mensuráveis de layout, tipografia, espaçamento e movimento ("design taste"). Instalação: `npx skills add https://github.com/Leonxlnx/taste-skill --skill "design-taste-frontend"` | Quando o resultado "funciona mas está feio". |
-| [vercel-labs/agent-skills](https://github.com/vercel-labs/agent-skills) | `web-design-guidelines` (revisão de UI contra boas práticas) e skills de React Native. | Revisão/auditoria de interfaces prontas. |
-| [emilkowalski/skills](https://github.com/emilkowalski/skills) | Skills de UI e motion do autor do Sonner e do Vaul. | Microinterações e animações refinadas. |
-| [Dammyjay93/interface-design](https://github.com/Dammyjay93/interface-design) | Pacote de skills de design de interface. | Sistemas de design e consistência. |
-| [jiji262/claude-design-skill](https://github.com/jiji262/claude-design-skill) | Skill portátil que transforma o agente em designer de artefatos HTML (decks, landing pages, protótipos, animações). | Protótipos rápidos em HTML. |
-| [wilwaldon/Claude-Code-Frontend-Design-Toolkit](https://github.com/wilwaldon/Claude-Code-Frontend-Design-Toolkit) | **Lista curada**: skills, plugins, servidores MCP e truques de `CLAUDE.md` para frontends melhores, incluindo cerca de 23 skills das grandes bibliotecas de animação (GSAP, Framer Motion…). | Para descobrir mais coisas. Comece por aqui. |
+| [anthropics/skills](https://github.com/anthropics/skills): `frontend-design` | Skill de referência da Anthropic: direção estética, tipografia, cor e movimento. | Base para qualquer interface. |
+| [Koomook/claude-frontend-skills](https://github.com/Koomook/claude-frontend-skills) | Temas de cor, tipografia, animações de carregamento e texturas de fundo. | Páginas de apresentação. |
+| [Leonxlnx/taste-skill](https://github.com/Leonxlnx/taste-skill) | Regras mensuráveis de layout, tipografia, espaçamento e movimento. | Refinamento de interfaces existentes. |
+| [vercel-labs/agent-skills](https://github.com/vercel-labs/agent-skills) | `web-design-guidelines` (revisão de UI com base em boas práticas) e skills de React Native. | Revisão e auditoria. |
+| [emilkowalski/skills](https://github.com/emilkowalski/skills) | Diretrizes de UI e microinterações. | Animações de interface. |
+| [Dammyjay93/interface-design](https://github.com/Dammyjay93/interface-design) | Pacote de skills de design de interface. | Sistemas de design. |
+| [jiji262/claude-design-skill](https://github.com/jiji262/claude-design-skill) | Geração de artefatos HTML: apresentações, protótipos e animações. | Prototipação. |
+| [wilwaldon/Claude-Code-Frontend-Design-Toolkit](https://github.com/wilwaldon/Claude-Code-Frontend-Design-Toolkit) | Lista curada de skills, plugins e servidores MCP, incluindo skills para GSAP e Motion. | Descoberta de novas ferramentas. |
 
-> Outras citadas com frequência no X, mas que **não conferi nesta pesquisa**: `ui-ux-pro-max-skill` e o MCP
-> "Magic" do 21st.dev (gera componentes a partir de prompt). Avalie antes de instalar.
-
-**Como instalar uma skill no Claude Code:** copie a pasta da skill para `.claude/skills/<nome>/` (no projeto)
-ou `~/.claude/skills/<nome>/` (global), ou use `/plugin marketplace add <dono>/<repo>` quando o repositório for um marketplace de plugins.
-Este repositório já traz uma skill própria em [`.claude/skills/agent-lab-ui`](../.claude/skills/agent-lab-ui/SKILL.md)
-com o sistema visual do Agent Lab.
+**Instalação no Claude Code:** copiar o diretório da skill para `.claude/skills/<nome>/` (escopo do projeto) ou
+`~/.claude/skills/<nome>/` (escopo global), ou usar `/plugin marketplace add <dono>/<repo>` quando o repositório for um
+marketplace de plugins. O guia visual deste projeto está em [`.claude/skills/agent-lab-ui`](../.claude/skills/agent-lab-ui/SKILL.md).
 
 ## 2. Bibliotecas de componentes animados (React)
 
-As mais citadas em 2026. Quase todas seguem o modelo do *shadcn/ui*: você **copia o código** do componente
-para o seu projeto em vez de instalar um pacote, então dá pra ler e adaptar tudo.
+A maioria segue o modelo do *shadcn/ui*: o código do componente é copiado para o projeto, em vez de instalado como
+dependência, o que permite leitura e adaptação completas.
 
-| Biblioteca | Destaque | Observação |
+| Biblioteca | Destaques | Observação |
 |---|---|---|
-| [React Bits](https://reactbits.dev) ([DavidHDev/react-bits](https://github.com/DavidHDev/react-bits)) | A mais popular. Mais de 110 componentes: textos animados, fundos (Aurora, Particles…), cursores, cards. | Muitos componentes não dependem do Framer Motion. |
-| [Magic UI](https://magicui.design) ([magicuidesign/magicui](https://github.com/magicuidesign/magicui)) | Visual polido para páginas de marketing: Border Beam, Number Ticker, Animated Beam, Shiny Text. | Usa Motion na maioria dos componentes. |
-| [Aceternity UI](https://ui.aceternity.com) | Efeitos mais chamativos para *hero sections*: Spotlight, Background Beams, 3D cards. | O guia de comparação é escrito pelo próprio fornecedor. |
-| [Motion Primitives](https://motion-primitives.com) | Blocos de construção de baixo nível feitos com Motion, para compor as suas animações. | Ótimo para aprender motion design. |
-| [Animate UI](https://animate-ui.com) | Microinterações para a interface inteira (botões, tabs, toggles). | Bom para dashboards. |
-| Cult UI, Kokonut UI, Eldora UI, Animata | Alternativas com estilos próprios. | Vale olhar como inspiração. |
-| [21st.dev](https://21st.dev) | Registro comunitário de componentes (um "npm de componentes de UI"). | Pesquise por efeito, ex.: "beam". |
+| [React Bits](https://reactbits.dev) ([DavidHDev/react-bits](https://github.com/DavidHDev/react-bits)) | Mais de 110 componentes: textos animados, fundos, cursores e cartões. | Parte dos componentes não depende do Motion. |
+| [Magic UI](https://magicui.design) ([magicuidesign/magicui](https://github.com/magicuidesign/magicui)) | Border Beam, Number Ticker, Animated Beam, Shiny Text. | Baseada em Motion. |
+| [Aceternity UI](https://ui.aceternity.com) | Efeitos para seções de destaque: Spotlight, Background Beams, cartões 3D. | Voltada a páginas de marketing. |
+| [Motion Primitives](https://motion-primitives.com) | Primitivos de baixo nível para composição de animações. | Útil como referência didática. |
+| [Animate UI](https://animate-ui.com) | Microinterações para botões, abas e alternadores. | Adequada a dashboards. |
+| Cult UI, Kokonut UI, Eldora UI, Animata | Coleções com identidades visuais próprias. | Referência de estilo. |
+| [21st.dev](https://21st.dev) | Registro comunitário de componentes de UI. | Busca por tipo de efeito. |
 
-**Recomendação comum:** uma base de *shadcn/ui* mais uma ou duas bibliotecas de motion para efeitos pontuais.
-Evite misturar várias bibliotecas de efeito na mesma tela.
+Prática recomendada: uma base de componentes (como *shadcn/ui*) complementada por uma ou duas bibliotecas de
+animação para efeitos pontuais.
 
-## 3. O que foi aplicado no Agent Lab
+## 3. Aplicação no Agent Lab
 
-A primeira versão usava um tema escuro com aurora e brilhos. Depois de comparar
-[5 conceitos](design-concepts/README.md), a direção escolhida foi uma **mistura do minimal escuro (Linear) com o bento suave**,
-em papel bege no estilo das interfaces do Claude. Os detalhes estão na skill [`.claude/skills/agent-lab-ui`](../.claude/skills/agent-lab-ui/SKILL.md):
+Os efeitos utilizados foram implementados diretamente com [`motion`](https://motion.dev), sem dependência das
+bibliotecas acima. O sistema visual adotado está documentado em
+[`.claude/skills/agent-lab-ui`](../.claude/skills/agent-lab-ui/SKILL.md) e os estudos de layout em
+[`docs/design-concepts`](design-concepts/README.md). Em resumo:
 
-- fundo bege, cartões brancos com borda de 1px, um único acento terracota;
-- serifa (Source Serif 4) nos títulos, Geist na interface e Geist Mono nos dados;
-- **nada de gradiente, brilho ou neon**: cor só para estado, movimento só quando comunica algo (anel girando no agente,
-  partículas nas arestas do grafo, "pensando…").
+- fundo em tom papel, cartões brancos com borda de 1px e uma única cor de destaque;
+- Source Serif 4 em títulos, Geist na interface e Geist Mono em dados;
+- cor reservada para indicação de estado e animação restrita a sinais de atividade (execução do agente, fluxo no grafo).
 
 ## Fontes
 

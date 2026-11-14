@@ -5,8 +5,8 @@ import { now, uid } from "./util.js";
 
 /**
  * Memória de longo prazo com busca lexical (sobreposição de termos + peso por
- * importância e recência). É propositalmente simples para que você consiga
- * entender o ranking — em produção, troque por embeddings/vetores.
+ * importância e recência). A implementação é intencionalmente simples para que o
+ * ranking seja transparente; em produção, recomenda-se busca vetorial com embeddings.
  */
 
 const STOP = new Set(

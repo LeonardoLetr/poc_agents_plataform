@@ -2,11 +2,10 @@ import type { RunEvent } from "../types.js";
 import type { AssistantTurn, LlmCall } from "./types.js";
 
 /**
- * "LLM" simulado para o modo demonstração. Não é inteligente: segue um plano
- * baseado em palavras-chave da tarefa. Mas ele produz EXATAMENTE o mesmo
- * formato de resposta que a API real (blocos thinking / text / tool_use) e as
- * ferramentas executadas são reais — então o loop agêntico, a memória e a
- * auditoria funcionam de verdade, sem precisar de chave de API.
+ * Modelo simulado para o modo demonstração. Segue um plano definido por
+ * palavras-chave da tarefa, mas produz o mesmo formato de resposta da API real
+ * (blocos thinking / text / tool_use). Como as ferramentas executadas são reais,
+ * o loop agêntico, a memória e a auditoria funcionam sem chave de API.
  */
 
 interface Step {

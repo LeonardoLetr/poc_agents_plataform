@@ -5,7 +5,7 @@ export type Effort = "low" | "medium" | "high" | "xhigh" | "max";
 
 /**
  * Uma "LLM" configurada em tempo de execução: provedor + modelo + credenciais.
- * Vários agentes podem compartilhar a mesma LLM, e você troca a LLM de um agente quando quiser.
+ * Vários agentes podem compartilhar a mesma LLM, e a LLM de um agente pode ser trocada a qualquer momento.
  */
 export interface LlmConfig {
   id: string;

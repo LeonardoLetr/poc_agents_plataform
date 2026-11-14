@@ -2,8 +2,8 @@ import { motion, useInView, useMotionValue, useSpring } from "motion/react";
 import { useEffect, useRef, type ReactNode } from "react";
 
 /**
- * Efeitos visuais discretos. A regra deste sistema é: movimento só quando
- * comunica algo (algo mudou, algo está rodando) — nada de brilho decorativo.
+ * Efeitos visuais. Animações são usadas apenas para indicar mudança de estado
+ * ou atividade em andamento.
  */
 
 /** Fundo da página: o bege liso do <body>. Mantido como componente para trocar de tema no futuro. */

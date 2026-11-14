@@ -1,23 +1,26 @@
-# 🧪 Agent Lab
+# Agent Lab
 
-**Uma plataforma visual para estudar agentes autônomos por dentro.** Os agentes funcionam de verdade, com o Claude,
-qualquer API compatível com OpenAI (OpenRouter, Groq, Ollama…) ou um LLM simulado. Você conecta servidores **MCP**, cria **prompts**, gerencia **memória** e acompanha
-toda a **auditoria**, enquanto um grafo animado mostra cada decisão do agente em tempo real.
+Plataforma visual para estudo de agentes autônomos. Permite configurar agentes com diferentes modelos de linguagem,
+conectar ferramentas via **MCP**, gerenciar **prompts** e **memória** e acompanhar cada decisão do agente em tempo real,
+com trilha de **auditoria** completa.
 
-![Playground: o agente pensando e chamando ferramentas ao vivo](docs/screenshots/playground.jpg)
+São suportados três tipos de provedor: Claude (SDK oficial da Anthropic), qualquer API compatível com o formato
+OpenAI Chat Completions (OpenAI, OpenRouter, Groq, Ollama) e um modelo simulado para uso sem chave de API.
 
-## O que dá pra fazer
+![Playground com execução em andamento](docs/screenshots/playground.jpg)
 
-| Tela | O que você aprende/faz |
+## Funcionalidades
+
+| Tela | Descrição |
 |---|---|
-| **Playground** | Dá uma tarefa e assiste ao loop agêntico ao vivo: grafo animado (LLM ↔ ferramentas ↔ memória), linha do tempo com o raciocínio, cada `tool_use`/`tool_result`, tokens por iteração. Inspeciona a janela de contexto exata enviada ao modelo. Continua a conversa (memória de curto prazo) e aprova ou nega ferramentas (*human-in-the-loop*). |
-| **Agentes** | Cria agentes: LLM, prompt de sistema, ferramentas nativas e MCP, política de memória, limite de iterações, aprovação humana. |
-| **LLMs** | Cadastra quantas LLMs quiser em tempo de execução (provedor, modelo, chave, URL base, *effort*) e escolhe qual cada agente usa. Troque a LLM de um agente e compare na auditoria. |
-| **Servidores MCP** | Conecta servidores MCP via `stdio` ou HTTP (com presets), vê as ferramentas descobertas, testa qualquer `tools/call` manualmente e acompanha os logs da conexão. |
-| **Memória** | As 4 camadas (curto prazo, trabalho, longo prazo, episódica), uma "constelação" animada das memórias e um laboratório que mostra **por que** cada memória foi recuperada (pontuação detalhada). |
-| **Prompts** | Biblioteca de prompts de sistema (ReAct, Planejador, Crítico interno) e de tarefa com `{{variáveis}}`. |
-| **Auditoria** | Trilha completa e ao vivo: quem fez o quê, quando, quanto custou (tokens) e quanto demorou. Filtros e exportação em JSON. |
-| **Aprender** | Explicações animadas do loop, do protocolo de ferramentas, glossário e uma lista de experimentos guiados. |
+| **Playground** | Execução de tarefas com visualização do loop agêntico em tempo real: grafo de interação (modelo, ferramentas e memória), linha do tempo com raciocínio, chamadas `tool_use`/`tool_result` e consumo de tokens por iteração. Inclui inspeção da janela de contexto, continuação da conversa e aprovação manual de ferramentas (*human-in-the-loop*). |
+| **Agentes** | Configuração de agentes: LLM, prompt de sistema, ferramentas nativas e MCP, política de memória, limite de iterações e aprovação humana. |
+| **LLMs** | Cadastro de modelos em tempo de execução (provedor, modelo, chave, URL base e nível de esforço). Cada agente referencia uma LLM, que pode ser trocada a qualquer momento. |
+| **Servidores MCP** | Conexão de servidores via `stdio`, HTTP ou execução embutida, listagem das ferramentas descobertas, teste manual de `tools/call` e logs de conexão. |
+| **Memória** | Quatro camadas (curto prazo, trabalho, longo prazo e episódica), visualização das memórias e simulação de recuperação com pontuação detalhada. |
+| **Prompts** | Biblioteca de prompts de sistema e de tarefa, com suporte a variáveis `{{nome}}`. |
+| **Auditoria** | Registro de todas as ações (autor, horário, tokens e duração), com filtros, atualização em tempo real e exportação em JSON. |
+| **Aprender** | Material de apoio sobre o loop agêntico, o protocolo de ferramentas e os principais conceitos, com exercícios práticos. |
 
 <p>
   <img src="docs/screenshots/visao-geral.jpg" width="49%" alt="Visão geral" />
@@ -26,116 +29,129 @@ toda a **auditoria**, enquanto um grafo animado mostra cada decisão do agente e
   <img src="docs/screenshots/auditoria.jpg" width="49%" alt="Auditoria" />
 </p>
 
-## Testar online
+## Versão online
 
-O workflow [`deploy-pages.yml`](.github/workflows/deploy-pages.yml) publica a interface no **GitHub Pages**:
+A interface é publicada no GitHub Pages pelo workflow [`deploy-pages.yml`](.github/workflows/deploy-pages.yml):
 **https://leonardoletr.github.io/poc_agents_plataform/**
 
-Lá a plataforma roda em **modo navegador**: o núcleo inteiro executa dentro da sua aba, os dados ficam no
-`localStorage` e cada pessoa cadastra as próprias chaves em **LLMs**. As chaves vão direto do seu browser
-para o provedor, sem passar por nenhum servidor nosso. Limitações desse modo: não há MCP via `stdio` (use HTTP ou o servidor
-embutido `laboratorio`) e `http_fetch` só alcança sites que liberam CORS.
+Nessa versão a aplicação opera em **modo navegador**: o núcleo é executado na própria página, os dados ficam no
+armazenamento local do navegador e as chaves de API são informadas por cada usuário na tela **LLMs**.
 
-> Na primeira vez, ative o Pages em **Settings → Pages → Source: GitHub Actions**, caso o workflow não consiga ativá-lo sozinho.
+Limitações do modo navegador:
+- servidores MCP via `stdio` não estão disponíveis (HTTP e servidores embutidos funcionam normalmente);
+- a ferramenta `http_fetch` só acessa sites que permitem requisições de outras origens (CORS).
 
-## Rodar localmente (modo servidor)
+## Execução local
 
-Requisitos: **Node.js 20+**.
+Requisito: **Node.js 20+**.
 
 ```bash
 npm install
-cp .env.example .env      # opcional: coloque sua ANTHROPIC_API_KEY
+cp .env.example .env      # opcional: ANTHROPIC_API_KEY / OPENAI_API_KEY
 npm run dev               # API em :8787 e interface em http://localhost:5173
 ```
 
-- **Sem chave de API?** Use o **Agente Demo (offline)**. O "LLM" é simulado (reage a palavras-chave), mas as ferramentas,
-  a memória, o MCP e a auditoria são reais. Dá pra entender o loop inteiro sem gastar nada.
-- **Com chave:** cole a chave na LLM em **LLMs**, ou defina `ANTHROPIC_API_KEY` / `OPENAI_API_KEY` no `.env` (usadas quando
-  a LLM não tem chave própria). As LLMs de exemplo usam `claude-opus-5-5` e `claude-haiku-5-5`.
-- Um servidor MCP de exemplo (`laboratorio`) já vem embutido e conecta sozinho.
-- Sem servidor rodando, a interface cai automaticamente para o modo navegador.
+- O agente **Demo (offline)** funciona sem chave de API. O modelo é simulado, mas ferramentas, memória, MCP e auditoria
+  operam normalmente.
+- Para usar um modelo real, informe a chave na tela **LLMs** ou defina `ANTHROPIC_API_KEY` / `OPENAI_API_KEY` no `.env`.
+  As variáveis de ambiente são usadas quando a LLM não possui chave própria.
+- O servidor MCP de exemplo (`laboratorio`) é embutido e conecta automaticamente.
+- Se o servidor local não estiver disponível, a interface passa automaticamente para o modo navegador.
 
-Produção: `npm run build && npm start` (a API passa a servir a interface compilada em `http://localhost:8787`).
+Build de produção: `npm run build && npm start` (a API passa a servir a interface em `http://localhost:8787`).
 
-## Como funciona
+## Arquitetura
 
-A lógica inteira mora em [`core/`](core/), um núcleo **sem dependências de Node**. Ele roda de dois jeitos:
+Toda a lógica está em [`core/`](core/), um núcleo **sem dependências de Node.js**, executado em dois modos:
 
 | | Modo servidor (`npm run dev`) | Modo navegador (GitHub Pages) |
 |---|---|---|
-| Onde o núcleo roda | processo Node | dentro da aba do browser |
-| Como a UI chama a API | HTTP + SSE | chamada de função direta |
-| Dados | `server/data/db.json` | `localStorage` |
-| MCP | stdio, HTTP e embutido | HTTP e embutido |
+| Execução do núcleo | processo Node.js | página do navegador |
+| Comunicação com a interface | HTTP + SSE | chamada de função |
+| Persistência | `server/data/db.json` | `localStorage` |
+| Transportes MCP | stdio, HTTP e embutido | HTTP e embutido |
 
 ```mermaid
 flowchart LR
-  UI["Interface React<br/>(grafo, timeline, páginas)"] -- "REST/SSE ou chamada direta" --> Router["core/router.ts"]
+  UI["Interface React<br/>(grafo, linha do tempo, páginas)"] -- "REST/SSE ou chamada direta" --> Router["core/router.ts"]
   Router --> Loop["Loop agêntico<br/>core/agent/runner.ts"]
-  Loop -- "messages + tools" --> LLM["LLM configurada<br/>Claude · OpenAI-compatível · demo"]
+  Loop -- "messages + tools" --> LLM["LLM configurada<br/>Claude · compatível com OpenAI · demo"]
   LLM -- "thinking / text / tool_use" --> Loop
-  Loop --> Nativas["Ferramentas nativas<br/>calculadora, http, tempo,<br/>memória, scratchpad"]
-  Loop --> MCP["Cliente MCP"] --> Servers["Servidores MCP<br/>(stdio / HTTP)"]
+  Loop --> Nativas["Ferramentas nativas<br/>calculadora, HTTP, data e hora,<br/>memória, scratchpad"]
+  Loop --> MCP["Cliente MCP"] --> Servers["Servidores MCP<br/>(stdio / HTTP / embutido)"]
   Loop --> Mem[("Memória")]
   Loop --> Audit[("Auditoria")]
 ```
 
-O coração é [`core/agent/runner.ts`](core/agent/runner.ts). A cada iteração:
+O loop agêntico ([`core/agent/runner.ts`](core/agent/runner.ts)) executa, a cada iteração:
 
-1. monta o **contexto**: prompt de sistema + memórias recuperadas automaticamente + histórico de mensagens;
-2. chama a **LLM do agente** com a lista de ferramentas. No Claude isso usa streaming, pensamento adaptativo com resumo visível e cache do prefixo; provedores OpenAI-compatíveis têm o histórico convertido (`tool_use` ↔ `tool_calls`);
-3. se a resposta tem `tool_use`, **executa as ferramentas** (em paralelo; opcionalmente pede aprovação) e devolve todos os `tool_result` numa única mensagem;
-4. repete até `stop_reason: end_turn` ou até o limite de iterações. Ao final, pode salvar um **episódio** na memória.
+1. montagem do **contexto**: prompt de sistema, memórias recuperadas e histórico de mensagens;
+2. chamada à **LLM do agente** com a lista de ferramentas. No Claude, com streaming, pensamento adaptativo com resumo e
+   cache de prefixo; em provedores compatíveis com OpenAI, o histórico é convertido (`tool_use` ↔ `tool_calls`);
+3. **execução das ferramentas** solicitadas (em paralelo, com aprovação opcional) e retorno de todos os `tool_result`
+   em uma única mensagem;
+4. repetição até `stop_reason: end_turn` ou até o limite de iterações. Ao final, um resumo pode ser salvo como memória
+   episódica.
 
-Cada passo emite um evento (para a visualização) e um registro de auditoria. No modo servidor tudo fica salvo em
-`server/data/db.json`: abra o arquivo e veja exatamente o que a plataforma guarda.
+Cada etapa gera um evento para a visualização e um registro de auditoria.
 
 ### Estrutura
 
 ```
 core/                  núcleo compartilhado (servidor e navegador)
-  agent/runner.ts      loop agêntico (leia este primeiro)
+  agent/runner.ts      loop agêntico
   llm/                 provedores: anthropic.ts, openai.ts, demo.ts
-  mcp/manager.ts       conexões MCP (stdio injetado, Streamable HTTP, SSE, em memória)
-  mcp/lab-server.ts    servidor MCP de exemplo, ótimo para aprender a criar o seu
-  tools/builtin.ts     ferramentas nativas (+ calculator.ts sem eval)
-  memory.ts            memória de longo prazo e ranking
-  router.ts            a API inteira (rotas + streams)
-  seed.ts              dados de exemplo e migração de versões
-server/src/index.ts    hospedeiro Node: arquivo JSON, MCP stdio, HTTP/SSE
+  mcp/manager.ts       cliente MCP (stdio, Streamable HTTP, SSE e em memória)
+  mcp/lab-server.ts    servidor MCP de exemplo
+  tools/builtin.ts     ferramentas nativas
+  memory.ts            memória de longo prazo e ranking de recuperação
+  router.ts            API (rotas e streams)
+  seed.ts              dados iniciais e migração de versões
+server/src/index.ts    hospedeiro Node.js: persistência em arquivo, MCP stdio, HTTP/SSE
 web/src/
-  lib/runtime.ts       escolhe servidor ou navegador
-  pages/               uma página por tela
-  components/          AgentGraph (React Flow), Timeline, efeitos visuais
-docs/                  pesquisa visual e conceitos de design
-.github/workflows/     CI e deploy no GitHub Pages
+  lib/runtime.ts       seleção do modo de execução
+  pages/               telas
+  components/          grafo do agente, linha do tempo e componentes de interface
+web/scripts/           verificações automatizadas (layout em dispositivos móveis)
+docs/                  referências de design e estudos de layout
+.github/workflows/     CI e publicação no GitHub Pages
 ```
 
-### Conectando outros servidores MCP
+### Servidores MCP
 
-Em **Servidores MCP → Adicionar servidor**, escolha um preset (Everything, Filesystem, Memory, Fetch, Git) ou preencha
-o comando. As ferramentas aparecem como `mcp__<servidor>__<ferramenta>` e podem ser habilitadas por agente
-(todas com `mcp__<servidor>__*` ou uma a uma). Para criar o seu, copie `core/mcp/lab-server.ts`. O mesmo servidor roda
-como processo stdio em `mcp-servers/laboratorio/index.ts`.
+Em **Servidores MCP → Adicionar servidor** há modelos prontos (Everything, Filesystem, Memory, Fetch, Git) e configuração
+manual. As ferramentas são expostas como `mcp__<servidor>__<ferramenta>` e podem ser habilitadas por agente, todas de
+uma vez (`mcp__<servidor>__*`) ou individualmente. O servidor de exemplo em `core/mcp/lab-server.ts` serve de modelo
+para novos servidores e também pode ser executado como processo stdio (`mcp-servers/laboratorio/index.ts`).
 
-### Segurança
+## Segurança
 
-- `http_fetch` bloqueia endereços locais e privados; a calculadora não usa `eval`.
-- O Markdown renderizado só gera links `http(s)`.
-- Limite de iterações por agente e aprovação humana opcional para cada ferramenta.
-- A API nunca devolve chaves (só os 4 últimos caracteres). No modo servidor elas ficam em `server/data/` (fora do git).
-- **Modo navegador (GitHub Pages):** a chave nunca vai para o GitHub nem para um servidor intermediário. Ela é enviada direto do
-  seu browser ao provedor por HTTPS e fica num cofre separado dos outros dados. Por padrão o cofre é o `sessionStorage`, que
-  some quando você fecha o navegador. A opção *Lembrar chaves neste navegador* passa para o `localStorage`.
-  O build publicado tem uma **Content-Security-Policy** que só permite scripts do próprio site.
-  Mesmo assim, use uma **chave dedicada, com limite de gastos**, e revogue quando terminar. Extensões de navegador e outros
-  projetos publicados em `leonardoletr.github.io` (mesma origem) conseguem ler o armazenamento da página.
-- Não exponha o servidor local na internet sem autenticação.
+- `http_fetch` bloqueia endereços locais e privados; a calculadora não utiliza `eval`.
+- O Markdown renderizado aceita apenas links `http(s)`.
+- Cada agente tem limite de iterações e pode exigir aprovação para cada ferramenta.
+- A API nunca retorna chaves de API, apenas os quatro últimos caracteres. No modo servidor, as chaves ficam em
+  `server/data/`, fora do controle de versão.
+- **Modo navegador:**
+  - As chaves não são enviadas ao GitHub nem a servidores intermediários. As requisições vão diretamente do
+    navegador ao provedor, via HTTPS.
+  - As chaves são armazenadas separadamente dos demais dados, por padrão no `sessionStorage`, que é descartado ao fechar
+    o navegador. A opção *Lembrar chaves neste navegador* utiliza o `localStorage`.
+  - O build publicado define uma **Content-Security-Policy** que restringe a execução de scripts à própria origem.
+  - Recomenda-se uma **chave dedicada, com limite de gastos**, revogada após o uso. Extensões do navegador e outras páginas
+    publicadas em `leonardoletr.github.io` (mesma origem) têm acesso ao armazenamento local.
+- O servidor local não possui autenticação e não deve ser exposto à internet.
 
-## Visual
+## Qualidade
 
-Os efeitos (aurora, spotlight, number ticker, border beam, animated beam, blur text) foram reimplementados com
-[`motion`](https://motion.dev), inspirados em React Bits, Magic UI e Aceternity. A pesquisa completa sobre esses
-repositórios e as *skills* de design para agentes de código está em [`docs/pesquisa-visual.md`](docs/pesquisa-visual.md).
+- O CI verifica os tipos e o build de todos os pacotes a cada push.
+- `web/scripts/check-mobile.cjs` valida que nenhuma página excede a largura da tela em três dispositivos móveis. A
+  verificação é pré-requisito para a publicação.
 
-**Stack:** Node + Express + TypeScript, `@anthropic-ai/sdk`, `@modelcontextprotocol/sdk` · React 19 + Vite + Tailwind CSS 4 + Motion + React Flow.
+## Design
+
+O sistema visual está especificado em [`.claude/skills/agent-lab-ui`](.claude/skills/agent-lab-ui/SKILL.md). As
+referências consultadas estão em [`docs/pesquisa-visual.md`](docs/pesquisa-visual.md) e os estudos de layout em
+[`docs/design-concepts`](docs/design-concepts/README.md).
+
+**Stack:** Node.js, Express, TypeScript, `@anthropic-ai/sdk`, `@modelcontextprotocol/sdk` · React 19, Vite,
+Tailwind CSS 4, Motion, React Flow.
