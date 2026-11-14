@@ -1,0 +1,23 @@
+import { prettyJson } from "../lib/format";
+
+/** JSON com realce de sintaxe simples. */
+export function JsonView({ value, className = "", maxHeight = 260 }: { value: unknown; className?: string; maxHeight?: number }) {
+  const text = prettyJson(value);
+  const html = text
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+-]?\d+)?)/g, (m) => {
+      let cls = "text-amber";
+      if (m.startsWith('"')) cls = m.endsWith(":") ? "text-violet-300" : "text-mint";
+      else if (/true|false/.test(m)) cls = "text-cyan";
+      else if (m === "null") cls = "text-ink-400";
+      return `<span class="${cls}">${m}</span>`;
+    });
+  return (
+    <pre
+      className={`overflow-auto rounded-xl border border-white/5 bg-black/35 p-3 font-mono text-[11.5px] leading-relaxed text-ink-300 ${className}`}
+      style={{ maxHeight }}
+      dangerouslySetInnerHTML={{ __html: html }}
+    />
+  );
+}
