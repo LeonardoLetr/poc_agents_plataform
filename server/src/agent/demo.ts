@@ -134,7 +134,7 @@ function summarize(results: { name: string; content: string }[]): string {
     else if (r.name === "http_fetch") lines.push(`- 🌐 **Página** (${d.status}): ${String(d.content ?? "").slice(0, 280).replace(/\s+/g, " ")}…`);
     else if (r.name === "memory_search") {
       const arr = Array.isArray(data) ? (data as { content: string; score: number }[]) : [];
-      lines.push(arr.length ? `- 🧠 **Memórias encontradas:**\n${arr.slice(0, 3).map((m) => `  - ${m.content} _(score ${m.score})_`).join("\n")}` : "- 🧠 Nada relevante na memória ainda.");
+      lines.push(arr.length ? `- 🧠 **Memórias encontradas:**\n${arr.slice(0, 3).map((m) => `  - ${m.content.length > 110 ? `${m.content.slice(0, 110)}…` : m.content} _(score ${m.score})_`).join("\n")}` : "- 🧠 Nada relevante na memória ainda.");
     } else if (r.name === "memory_save") lines.push("- 💾 **Memória salva** para as próximas conversas.");
     else if (r.name.endsWith("dados_rolar")) lines.push(`- 🎲 **Dados (via MCP):** ${d.notacao} → [${(d.rolagens as number[]).join(", ")}] = **${d.total}**`);
     else if (r.name.endsWith("notas_adicionar")) lines.push(`- 🗒️ **Nota salva no servidor MCP** (total: ${d.total})`);

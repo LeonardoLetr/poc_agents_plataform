@@ -287,8 +287,14 @@ async function loop(run: LiveRun) {
     });
 
     if (agent.memory.autoEpisode && finalText) {
+      // Resumo curto e sem markdown: episódios longos poluiriam buscas futuras.
+      const usedTools = [...new Set(record.events.flatMap((e) => (e.type === "tool.call" ? [e.name] : [])))];
+      const plain = finalText.replace(/[*_`>#\-]/g, "").replace(/\s+/g, " ").trim();
       const memory = createMemory({
-        content: `Episódio: pediram "${clip(record.input, 160)}" e respondi: ${clip(finalText.replace(/\s+/g, " "), 280)}`,
+        content:
+          `Episódio: tarefa "${record.input.slice(0, 120)}" concluída em ${record.iterations} iterações` +
+          (usedTools.length ? ` usando ${usedTools.join(", ")}` : "") +
+          `. Início da resposta: ${plain.slice(0, 140)}${plain.length > 140 ? "…" : ""}`,
         kind: "episode",
         tags: ["episódio", agent.name],
         importance: 2,

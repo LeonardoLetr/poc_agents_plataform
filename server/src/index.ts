@@ -37,6 +37,7 @@ function sse(res: Response) {
     connection: "keep-alive",
     "x-accel-buffering": "no",
   });
+  res.write(": conectado\n\n"); // libera os cabeçalhos já (o EventSource só dispara onopen ao receber algo)
   const ping = setInterval(() => res.write(": ping\n\n"), 15_000);
   res.on("close", () => clearInterval(ping));
   return (data: unknown) => res.write(`data: ${JSON.stringify(data)}\n\n`);
