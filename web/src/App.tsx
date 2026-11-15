@@ -2,6 +2,7 @@ import { AnimatePresence, motion } from "motion/react";
 import { Route, Routes, useLocation } from "react-router-dom";
 import { Aurora } from "./components/effects";
 import { Sidebar } from "./components/Sidebar";
+import { TopBar } from "./components/TopBar";
 import type { Health } from "./lib/api";
 import { useResource } from "./lib/hooks";
 import Agents from "./pages/Agents";
@@ -22,14 +23,15 @@ export default function App() {
       <Aurora />
       <Sidebar health={health.data} />
       <main className="min-w-0 flex-1">
+        <TopBar />
         <AnimatePresence mode="wait">
           <motion.div
             key={location.pathname.split("/")[1]}
-            initial={{ opacity: 0, y: 10, filter: "blur(4px)" }}
-            animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
-            exit={{ opacity: 0, y: -6, filter: "blur(4px)" }}
-            transition={{ duration: 0.25, ease: "easeOut" }}
-            className="mx-auto w-full max-w-[1500px] px-4 py-8 md:px-8"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.15, ease: "easeOut" }}
+            className="mx-auto w-full max-w-[1440px] px-4 py-6 md:px-6"
           >
             <Routes location={location}>
               <Route path="/" element={<Dashboard health={health.data} />} />

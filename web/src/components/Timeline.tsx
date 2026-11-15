@@ -27,28 +27,35 @@ function ToolCard({ tool }: { tool: ToolStep }) {
   const [open, setOpen] = useState(false);
   const { label, server } = toolLabel(tool.name);
   const status = {
-    running: { icon: <Loader2 size={13} className="animate-spin" />, color: "text-warn", text: "executando" },
-    awaiting_approval: { icon: <Hand size={13} />, color: "text-warn", text: "aguardando aprovação" },
-    done: { icon: <CheckCircle2 size={13} />, color: "text-ok", text: "ok" },
-    error: { icon: <XCircle size={13} />, color: "text-bad", text: "erro" },
-    denied: { icon: <XCircle size={13} />, color: "text-bad", text: "negada" },
+    running: { icon: <Loader2 size={11} className="animate-spin" />, badge: "warn" as const, text: "Executando" },
+    awaiting_approval: { icon: <Hand size={11} />, badge: "warn" as const, text: "Aguardando aprovação" },
+    done: { icon: <CheckCircle2 size={11} />, badge: "ok" as const, text: "Concluída" },
+    error: { icon: <XCircle size={11} />, badge: "bad" as const, text: "Erro" },
+    denied: { icon: <XCircle size={11} />, badge: "bad" as const, text: "Negada" },
   }[tool.status];
   return (
-    <motion.div layout {...enter} className={`overflow-hidden rounded-xl border bg-ink-950 ${tool.status === "running" ? "beam border-warn/30 [--beam-color:var(--color-warn)]" : "border-black/[0.064]"}`}>
-      <button onClick={() => setOpen(!open)} className="flex w-full items-center gap-2 px-3 py-2 text-left">
-        {server ? <Plug size={13} className="text-mcp" /> : <Wrench size={13} className="text-warn" />}
-        <span className="font-mono text-[12px] text-ink-100">{label}</span>
-        {server && <Badge color="mcp">mcp:{server}</Badge>}
-        <span className={`ml-auto flex items-center gap-1 text-[11px] ${status.color}`}>
-          {status.icon} {status.text}
-          {tool.durationMs !== undefined && <span className="text-ink-500">· {fmtMs(tool.durationMs)}</span>}
-        </span>
-        <ChevronDown size={14} className={`text-ink-500 transition ${open ? "rotate-180" : ""}`} />
+    <motion.div layout {...enter} className={`overflow-hidden rounded-[10px] border bg-white ${tool.status === "running" ? "beam [--beam-color:var(--color-warn)]" : "border-ink-700"}`}>
+      {/* Cartão de item: categoria em caixa alta + status, nome, rodapé com duração */}
+      <button onClick={() => setOpen(!open)} className="block w-full p-3 text-left">
+        <div className="flex items-center gap-1.5 text-[10.5px] font-medium uppercase tracking-[0.04em] text-ink-400">
+          {server ? <Plug size={11} /> : <Wrench size={11} />}
+          {server ? `MCP · ${server}` : "Ferramenta nativa"}
+          <span className="ml-auto normal-case tracking-normal">
+            <Badge color={status.badge}>
+              {status.icon} {status.text}
+            </Badge>
+          </span>
+        </div>
+        <div className="mt-2 flex items-center gap-2">
+          <span className="font-mono text-[12.5px] font-medium text-ink-100">{label}</span>
+          {tool.durationMs !== undefined && <span className="text-[11px] text-ink-400">{fmtMs(tool.durationMs)}</span>}
+          <ChevronDown size={13} className={`ml-auto text-ink-400 transition ${open ? "rotate-180" : ""}`} />
+        </div>
       </button>
       <AnimatePresence initial={false}>
         {open && (
           <motion.div initial={{ height: 0 }} animate={{ height: "auto" }} exit={{ height: 0 }} className="overflow-hidden">
-            <div className="space-y-2 border-t border-black/[0.04] p-3">
+            <div className="space-y-2 border-t border-ink-850 p-3">
               <div className="font-mono text-[10px] uppercase tracking-wider text-ink-500">entrada (gerada pelo LLM)</div>
               <JsonView value={tool.input} maxHeight={160} />
               {tool.output !== undefined && (
@@ -89,7 +96,7 @@ function Iteration({ step, live }: { step: Extract<Step, { kind: "iteration" }>;
             <ChevronDown size={12} className={`transition ${showThinking ? "rotate-180" : ""}`} />
           </button>
           {showThinking && step.thinking && (
-            <div className={`mt-1.5 border-l-2 border-accent/30 pl-3 font-serif text-[15px] italic leading-snug text-ink-300 ${streaming && !step.text ? "caret" : ""}`}>{step.thinking}</div>
+            <div className={`mt-1.5 border-l-2 border-ink-700 pl-3 text-[13px] italic leading-relaxed text-ink-400 ${streaming && !step.text ? "caret" : ""}`}>{step.thinking}</div>
           )}
         </div>
       )}
@@ -121,14 +128,14 @@ export function Timeline({ steps, live }: { steps: Step[]; live: boolean }) {
         switch (s.kind) {
           case "user":
             return (
-              <Rail key={key} icon={<User size={14} />} color="#4a7a96" last={last}>
+              <Rail key={key} icon={<User size={14} />} color="#0284c7" last={last}>
                 <div className="text-[11px] text-ink-500">Você</div>
                 <div className="mt-0.5 rounded-2xl rounded-tl-sm bg-ink-850 px-3.5 py-2.5 text-[14px] text-ink-100">{s.text}</div>
               </Rail>
             );
           case "recall":
             return (
-              <Rail key={key} icon={<Brain size={14} />} color="#7c6fa6" last={last}>
+              <Rail key={key} icon={<Brain size={14} />} color="#7c3aed" last={last}>
                 <div className="text-[12px] text-ink-300">
                   <b className="font-medium text-memory">{s.memories.length} memórias</b> recuperadas e injetadas no prompt de sistema
                 </div>
@@ -145,13 +152,13 @@ export function Timeline({ steps, live }: { steps: Step[]; live: boolean }) {
             );
           case "iteration":
             return (
-              <Rail key={key} icon={live && last ? <Loader2 size={14} className="animate-spin" /> : <MessageSquare size={14} />} color="#c96442" last={last}>
+              <Rail key={key} icon={live && last ? <Loader2 size={14} className="animate-spin" /> : <MessageSquare size={14} />} color="#2563eb" last={last}>
                 <Iteration step={s} live={live && last} />
               </Rail>
             );
           case "memory":
             return (
-              <Rail key={key} icon={<Brain size={14} />} color="#7c6fa6" last={last}>
+              <Rail key={key} icon={<Brain size={14} />} color="#7c3aed" last={last}>
                 <div className="rounded-xl border border-memory/20 bg-memory/[0.05] px-3 py-2 text-[12.5px] leading-relaxed text-ink-300">
                   <span className="mr-1.5 font-medium text-memory">Nova memória</span>
                   <Badge color="memory">{kindLabel[s.memory.kind]}</Badge> {s.memory.content}
@@ -160,7 +167,7 @@ export function Timeline({ steps, live }: { steps: Step[]; live: boolean }) {
             );
           case "final":
             return (
-              <Rail key={key} icon={<CheckCircle2 size={14} />} color="#5e8c4a" last={last}>
+              <Rail key={key} icon={<CheckCircle2 size={14} />} color="#16a34a" last={last}>
                 <div className="beam rounded-2xl border border-ok/25 bg-ok/[0.04] p-4 [--beam-color:var(--color-ok)]">
                   <div className="mb-1 font-mono text-[10px] uppercase tracking-[0.18em] text-ok">resposta final</div>
                   <Markdown text={s.text || "(sem texto)"} />
@@ -169,7 +176,7 @@ export function Timeline({ steps, live }: { steps: Step[]; live: boolean }) {
             );
           case "error":
             return (
-              <Rail key={key} icon={<AlertTriangle size={14} />} color="#b4483a" last={last}>
+              <Rail key={key} icon={<AlertTriangle size={14} />} color="#dc2626" last={last}>
                 <div className="rounded-xl border border-bad/30 bg-bad/10 px-3 py-2 text-[13px] text-bad">{s.text}</div>
               </Rail>
             );

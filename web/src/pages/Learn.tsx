@@ -6,10 +6,10 @@ import { LoopDiagram } from "../components/LoopDiagram";
 import { Badge, Card, PageHeader } from "../components/ui";
 
 const MESSAGES = [
-  { role: "user", tag: "texto", color: "#4a7a96", body: "Quanto é 1250 × 1,08²?" },
-  { role: "assistant", tag: "thinking + tool_use", color: "#c96442", body: '💭 "preciso calcular com precisão"\n🔧 calculator({ expression: "1250*1.08^2" })' },
-  { role: "user", tag: "tool_result", color: "#b07a1e", body: '{ "result": 1458 }' },
-  { role: "assistant", tag: "texto · end_turn", color: "#5e8c4a", body: "O resultado é 1.458." },
+  { role: "user", tag: "texto", color: "#0284c7", body: "Quanto é 1250 × 1,08²?" },
+  { role: "assistant", tag: "thinking + tool_use", color: "#2563eb", body: '💭 "preciso calcular com precisão"\n🔧 calculator({ expression: "1250*1.08^2" })' },
+  { role: "user", tag: "tool_result", color: "#d97706", body: '{ "result": 1458 }' },
+  { role: "assistant", tag: "texto · end_turn", color: "#16a34a", body: "O resultado é 1.458." },
 ];
 
 function MessageStack() {
@@ -100,7 +100,7 @@ export default function Learn() {
       <section className="grid items-center gap-8 lg:grid-cols-2">
         <LoopDiagram size={360} />
         <div className="space-y-4">
-          <h2 className="font-serif text-[28px] font-normal tracking-[-0.01em] text-ink-100">1. O loop é o agente</h2>
+          <h2 className="text-[16px] font-semibold tracking-[-0.01em] text-ink-100">1. O loop é o agente</h2>
           <p className="text-[15px] leading-relaxed text-ink-300">
             Um LLM sozinho só transforma texto em texto. Ele vira um <b className="text-ink-100">agente</b> quando colocamos ele num loop com ferramentas: o
             modelo lê o contexto, decide o próximo passo, nós executamos a ação e devolvemos o resultado. Isso se repete até ele responder sem pedir
@@ -114,7 +114,7 @@ export default function Learn() {
 
       <section className="grid gap-8 lg:grid-cols-2">
         <div className="space-y-4">
-          <h2 className="font-serif text-[28px] font-normal tracking-[-0.01em] text-ink-100">2. Anatomia da conversa</h2>
+          <h2 className="text-[16px] font-semibold tracking-[-0.01em] text-ink-100">2. Anatomia da conversa</h2>
           <p className="text-[15px] leading-relaxed text-ink-300">
             Ferramentas funcionam por um protocolo simples: o assistente responde com um bloco <code className="text-accent">tool_use</code> (nome +
             argumentos em JSON). A plataforma executa e responde com <code className="text-warn">tool_result</code> como se fosse o usuário. Ao lado,
@@ -127,13 +127,13 @@ export default function Learn() {
       </section>
 
       <section>
-        <h2 className="mb-4 font-serif text-[28px] font-normal tracking-[-0.01em] text-ink-100">3. As peças</h2>
+        <h2 className="mb-4 text-[16px] font-semibold tracking-[-0.01em] text-ink-100">3. As peças</h2>
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           {[
-            { icon: <Wrench />, color: "#b07a1e", title: "Ferramentas", to: "/agents", text: "Funções com nome, descrição e schema JSON. A descrição é o que o modelo lê para decidir quando usar — escreva bem!" },
-            { icon: <Plug />, color: "#9b5e86", title: "MCP", to: "/mcp", text: "Em vez de programar cada ferramenta, conecte servidores que já as oferecem. O cliente descobre tudo via tools/list." },
-            { icon: <Brain />, color: "#7c6fa6", title: "Memória", to: "/memory", text: "Curto prazo (histórico), trabalho (scratchpad), longo prazo (fatos) e episódica (o que já fez). Tudo vira texto no contexto." },
-            { icon: <ShieldCheck />, color: "#5e8c4a", title: "Auditoria e limites", to: "/audit", text: "Limite de iterações, aprovação humana, bloqueio de IPs privados e registro de cada ação: autonomia com controle." },
+            { icon: <Wrench />, color: "#d97706", title: "Ferramentas", to: "/agents", text: "Funções com nome, descrição e schema JSON. A descrição é o que o modelo lê para decidir quando usar — escreva bem!" },
+            { icon: <Plug />, color: "#ea580c", title: "MCP", to: "/mcp", text: "Em vez de programar cada ferramenta, conecte servidores que já as oferecem. O cliente descobre tudo via tools/list." },
+            { icon: <Brain />, color: "#7c3aed", title: "Memória", to: "/memory", text: "Curto prazo (histórico), trabalho (scratchpad), longo prazo (fatos) e episódica (o que já fez). Tudo vira texto no contexto." },
+            { icon: <ShieldCheck />, color: "#16a34a", title: "Auditoria e limites", to: "/audit", text: "Limite de iterações, aprovação humana, bloqueio de IPs privados e registro de cada ação: autonomia com controle." },
           ].map((c, i) => (
             <motion.div key={c.title} initial={{ opacity: 0, y: 16 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: i * 0.08 }}>
               <Link to={c.to}>
@@ -152,7 +152,7 @@ export default function Learn() {
 
       <section className="grid gap-8 lg:grid-cols-2">
         <div>
-          <h2 className="mb-4 font-serif text-[28px] font-normal tracking-[-0.01em] text-ink-100">4. Glossário</h2>
+          <h2 className="mb-4 text-[16px] font-semibold tracking-[-0.01em] text-ink-100">4. Glossário</h2>
           <div className="space-y-2">
             {GLOSSARY.map(([term, def]) => (
               <Card key={term} className="p-3.5">
@@ -163,7 +163,7 @@ export default function Learn() {
           </div>
         </div>
         <div>
-          <h2 className="mb-4 font-serif text-[28px] font-normal tracking-[-0.01em] text-ink-100">
+          <h2 className="mb-4 text-[16px] font-semibold tracking-[-0.01em] text-ink-100">
             5. Experimentos <span className="text-[14px] font-normal text-ink-400">({done.size}/{EXERCISES.length})</span>
           </h2>
           <div className="mb-3 h-1.5 overflow-hidden rounded-full bg-black/[0.038]">

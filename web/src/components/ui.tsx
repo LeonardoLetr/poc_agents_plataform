@@ -4,11 +4,11 @@ import type { ButtonHTMLAttributes, InputHTMLAttributes, ReactNode, SelectHTMLAt
 
 export function PageHeader({ eyebrow, title, description, actions }: { eyebrow?: string; title: ReactNode; description?: ReactNode; actions?: ReactNode }) {
   return (
-    <div className="mb-8 flex flex-wrap items-end justify-between gap-4">
-      <div className="max-w-2xl">
-        {eyebrow && <div className="mb-2 font-mono text-[11px] uppercase tracking-[0.16em] text-ink-400">{eyebrow}</div>}
-        <h1 className="font-serif text-[34px] font-normal leading-tight tracking-[-0.015em] text-ink-100 md:text-[40px]">{title}</h1>
-        {description && <p className="mt-2 text-[15px] leading-relaxed text-ink-300">{description}</p>}
+    <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
+      {/* O "eyebrow" virou o breadcrumb da barra superior; aqui fica só título + subtítulo. */}
+      <div className="max-w-3xl" data-eyebrow={eyebrow}>
+        <h1 className="text-[18px] font-semibold tracking-[-0.01em] text-ink-100">{title}</h1>
+        {description && <p className="mt-1 text-[13px] leading-relaxed text-ink-400">{description}</p>}
       </div>
       {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
     </div>
@@ -16,23 +16,23 @@ export function PageHeader({ eyebrow, title, description, actions }: { eyebrow?:
 }
 
 export function Card({ children, className = "" }: { children: ReactNode; className?: string }) {
-  return <div className={`glass rounded-2xl ${className}`}>{children}</div>;
+  return <div className={`glass rounded-xl ${className}`}>{children}</div>;
 }
 
 type Variant = "primary" | "ghost" | "danger" | "subtle";
 const variants: Record<Variant, string> = {
-  primary: "bg-accent text-white shadow-[0_1px_2px_rgb(31_30_28/0.12)] hover:bg-[#b5573a]",
-  ghost: "border border-black/[0.1] bg-white text-ink-200 shadow-[0_1px_2px_rgb(31_30_28/0.04)] hover:bg-ink-950 hover:text-ink-100",
+  primary: "bg-accent text-white hover:bg-[#1d4ed8]",
+  ghost: "border border-ink-700 bg-white text-ink-200 hover:border-ink-600 hover:bg-ink-900 hover:text-ink-100",
   danger: "border border-bad/30 bg-bad/10 text-bad hover:bg-bad/20",
-  subtle: "text-ink-300 hover:bg-black/[0.045] hover:text-ink-100",
+  subtle: "text-ink-400 hover:bg-ink-850 hover:text-ink-100",
 };
 
 export function Button({ variant = "ghost", size = "md", className = "", children, ...rest }: ButtonHTMLAttributes<HTMLButtonElement> & { variant?: Variant; size?: "sm" | "md" }) {
   return (
     <button
       {...rest}
-      className={`inline-flex items-center justify-center gap-2 rounded-lg font-medium transition-colors active:scale-[0.98] disabled:pointer-events-none disabled:opacity-40 ${
-        size === "sm" ? "h-8 px-3 text-[12.5px]" : "h-9 px-3.5 text-[13.5px]"
+      className={`inline-flex items-center justify-center gap-2 rounded-lg font-medium transition-colors duration-150 disabled:pointer-events-none disabled:opacity-40 ${
+        size === "sm" ? "h-7 px-2.5 text-[12px]" : "h-8 px-3 text-[13px]"
       } ${variants[variant]} ${className}`}
     >
       {children}
@@ -42,35 +42,36 @@ export function Button({ variant = "ghost", size = "md", className = "", childre
 
 export function Badge({ children, color = "ink", className = "" }: { children: ReactNode; color?: "ink" | "accent" | "info" | "ok" | "warn" | "bad" | "mcp" | "memory"; className?: string }) {
   const map = {
-    ink: "bg-black/[0.038] text-ink-300 border-black/[0.08]",
-    accent: "bg-accent/10 text-accent border-accent/25",
-    info: "bg-info/10 text-info border-info/25",
-    ok: "bg-ok/10 text-ok border-ok/25",
-    warn: "bg-warn/10 text-warn border-warn/25",
-    bad: "bg-bad/10 text-bad border-bad/25",
-    mcp: "bg-mcp/10 text-mcp border-mcp/25",
-    memory: "bg-memory/10 text-memory border-memory/25",
+    // Etiquetas suaves: fundo claro + texto forte da mesma família, sem borda.
+    ink: "bg-ink-850 text-ink-400",
+    accent: "bg-[#eff6ff] text-[#1d4ed8]",
+    info: "bg-[#f0f9ff] text-[#0369a1]",
+    ok: "bg-[#f0fdf4] text-[#15803d]",
+    warn: "bg-[#fffbeb] text-[#b45309]",
+    bad: "bg-[#fef2f2] text-[#b91c1c]",
+    mcp: "bg-[#fff7ed] text-[#c2410c]",
+    memory: "bg-[#f5f3ff] text-[#6d28d9]",
   };
-  return <span className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 font-mono text-[10.5px] ${map[color]} ${className}`}>{children}</span>;
+  return <span className={`inline-flex items-center gap-1 whitespace-nowrap rounded-[5px] px-1.5 py-[2px] text-[11px] font-medium leading-none ${map[color]} ${className}`}>{children}</span>;
 }
 
-const field = "w-full rounded-lg border border-black/[0.12] bg-white px-3 text-sm text-ink-100 placeholder:text-ink-500 outline-none transition focus:border-accent/60 focus:ring-[3px] focus:ring-accent/15";
+const field = "w-full rounded-lg border border-ink-700 bg-white px-3 text-[13px] text-ink-100 placeholder:text-ink-500 outline-none transition focus:border-accent focus:ring-[3px] focus:ring-[#dbeafe]";
 
 export function Input(props: InputHTMLAttributes<HTMLInputElement>) {
-  return <input {...props} className={`${field} h-10 ${props.className ?? ""}`} />;
+  return <input {...props} className={`${field} h-8 ${props.className ?? ""}`} />;
 }
 export function Textarea(props: TextareaHTMLAttributes<HTMLTextAreaElement>) {
   return <textarea {...props} className={`${field} py-2.5 leading-relaxed ${props.className ?? ""}`} />;
 }
 export function Select(props: SelectHTMLAttributes<HTMLSelectElement>) {
-  return <select {...props} className={`${field} h-10 ${props.className ?? ""}`} />;
+  return <select {...props} className={`${field} h-8 ${props.className ?? ""}`} />;
 }
 
 export function Field({ label, hint, children }: { label: string; hint?: ReactNode; children: ReactNode }) {
   return (
     <label className="block">
       <div className="mb-1.5 flex items-baseline justify-between gap-2">
-        <span className="text-[13px] font-medium text-ink-200">{label}</span>
+        <span className="text-[12px] font-medium text-ink-200">{label}</span>
         {hint && <span className="text-[11.5px] text-ink-400">{hint}</span>}
       </div>
       {children}
@@ -97,16 +98,16 @@ export function Modal({ open, onClose, title, children, wide }: { open: boolean;
     <AnimatePresence>
       {open && (
         <motion.div className="fixed inset-0 z-50 flex items-center justify-center p-4" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-          <div className="absolute inset-0 bg-ink-100/25 backdrop-blur-sm" onClick={onClose} />
+          <div className="absolute inset-0 bg-ink-100/30" onClick={onClose} />
           <motion.div
             initial={{ opacity: 0, y: 24, scale: 0.97 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 12, scale: 0.98 }}
             transition={{ type: "spring", stiffness: 380, damping: 32 }}
-            className={`relative max-h-[90vh] w-full overflow-y-auto rounded-2xl border border-black/[0.08] bg-white p-6 shadow-[0_24px_60px_-20px_rgb(31_30_28/0.35)] ${wide ? "max-w-3xl" : "max-w-lg"}`}
+            className={`relative max-h-[90vh] w-full overflow-y-auto rounded-xl border border-ink-700 bg-white p-5 shadow-[0_8px_24px_rgb(0_0_0/0.08)] ${wide ? "max-w-3xl" : "max-w-lg"}`}
           >
             <div className="mb-5 flex items-center justify-between gap-4">
-              <h2 className="font-serif text-[22px] font-normal tracking-[-0.01em] text-ink-100">{title}</h2>
+              <h2 className="text-[15px] font-semibold text-ink-100">{title}</h2>
               <button onClick={onClose} className="rounded-lg p-1.5 text-ink-400 transition hover:bg-black/[0.075] hover:text-ink-100" aria-label="Fechar">
                 <X size={18} />
               </button>

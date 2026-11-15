@@ -100,7 +100,7 @@ function ToolNode({ data }: NodeProps<Node<{ label: string; sub?: string; icon: 
 function BeamEdge({ id, sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition, data }: EdgeProps<Edge<{ flow: Flow; color: string }>>) {
   const [path] = getBezierPath({ sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition });
   const flow = data?.flow ?? null;
-  const color = data?.color ?? "#c96442";
+  const color = data?.color ?? "#2563eb";
   return (
     <>
       <BaseEdge id={id} path={path} style={{ stroke: flow ? color : "rgb(31 30 28 / 0.14)", strokeWidth: flow ? 1.6 : 1.1, transition: "all .3s" }} />
@@ -166,17 +166,17 @@ function GraphInner({ agent, tools, view, llmLabel }: { agent: Agent; tools: Too
     if (view.status === "completed") flows.set("user", "back");
 
     const toolNodes: { id: string; label: string; sub?: string; icon: typeof Wrench; color: string; dim?: boolean }[] = [
-      ...builtin.map((t) => ({ id: `tool:${t}`, label: t, sub: "ferramenta nativa", icon: ICONS[t] ?? Wrench, color: "#b07a1e" })),
+      ...builtin.map((t) => ({ id: `tool:${t}`, label: t, sub: "ferramenta nativa", icon: ICONS[t] ?? Wrench, color: "#d97706" })),
       ...[...mcpServers].map((s) => {
         const available = tools.filter((t) => t.server === s).length;
-        return { id: `mcp:${s}`, label: s, sub: available ? `MCP · ${available} ferramentas` : "MCP · desconectado", icon: Plug, color: "#9b5e86", dim: !available };
+        return { id: `mcp:${s}`, label: s, sub: available ? `MCP · ${available} ferramentas` : "MCP · desconectado", icon: Plug, color: "#ea580c", dim: !available };
       }),
     ];
 
     const gap = 78;
     const startY = 150 - ((toolNodes.length - 1) * gap) / 2;
     const nodes: Node[] = [
-      { id: "user", type: "tool", position: { x: 0, y: 130 }, data: { label: "Usuário", sub: "tarefa / resposta", icon: User, active: view.active === "user", count: 0, color: "#4a7a96" } },
+      { id: "user", type: "tool", position: { x: 0, y: 130 }, data: { label: "Usuário", sub: "tarefa / resposta", icon: User, active: view.active === "user", count: 0, color: "#0284c7" } },
       { id: "llm", type: "agent", position: { x: 250, y: 80 }, data: { agent, view, llmLabel } },
       ...toolNodes.map((t, i) => ({
         id: t.id,
@@ -185,8 +185,8 @@ function GraphInner({ agent, tools, view, llmLabel }: { agent: Agent; tools: Too
         data: { ...t, active: view.active === t.id, count: view.callCounts[t.id] ?? 0 },
       })),
     ];
-    if (hasMemory) nodes.push({ id: "memory", type: "tool", position: { x: 280, y: 330 }, data: { label: "Memória longo prazo", sub: "fatos · episódios", icon: Brain, active: view.active === "memory", count: view.callCounts.memory ?? 0, color: "#7c6fa6" } });
-    if (hasScratch) nodes.push({ id: "scratchpad", type: "tool", position: { x: 280, y: -70 }, data: { label: "Scratchpad", sub: "memória de trabalho", icon: NotebookPen, active: view.active === "scratchpad", count: view.callCounts.scratchpad ?? 0, color: "#5e8c4a" } });
+    if (hasMemory) nodes.push({ id: "memory", type: "tool", position: { x: 280, y: 330 }, data: { label: "Memória longo prazo", sub: "fatos · episódios", icon: Brain, active: view.active === "memory", count: view.callCounts.memory ?? 0, color: "#7c3aed" } });
+    if (hasScratch) nodes.push({ id: "scratchpad", type: "tool", position: { x: 280, y: -70 }, data: { label: "Scratchpad", sub: "memória de trabalho", icon: NotebookPen, active: view.active === "scratchpad", count: view.callCounts.scratchpad ?? 0, color: "#16a34a" } });
 
     const edge = (id: string, source: string, target: string, sh: string, th: string, color: string): Edge => ({
       id,
@@ -197,10 +197,10 @@ function GraphInner({ agent, tools, view, llmLabel }: { agent: Agent; tools: Too
       type: "beam",
       data: { flow: flows.get(id === "e-user" ? "user" : target === "llm" ? source : target) ?? null, color },
     });
-    const edges: Edge[] = [edge("e-user", "user", "llm", "r", "l", "#4a7a96")];
+    const edges: Edge[] = [edge("e-user", "user", "llm", "r", "l", "#0284c7")];
     for (const t of toolNodes) edges.push(edge(`e-${t.id}`, "llm", t.id, "r", "l", t.color));
-    if (hasMemory) edges.push(edge("e-memory", "llm", "memory", "b", "t", "#7c6fa6"));
-    if (hasScratch) edges.push(edge("e-scratch", "llm", "scratchpad", "ts", "bt", "#5e8c4a"));
+    if (hasMemory) edges.push(edge("e-memory", "llm", "memory", "b", "t", "#7c3aed"));
+    if (hasScratch) edges.push(edge("e-scratch", "llm", "scratchpad", "ts", "bt", "#16a34a"));
     return { nodes, edges };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [agent, tools, signature, llmLabel]);
@@ -235,7 +235,7 @@ function GraphInner({ agent, tools, view, llmLabel }: { agent: Agent; tools: Too
       maxZoom={1.4}
     >
       {/* Pontilhado discreto: dá referência espacial sem competir com os nós. */}
-      <Background variant={BackgroundVariant.Dots} gap={22} size={1.2} color="#ddd7c9" />
+      <Background variant={BackgroundVariant.Dots} gap={22} size={1.2} color="#e4e4e7" />
     </ReactFlow>
   );
 }

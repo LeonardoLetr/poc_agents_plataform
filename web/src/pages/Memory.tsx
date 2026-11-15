@@ -1,12 +1,12 @@
 import { AnimatePresence, motion } from "motion/react";
-import { Brain, MessagesSquare, NotebookPen, Pencil, Plus, Search, Trash2, History } from "lucide-react";
+import { Brain, Calendar, MessagesSquare, NotebookPen, Pencil, Plus, Search, Trash2, History } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Badge, Button, Card, ErrorNote, Field, Input, Modal, PageHeader, Select, Textarea } from "../components/ui";
 import { api, type Agent, type Memory, type MemoryKind } from "../lib/api";
 import { kindLabel, timeAgo } from "../lib/format";
 import { useResource } from "../lib/hooks";
 
-const KIND_COLOR: Record<MemoryKind, string> = { fact: "#4a7a96", preference: "#9b5e86", procedure: "#b07a1e", episode: "#7c6fa6" };
+const KIND_COLOR: Record<MemoryKind, string> = { fact: "#0284c7", preference: "#ea580c", procedure: "#d97706", episode: "#7c3aed" };
 
 interface Scored {
   memory: Memory;
@@ -19,13 +19,12 @@ export default function MemoryPage() {
   const agents = useResource<Agent[]>("/api/agents");
   const [query, setQuery] = useState("");
   const [agentFilter, setAgentFilter] = useState("");
-  const [kindFilter, setKindFilter] = useState<"" | MemoryKind>("");
   const [results, setResults] = useState<Scored[] | null>(null);
   const [editing, setEditing] = useState<Partial<Memory> | null>(null);
 
   const list = useMemo(
-    () => (memories.data ?? []).filter((m) => (!kindFilter || m.kind === kindFilter) && (!agentFilter || m.agentId === agentFilter || m.agentId === null)).slice().reverse(),
-    [memories.data, kindFilter, agentFilter],
+    () => (memories.data ?? []).filter((m) => !agentFilter || m.agentId === agentFilter || m.agentId === null).slice().reverse(),
+    [memories.data, agentFilter],
   );
   const counts = useMemo(() => {
     const c: Record<string, number> = { fact: 0, preference: 0, procedure: 0, episode: 0 };
@@ -55,10 +54,82 @@ export default function MemoryPage() {
       />
 
       <div className="mb-6 grid gap-3 md:grid-cols-4">
-        <LayerCard icon={<MessagesSquare size={16} />} color="#4a7a96" title="Curto prazo" value="histórico" text="As mensagens da conversa atual, reenviadas a cada iteração do loop." />
-        <LayerCard icon={<NotebookPen size={16} />} color="#5e8c4a" title="Trabalho" value="scratchpad" text="Anotações temporárias da execução: planos e resultados parciais." />
-        <LayerCard icon={<Brain size={16} />} color="#9b5e86" title="Longo prazo" value={`${counts.fact + counts.preference + counts.procedure} itens`} text="Fatos, preferências e procedimentos que sobrevivem entre execuções." />
-        <LayerCard icon={<History size={16} />} color="#7c6fa6" title="Episódica" value={`${counts.episode} episódios`} text="Resumos automáticos do que o agente já fez." />
+        <LayerCard icon={<MessagesSquare size={16} />} color="#0284c7" title="Curto prazo" value="histórico" text="As mensagens da conversa atual, reenviadas a cada iteração do loop." />
+        <LayerCard icon={<NotebookPen size={16} />} color="#16a34a" title="Trabalho" value="scratchpad" text="Anotações temporárias da execução: planos e resultados parciais." />
+        <LayerCard icon={<Brain size={16} />} color="#ea580c" title="Longo prazo" value={`${counts.fact + counts.preference + counts.procedure} itens`} text="Fatos, preferências e procedimentos que sobrevivem entre execuções." />
+        <LayerCard icon={<History size={16} />} color="#7c3aed" title="Episódica" value={`${counts.episode} episódios`} text="Resumos automáticos do que o agente já fez." />
+      </div>
+
+      {/* Barra de abas/filtros, como nos painéis de referência */}
+      <div className="mb-3 flex flex-wrap items-center gap-x-3 gap-y-2">
+        <span className="text-[13px] font-semibold text-ink-100">Quadro de memórias</span>
+        <span className="text-[12px] text-ink-400">{list.length} itens</span>
+        <div className="ml-auto flex gap-2">
+          <Select value={agentFilter} onChange={(e) => setAgentFilter(e.target.value)} className="!h-7 !w-52 text-[12px]">
+            <option value="">Todos os agentes</option>
+            {agents.data?.map((a) => <option key={a.id} value={a.id}>{a.emoji} {a.name}</option>)}
+          </Select>
+        </div>
+      </div>
+      <div className="mb-6 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+        {(Object.keys(KIND_COLOR) as MemoryKind[]).map((kind) => {
+          const items = list.filter((m) => m.kind === kind);
+          return (
+            <div key={kind} className="flex flex-col rounded-xl bg-ink-900 p-1.5">
+              <div className="flex items-center gap-2 px-1.5 pb-2 pt-1">
+                <span className="h-2 w-2 rounded-full" style={{ background: KIND_COLOR[kind] }} />
+                <span className="text-[12px] font-semibold capitalize text-ink-100">{kindLabel[kind]}</span>
+                <span className="rounded-[5px] bg-ink-850 px-1.5 text-[11px] font-medium text-ink-400">{items.length}</span>
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <AnimatePresence initial={false}>
+                  {items.map((m) => (
+                    <motion.div
+                      key={m.id}
+                      layout
+                      initial={{ opacity: 0, y: 6 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0 }}
+                      className={`group rounded-[10px] border bg-white p-3 ${highlighted.has(m.id) ? "border-accent" : "border-ink-700"}`}
+                    >
+                      <div className="flex items-center gap-1.5 text-[10.5px] font-medium uppercase tracking-[0.04em] text-ink-400">
+                        <Brain size={11} /> <span className="truncate">{agentName(m.agentId)}</span>
+                        <span className="ml-auto normal-case tracking-normal">
+                          <Badge color={m.importance >= 4 ? "bad" : m.importance === 3 ? "warn" : "ok"}>{m.importance >= 4 ? "Alta" : m.importance === 3 ? "Média" : "Baixa"}</Badge>
+                        </span>
+                      </div>
+                      <p className="mt-2 line-clamp-4 text-[12.5px] leading-snug text-ink-200">{m.content}</p>
+                      {m.tags.length > 0 && <div className="mt-2 flex flex-wrap gap-1">{m.tags.slice(0, 3).map((t) => <Badge key={t}>#{t}</Badge>)}</div>}
+                      <div className="mt-2.5 flex items-center gap-1.5 text-[11px] text-ink-400">
+                        <Calendar size={11} /> {timeAgo(m.createdAt)}
+                        <span className="ml-auto">acessada {m.accessCount}×</span>
+                        <button onClick={() => setEditing(m)} className="rounded p-0.5 text-ink-400 hover:bg-ink-850 hover:text-ink-100" aria-label="Editar">
+                          <Pencil size={12} />
+                        </button>
+                        <button
+                          onClick={async () => {
+                            await api.del(`/api/memories/${m.id}`);
+                            void memories.reload();
+                          }}
+                          className="rounded p-0.5 text-ink-400 hover:bg-ink-850 hover:text-bad"
+                          aria-label="Remover"
+                        >
+                          <Trash2 size={12} />
+                        </button>
+                      </div>
+                    </motion.div>
+                  ))}
+                </AnimatePresence>
+                <button
+                  onClick={() => setEditing({ kind, importance: 3, tags: [], agentId: null, content: "" })}
+                  className="flex h-8 items-center justify-center gap-1 rounded-[10px] border border-dashed border-ink-600 text-[12px] text-ink-400 transition-colors hover:border-ink-500 hover:text-ink-200"
+                >
+                  <Plus size={12} /> Adicionar {kindLabel[kind]}
+                </button>
+              </div>
+            </div>
+          );
+        })}
       </div>
 
       <div className="mb-6 grid gap-6 lg:grid-cols-5">
@@ -104,55 +175,6 @@ export default function MemoryPage() {
         </Card>
       </div>
 
-      <div className="mb-3 flex flex-wrap items-center gap-2">
-        <Select value={kindFilter} onChange={(e) => setKindFilter(e.target.value as MemoryKind | "")} className="!w-44">
-          <option value="">Todos os tipos</option>
-          {Object.entries(kindLabel).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-        </Select>
-        <Select value={agentFilter} onChange={(e) => setAgentFilter(e.target.value)} className="!w-56">
-          <option value="">Todos os agentes</option>
-          {agents.data?.map((a) => <option key={a.id} value={a.id}>{a.emoji} {a.name}</option>)}
-        </Select>
-        <span className="ml-auto text-[12px] text-ink-500">{list.length} memórias</span>
-      </div>
-      <div className="grid gap-2">
-        <AnimatePresence initial={false}>
-          {list.map((m) => (
-            <motion.div key={m.id} layout initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, x: -20 }}>
-              <Card className={`flex items-start gap-3 p-3.5 ${highlighted.has(m.id) ? "border-info/40" : ""}`}>
-                <div className="mt-1 h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: KIND_COLOR[m.kind] }} />
-                <div className="min-w-0 flex-1">
-                  <div className="text-[13.5px] text-ink-100">{m.content}</div>
-                  <div className="mt-1.5 flex flex-wrap items-center gap-1.5 text-[11px] text-ink-500">
-                    <Badge>{kindLabel[m.kind]}</Badge>
-                    <span>{"★".repeat(m.importance)}<span className="text-ink-700">{"★".repeat(5 - m.importance)}</span></span>
-                    <span>· {agentName(m.agentId)}</span>
-                    <span>· criada por {m.source === "user" ? "você" : m.source === "agent" ? "agente" : "automação"} {timeAgo(m.createdAt)}</span>
-                    <span>· acessada {m.accessCount}×</span>
-                    {m.tags.map((t) => <Badge key={t} color="accent">#{t}</Badge>)}
-                  </div>
-                </div>
-                <Button size="sm" variant="subtle" onClick={() => setEditing(m)} aria-label="Editar">
-                  <Pencil size={13} />
-                </Button>
-                <Button
-                  size="sm"
-                  variant="subtle"
-                  className="hover:text-bad"
-                  aria-label="Remover"
-                  onClick={async () => {
-                    await api.del(`/api/memories/${m.id}`);
-                    void memories.reload();
-                  }}
-                >
-                  <Trash2 size={13} />
-                </Button>
-              </Card>
-            </motion.div>
-          ))}
-        </AnimatePresence>
-      </div>
-
       {editing && (
         <MemoryEditor
           memory={editing}
@@ -177,7 +199,7 @@ function LayerCard({ icon, color, title, value, text }: { icon: React.ReactNode;
         </div>
         <div>
           <div className="text-[13px] font-semibold">{title}</div>
-          <div className="font-mono text-[10.5px]" style={{ color }}>{value}</div>
+          <div className="text-[12px] text-ink-400">{value}</div>
         </div>
       </div>
       <p className="mt-2 text-[12px] leading-snug text-ink-400">{text}</p>
@@ -207,7 +229,7 @@ function Constellation({ memories, highlighted }: { memories: Memory[]; highligh
           <ellipse key={r} cx="50%" cy="52%" rx={`${r * 44}%`} ry={`${r * 40}%`} fill="none" stroke="rgb(31 30 28 / 0.1)" strokeDasharray="3 6" />
         ))}
       </svg>
-      <div className="absolute left-1/2 top-[52%] -translate-x-1/2 -translate-y-1/2 font-serif text-[15px] italic text-ink-400">agente</div>
+      <div className="absolute left-1/2 top-[52%] -translate-x-1/2 -translate-y-1/2 text-[12px] font-medium text-ink-400">agente</div>
       {points.map(({ m, x, y, r, delay }) => {
         const dim = highlighted && !highlighted.has(m.id);
         const lit = highlighted?.has(m.id);
@@ -267,7 +289,7 @@ function MemoryEditor({ memory, agents, onClose, onSaved }: { memory: Partial<Me
             </Select>
           </Field>
           <Field label="Importância" hint={`${form.importance}/5`}>
-            <input type="range" min={1} max={5} value={form.importance} onChange={(e) => setForm({ ...form, importance: Number(e.target.value) })} className="mt-3 w-full accent-[#c96442]" />
+            <input type="range" min={1} max={5} value={form.importance} onChange={(e) => setForm({ ...form, importance: Number(e.target.value) })} className="mt-3 w-full accent-[#2563eb]" />
           </Field>
         </div>
         <Field label="Escopo">

@@ -6,10 +6,10 @@ import { useEffect, useState } from "react";
  * contexto → LLM → ferramenta → observação, e cada estação acende quando ele passa.
  */
 const STATIONS = [
-  { label: "Contexto", sub: "prompt + memória + histórico", color: "#4a7a96", angle: -90 },
-  { label: "Pensar", sub: "LLM decide o próximo passo", color: "#c96442", angle: 0 },
-  { label: "Agir", sub: "chama uma ferramenta", color: "#b07a1e", angle: 90 },
-  { label: "Observar", sub: "resultado volta ao contexto", color: "#5e8c4a", angle: 180 },
+  { label: "Contexto", sub: "prompt + memória + histórico", color: "#0284c7", angle: -90 },
+  { label: "Pensar", sub: "LLM decide o próximo passo", color: "#2563eb", angle: 0 },
+  { label: "Agir", sub: "chama uma ferramenta", color: "#d97706", angle: 90 },
+  { label: "Observar", sub: "resultado volta ao contexto", color: "#16a34a", angle: 180 },
 ];
 
 export function LoopDiagram({ size: maxSize = 340, duration = 8 }: { size?: number; duration?: number }) {
@@ -60,7 +60,7 @@ export function LoopDiagram({ size: maxSize = 340, duration = 8 }: { size?: numb
         );
       })}
       <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-center">
-        <div className="font-serif text-[26px] italic text-ink-100">loop</div>
+        <div className="text-[18px] font-semibold text-ink-100">loop</div>
         <div className="font-mono text-[10px] text-ink-400">repete até end_turn</div>
       </div>
     </div>

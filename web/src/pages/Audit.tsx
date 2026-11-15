@@ -20,11 +20,11 @@ const GROUPS = [
 ];
 
 const TYPE_STYLE: Record<string, { icon: typeof Bot; color: string }> = {
-  run: { icon: Play, color: "#4a7a96" },
-  llm: { icon: Cpu, color: "#c96442" },
-  tool: { icon: Wrench, color: "#b07a1e" },
-  memory: { icon: Brain, color: "#7c6fa6" },
-  mcp: { icon: Plug, color: "#9b5e86" },
+  run: { icon: Play, color: "#0284c7" },
+  llm: { icon: Cpu, color: "#2563eb" },
+  tool: { icon: Wrench, color: "#d97706" },
+  memory: { icon: Brain, color: "#7c3aed" },
+  mcp: { icon: Plug, color: "#ea580c" },
   config: { icon: Settings2, color: "#9a9abd" },
 };
 

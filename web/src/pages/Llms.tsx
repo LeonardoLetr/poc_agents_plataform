@@ -8,9 +8,9 @@ import { useResource } from "../lib/hooks";
 import { getRememberKeys, setRememberKeys } from "../lib/runtime";
 
 const PROVIDERS: { id: Provider; label: string; color: string; rgb: string; text: string }[] = [
-  { id: "anthropic", label: "Anthropic (Claude)", color: "accent", rgb: "201 100 66", text: "SDK oficial, pensamento adaptativo, cache de prompt e fallback em recusas." },
-  { id: "openai", label: "Compatível com OpenAI", color: "info", rgb: "74 122 150", text: "Qualquer API no formato Chat Completions: OpenAI, OpenRouter, Groq, Ollama…" },
-  { id: "demo", label: "Demo (offline)", color: "ok", rgb: "94 140 74", text: "LLM simulado: segue palavras-chave, sem chave e sem custo." },
+  { id: "anthropic", label: "Anthropic (Claude)", color: "accent", rgb: "234 88 12", text: "SDK oficial, pensamento adaptativo, cache de prompt e fallback em recusas." },
+  { id: "openai", label: "Compatível com OpenAI", color: "info", rgb: "37 99 235", text: "Qualquer API no formato Chat Completions: OpenAI, OpenRouter, Groq, Ollama…" },
+  { id: "demo", label: "Demo (offline)", color: "ok", rgb: "113 113 122", text: "LLM simulado: segue palavras-chave, sem chave e sem custo." },
 ];
 
 const EFFORT_HINT: Record<Effort, string> = {

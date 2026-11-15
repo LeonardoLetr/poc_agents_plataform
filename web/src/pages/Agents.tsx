@@ -10,12 +10,12 @@ import { toolLabel } from "../lib/format";
 import { useResource } from "../lib/hooks";
 
 const EMOJIS = ["🤖", "🔎", "📊", "🧠", "🎬", "🔌", "🛠️", "📚", "🧑‍💻", "🦉", "🚀", "🧪"];
-const COLORS = ["#c96442", "#4a7a96", "#5e8c4a", "#b07a1e", "#9b5e86", "#7c6fa6", "#8a7a5c", "#5f6b73"];
+const COLORS = ["#2563eb", "#0284c7", "#16a34a", "#d97706", "#ea580c", "#7c3aed", "#71717a", "#52525b"];
 
 const blank: AgentInput = {
   name: "",
   emoji: "🤖",
-  color: "#c96442",
+  color: "#2563eb",
   description: "",
   llmId: "",
   systemPrompt: "Você é um agente prestativo. Planeje antes de agir e explique o que está fazendo. Responda em português.",
@@ -60,7 +60,7 @@ export default function Agents() {
                 </div>
                 <div className="min-w-0 flex-1">
                   <div className="font-semibold">{a.name}</div>
-                  <div className="font-mono text-[11px] text-ink-400">{(() => {
+                  <div className="mt-0.5 text-[12px] text-ink-400">{(() => {
                       const l = llms.data?.find((x) => x.id === a.llmId);
                       return l ? `${l.name}${l.ready ? "" : " · sem chave"}` : "sem LLM";
                     })()}</div>
@@ -189,7 +189,7 @@ function AgentEditor({ initial, id, onClose, onSaved }: { initial: AgentInput; i
                   <span className="truncate">{l.name}</span>
                   <Badge color={l.ready ? "ok" : "warn"}>{l.ready ? "pronta" : "sem chave"}</Badge>
                 </div>
-                <div className="truncate font-mono text-[11px] text-ink-400">
+                <div className="truncate text-[11.5px] text-ink-400">
                   {l.provider} · {l.model}
                   {l.provider === "anthropic" ? ` · ${l.effort}` : ""}
                 </div>
@@ -225,7 +225,7 @@ function AgentEditor({ initial, id, onClose, onSaved }: { initial: AgentInput; i
           <div className="grid gap-2 md:grid-cols-2">
             {builtin.map((t) => (
               <label key={t.name} className={`flex cursor-pointer gap-2.5 rounded-lg border p-2.5 transition ${form.tools.includes(t.name) ? "border-ink-400/50 bg-ink-950" : "border-black/[0.08] hover:bg-ink-950"}`}>
-                <input type="checkbox" className="mt-0.5 accent-[#c96442]" checked={form.tools.includes(t.name)} onChange={() => toggleTool(t.name)} />
+                <input type="checkbox" className="mt-0.5 accent-[#2563eb]" checked={form.tools.includes(t.name)} onChange={() => toggleTool(t.name)} />
                 <span className="min-w-0">
                   <span className="flex items-center gap-1.5 font-mono text-[12px] text-ink-100">
                     {t.name} <Badge>{t.category}</Badge>
@@ -243,7 +243,7 @@ function AgentEditor({ initial, id, onClose, onSaved }: { initial: AgentInput; i
                 return (
                   <div key={server} className="rounded-xl border border-mcp/20 bg-mcp/[0.03] p-3">
                     <label className="flex cursor-pointer items-center gap-2 text-[13px]">
-                      <input type="checkbox" className="accent-[#c96442]" checked={form.tools.includes(wildcard)} onChange={() => toggleTool(wildcard)} />
+                      <input type="checkbox" className="accent-[#2563eb]" checked={form.tools.includes(wildcard)} onChange={() => toggleTool(wildcard)} />
                       <span className="font-medium text-mcp">MCP: {server}</span> <span className="text-ink-400">— todas as {serverTools.length} ferramentas</span>
                     </label>
                     {!form.tools.includes(wildcard) && (

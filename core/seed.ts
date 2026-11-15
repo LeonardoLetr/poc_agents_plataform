@@ -26,7 +26,7 @@ export function seedLlms(): LlmConfig[] {
 const baseAgent = (a: Partial<AgentConfig> & Pick<AgentConfig, "name" | "systemPrompt" | "tools">): AgentConfig => ({
   id: uid("agt"),
   emoji: "🤖",
-  color: "#c96442",
+  color: "#2563eb",
   description: "",
   llmId: SEED_LLM.opus,
   maxIterations: 10,
@@ -42,7 +42,7 @@ export function seedAgents(): AgentConfig[] {
     baseAgent({
       name: "Pesquisador",
       emoji: "🔎",
-      color: "#4a7a96",
+      color: "#0284c7",
       description: "Busca páginas na web, extrai fatos e guarda o que aprendeu na memória.",
       systemPrompt:
         "Você é um pesquisador meticuloso. Planeje antes de agir, use `http_fetch` para obter fontes, " +
@@ -52,7 +52,7 @@ export function seedAgents(): AgentConfig[] {
     baseAgent({
       name: "Analista de Dados",
       emoji: "📊",
-      color: "#b07a1e",
+      color: "#d97706",
       description: "Resolve problemas numéricos passo a passo com a calculadora e anota o raciocínio.",
       systemPrompt:
         "Você é um analista quantitativo. Quebre problemas em etapas, use `calculator` para TODA conta " +
@@ -62,7 +62,7 @@ export function seedAgents(): AgentConfig[] {
     baseAgent({
       name: "Assistente com Memória",
       emoji: "🧠",
-      color: "#7c6fa6",
+      color: "#7c3aed",
       description: "Lembra suas preferências entre conversas usando memória de longo prazo.",
       systemPrompt:
         "Você é um assistente pessoal. Antes de responder, procure na memória o que já sabe sobre o usuário " +
@@ -72,7 +72,7 @@ export function seedAgents(): AgentConfig[] {
     baseAgent({
       name: "Agente Demo (offline)",
       emoji: "🎬",
-      color: "#5e8c4a",
+      color: "#16a34a",
       description: "Roda sem chave de API: um LLM simulado que usa as ferramentas reais para você ver o loop funcionando.",
       llmId: SEED_LLM.demo,
       systemPrompt: "Você é um agente de demonstração que explica cada passo do loop agêntico.",
@@ -81,7 +81,7 @@ export function seedAgents(): AgentConfig[] {
     baseAgent({
       name: "Explorador MCP",
       emoji: "🔌",
-      color: "#9b5e86",
+      color: "#ea580c",
       description: "Usa as ferramentas do servidor MCP de exemplo 'laboratorio' (notas, dados, texto, unidades).",
       systemPrompt:
         "Você é um agente que usa ferramentas externas via MCP. Explique qual servidor e ferramenta está usando e por quê. Responda em português.",

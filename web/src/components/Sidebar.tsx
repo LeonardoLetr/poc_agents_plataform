@@ -1,68 +1,100 @@
 import { motion } from "motion/react";
-import { BookOpen, Bot, Brain, Cpu, FileText, Globe, LayoutDashboard, Plug, Play, Server, ShieldCheck, Trash2 } from "lucide-react";
+import { BookOpen, Bot, Brain, ChevronDown, Cpu, FileText, Globe, LayoutDashboard, Play, Plug, Server, ShieldCheck, Trash2 } from "lucide-react";
+import { useState } from "react";
 import { NavLink, useLocation } from "react-router-dom";
-import type { Health } from "../lib/api";
+import type { Health, Stats } from "../lib/api";
+import { useInterval, useResource } from "../lib/hooks";
 import { resetBrowserData } from "../lib/runtime";
-import { LiveDot } from "./effects";
 
-const NAV = [
+type Item = { to: string; label: string; icon: typeof Bot; count?: (s: Stats) => number | string; dot?: (s: Stats) => boolean };
+
+/** Navegação agrupada, como em painéis SaaS: itens principais, grupos recolhíveis e rodapé. */
+const MAIN: Item[] = [
   { to: "/", label: "Visão geral", icon: LayoutDashboard },
-  { to: "/playground", label: "Playground", icon: Play, highlight: true },
-  { to: "/agents", label: "Agentes", icon: Bot },
-  { to: "/llms", label: "LLMs", icon: Cpu },
-  { to: "/mcp", label: "Servidores MCP", icon: Plug },
-  { to: "/memory", label: "Memória", icon: Brain },
-  { to: "/prompts", label: "Prompts", icon: FileText },
-  { to: "/audit", label: "Auditoria", icon: ShieldCheck },
-  { to: "/learn", label: "Aprender", icon: BookOpen },
+  { to: "/playground", label: "Playground", icon: Play },
+];
+const GROUPS: { title: string; items: Item[] }[] = [
+  {
+    title: "Construir",
+    items: [
+      { to: "/agents", label: "Agentes", icon: Bot, count: (s) => s.agents },
+      { to: "/llms", label: "LLMs", icon: Cpu, count: (s) => s.llms },
+      { to: "/mcp", label: "Servidores MCP", icon: Plug, count: (s) => `${s.mcpConnected}/${s.mcpServers}` },
+      { to: "/prompts", label: "Prompts", icon: FileText },
+    ],
+  },
+  {
+    title: "Observar",
+    items: [
+      { to: "/memory", label: "Memória", icon: Brain, count: (s) => s.memories },
+      { to: "/audit", label: "Auditoria", icon: ShieldCheck, dot: (s) => (s.runsByStatus.failed ?? 0) > 0 },
+    ],
+  },
 ];
 
 export function Sidebar({ health }: { health: Health | null }) {
   const { pathname } = useLocation();
+  const stats = useResource<Stats>("/api/stats");
+  useInterval(stats.reload, 10_000);
+  const [closed, setClosed] = useState<Record<string, boolean>>({});
   const isActive = (to: string) => (to === "/" ? pathname === "/" : pathname.startsWith(to));
+
+  const link = ({ to, label, icon: Icon, count, dot }: Item) => (
+    <NavLink key={to} to={to} className="relative shrink-0">
+      {isActive(to) && <motion.div layoutId="nav-active" className="absolute inset-0 rounded-lg bg-ink-850" transition={{ type: "spring", stiffness: 500, damping: 40 }} />}
+      <span className={`relative flex h-8 items-center gap-2.5 rounded-lg px-2.5 text-[13px] transition-colors ${isActive(to) ? "font-medium text-ink-100" : "text-ink-300 hover:bg-ink-850/60 hover:text-ink-100"}`}>
+        <Icon size={16} strokeWidth={1.6} className={isActive(to) ? "text-ink-100" : "text-ink-400"} />
+        <span className="whitespace-nowrap">{label}</span>
+        {stats.data && dot?.(stats.data) && <span className="ml-auto hidden h-1.5 w-1.5 rounded-full bg-bad md:block" />}
+        {stats.data && count && <span className="ml-auto hidden text-[12px] tabular-nums text-ink-500 md:block">{count(stats.data)}</span>}
+      </span>
+    </NavLink>
+  );
+
   return (
-    <aside className="sticky top-0 z-20 flex h-auto shrink-0 flex-col border-b border-black/[0.07] bg-ink-900 md:h-screen md:w-56 md:border-r md:border-b-0">
-      <div className="flex items-center gap-2.5 px-5 py-4 md:pb-6 md:pt-5">
-        <svg width="22" height="22" viewBox="0 0 24 24" aria-hidden className="text-accent">
+    <aside className="sticky top-0 z-20 flex h-auto shrink-0 flex-col border-b border-ink-700 bg-ink-900 md:h-screen md:w-60 md:border-r md:border-b-0">
+      <div className="flex items-center gap-2 px-4 py-3.5 md:pb-4">
+        <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden className="text-ink-100">
           <path fill="currentColor" d="M9 2h6v2h-1v5.2l5.6 9.3A2.3 2.3 0 0 1 17.6 22H6.4a2.3 2.3 0 0 1-2-3.5L10 9.2V4H9V2Zm3 9.3L8.3 17.5h7.4L12 11.3Z" />
         </svg>
-        <div className="font-serif text-[19px] leading-none tracking-[-0.01em] text-ink-100">Agent Lab</div>
+        <span className="text-[15px] font-semibold tracking-[-0.01em] text-ink-100">Agent Lab</span>
       </div>
 
-      <nav className="flex gap-0.5 overflow-x-auto px-2.5 pb-3 md:flex-col md:overflow-visible md:pb-0">
-        {NAV.map(({ to, label, icon: Icon, highlight }) => (
-          <NavLink key={to} to={to} className="relative shrink-0">
-            {isActive(to) && (
-              <motion.div layoutId="nav-active" className="absolute inset-0 rounded-lg bg-black/[0.06]" transition={{ type: "spring", stiffness: 500, damping: 38 }} />
-            )}
-            <span className={`relative flex items-center gap-2.5 rounded-lg px-2.5 py-[7px] text-[13.5px] transition-colors ${isActive(to) ? "font-medium text-ink-100" : "text-ink-300 hover:text-ink-100"}`}>
-              <Icon size={15} strokeWidth={1.8} className={isActive(to) ? "text-ink-100" : "text-ink-400"} />
-              <span className="whitespace-nowrap">{label}</span>
-              {highlight && <span className="ml-auto hidden h-1.5 w-1.5 rounded-full bg-accent md:block" />}
-            </span>
-          </NavLink>
+      <nav className="flex gap-0.5 overflow-x-auto px-3 pb-3 md:flex-col md:overflow-visible md:pb-0">
+        {MAIN.map(link)}
+        {GROUPS.map((g) => (
+          <div key={g.title} className="contents md:block md:pt-4">
+            <button
+              onClick={() => setClosed((c) => ({ ...c, [g.title]: !c[g.title] }))}
+              className="hidden w-full items-center gap-1 px-2.5 pb-1 text-[12px] text-ink-400 hover:text-ink-200 md:flex"
+            >
+              {g.title}
+              <ChevronDown size={12} className={`transition ${closed[g.title] ? "-rotate-90" : ""}`} />
+            </button>
+            <div className={`contents md:flex md:flex-col md:gap-0.5 ${closed[g.title] ? "md:hidden" : ""}`}>{g.items.map(link)}</div>
+          </div>
         ))}
       </nav>
 
-      <div className="mt-auto hidden space-y-2 p-3 md:block">
-        <div className="rounded-lg border border-black/[0.07] bg-white/60 p-3">
-          <div className="flex items-center gap-2 text-[12px] text-ink-300">
-            <LiveDot color={health?.llmsReady ? "bg-ok" : "bg-warn"} active={health !== null} />
-            {health === null ? "Conectando…" : `${health.llmsReady}/${health.llmsTotal} LLMs prontas`}
+      <div className="mt-auto hidden space-y-0.5 p-3 md:block">
+        {link({ to: "/learn", label: "Aprender", icon: BookOpen })}
+        <div className="mt-2 flex items-center gap-2.5 rounded-lg border border-ink-700 bg-white p-2.5">
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-ink-100 text-white">
+            {health?.runtime === "browser" ? <Globe size={15} /> : <Server size={15} />}
           </div>
-          <div className="mt-1 flex items-center gap-1.5 font-mono text-[10px] text-ink-500">
-            {health?.runtime === "browser" ? <Globe size={10} /> : <Server size={10} />}
-            {health?.runtime === "browser" ? "modo navegador · dados locais" : "servidor local :8787"}
+          <div className="min-w-0">
+            <div className="truncate text-[12px] font-medium text-ink-100">{health?.runtime === "browser" ? "Modo navegador" : "Servidor local"}</div>
+            <div className="truncate text-[11px] text-ink-400">{health ? `${health.llmsReady}/${health.llmsTotal} LLMs prontas` : "Conectando…"}</div>
           </div>
-          {health?.runtime === "browser" && (
-            <button
-              onClick={() => confirm("Apagar todos os dados salvos neste navegador (agentes, LLMs, chaves, memórias)?") && resetBrowserData()}
-              className="mt-2 flex items-center gap-1 text-[10.5px] text-ink-500 transition hover:text-bad"
-            >
-              <Trash2 size={10} /> apagar dados locais
-            </button>
-          )}
         </div>
+        {health?.runtime === "browser" && (
+          <button
+            onClick={() => confirm("Apagar todos os dados salvos neste navegador (agentes, LLMs, chaves, memórias)?") && resetBrowserData()}
+            className="flex items-center gap-1 px-1 pt-1 text-[11px] text-ink-400 transition hover:text-bad"
+          >
+            <Trash2 size={11} /> Apagar dados locais
+          </button>
+        )}
       </div>
     </aside>
   );

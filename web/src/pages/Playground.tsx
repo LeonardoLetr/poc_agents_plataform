@@ -116,12 +116,10 @@ export default function Playground() {
 
   return (
     <div>
-      <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
+      <div className="mb-5 flex flex-wrap items-start justify-between gap-4">
         <div>
-          <div className="mb-2 font-mono text-[11px] uppercase tracking-[0.16em] text-ink-400">playground</div>
-          <h1 className="font-serif text-[34px] font-normal leading-tight tracking-[-0.015em] text-ink-100 md:text-[40px]">
-            Veja o agente <span className="italic text-gradient">pensar</span> e agir
-          </h1>
+          <h1 className="text-[18px] font-semibold tracking-[-0.01em] text-ink-100">Playground</h1>
+          <p className="mt-1 text-[13px] text-ink-400">Execute uma tarefa e acompanhe o raciocínio, as ferramentas e o consumo de cada iteração</p>
         </div>
         <RecentRuns runs={runs.data ?? []} current={runId} />
       </div>
@@ -206,10 +204,10 @@ export default function Playground() {
           </Card>
 
           <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-            <Metric icon={<Repeat size={14} />} label="Iterações" value={view.iteration} />
-            <Metric icon={<ArrowUp size={14} />} label="Tokens entrada" value={view.tokens.input} />
-            <Metric icon={<Coins size={14} />} label="Tokens saída" value={view.tokens.output} />
-            <Metric icon={<Timer size={14} />} label="Ferramentas" value={Object.values(view.callCounts).reduce((a, b) => a + b, 0)} />
+            <Metric icon={<Repeat size={11} />} label="Iterações" value={view.iteration} />
+            <Metric icon={<ArrowUp size={11} />} label="Tokens entrada" value={view.tokens.input} />
+            <Metric icon={<Coins size={11} />} label="Tokens saída" value={view.tokens.output} />
+            <Metric icon={<Timer size={11} />} label="Ferramentas" value={Object.values(view.callCounts).reduce((a, b) => a + b, 0)} />
           </div>
 
           {runId && (
@@ -330,12 +328,12 @@ export default function Playground() {
 
 function Metric({ icon, label, value }: { icon: React.ReactNode; label: string; value: number }) {
   return (
-    <Card className="p-3.5">
-      <div className="flex items-center gap-1.5 text-[11px] text-ink-400">
-        {icon} {label}
+    <Card className="p-4">
+      <div className="flex items-center gap-2 text-[12px] text-ink-400">
+        <span className="flex h-5 w-5 items-center justify-center rounded-[5px] bg-ink-850 text-ink-300">{icon}</span> {label}
       </div>
       <AnimatePresence mode="popLayout">
-        <motion.div key={value} initial={{ y: 8, opacity: 0 }} animate={{ y: 0, opacity: 1 }} className="mt-1 text-2xl font-medium tracking-tight tabular-nums text-ink-100">
+        <motion.div key={value} initial={{ y: 6, opacity: 0 }} animate={{ y: 0, opacity: 1 }} className="mt-3 text-[28px] font-semibold leading-none tracking-[-0.02em] tabular-nums text-ink-100">
           {fmtNumber(value)}
         </motion.div>
       </AnimatePresence>

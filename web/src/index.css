@@ -1,35 +1,35 @@
 @import "tailwindcss";
 
 /*
- * Tokens do sistema visual (especificação em .claude/skills/agent-lab-ui).
- * - Fundo em tom papel, cartões brancos com borda de 1px e uma cor de destaque.
+ * Tokens do sistema visual "painel claro" (especificação em docs/style-guides/painel-saas-claro.md).
+ * - Neutros na escala zinc; superfícies brancas separadas por bordas de 1px.
  * - Escala "ink": 950 é o tom mais claro e 100 o mais escuro.
- * - Cores semânticas dessaturadas, reservadas para indicação de estado.
+ * - Azul como única cor de ação; cores semânticas apenas em status, ícones e progresso.
  */
 @theme {
-  --font-sans: "Geist", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "Geist Mono", ui-monospace, monospace;
-  --font-serif: "Source Serif 4", ui-serif, Georgia, serif;
+  --font-serif: "Inter", ui-sans-serif, system-ui, sans-serif;
 
-  --color-ink-950: #f7f5ef; /* fundo da página */
-  --color-ink-900: #f1eee6; /* sidebar, blocos de código */
-  --color-ink-850: #ebe7dc; /* realces suaves, balão do usuário */
-  --color-ink-800: #e4dfd2;
-  --color-ink-700: #dbd5c6; /* bordas fortes */
-  --color-ink-600: #cdc6b5;
-  --color-ink-500: #a8a193; /* ícones apagados */
-  --color-ink-400: #6f6a5f; /* texto secundário */
-  --color-ink-300: #5f5a50; /* texto de apoio */
-  --color-ink-200: #3d3a34; /* corpo */
-  --color-ink-100: #1f1e1c; /* títulos */
+  --color-ink-950: #ffffff; /* fundo do conteúdo */
+  --color-ink-900: #fafafa; /* sidebar, colunas do quadro, blocos de código */
+  --color-ink-850: #f4f4f5; /* item ativo, aba ativa, hover */
+  --color-ink-800: #ececee;
+  --color-ink-700: #e4e4e7; /* bordas */
+  --color-ink-600: #d4d4d8; /* bordas fortes */
+  --color-ink-500: #a1a1aa; /* placeholders, terciário */
+  --color-ink-400: #71717a; /* rótulos, legendas */
+  --color-ink-300: #52525b; /* texto de apoio */
+  --color-ink-200: #3f3f46; /* corpo */
+  --color-ink-100: #18181b; /* títulos e valores */
 
-  --color-accent: #c96442; /* terracota: ação principal e LLM */
-  --color-info: #4a7a96; /* usuário / entrada */
-  --color-ok: #5e8c4a; /* sucesso, scratchpad */
-  --color-warn: #b07a1e; /* ferramentas nativas, atenção */
-  --color-bad: #b4483a; /* erro */
-  --color-mcp: #9b5e86; /* MCP */
-  --color-memory: #7c6fa6; /* memória */
+  --color-accent: #2563eb; /* ação principal */
+  --color-info: #0284c7;
+  --color-ok: #16a34a;
+  --color-warn: #d97706;
+  --color-bad: #dc2626;
+  --color-mcp: #ea580c;
+  --color-memory: #7c3aed;
 
   --animate-shimmer: shimmer 2.4s linear infinite;
   --animate-pulse-ring: pulse-ring 1.8s cubic-bezier(0.2, 0.6, 0.4, 1) infinite;
@@ -59,8 +59,9 @@ body {
   background: var(--color-ink-950);
   color: var(--color-ink-200);
   font-family: var(--font-sans);
+  font-size: 13px;
   -webkit-font-smoothing: antialiased;
-  font-feature-settings: "ss01", "cv11";
+  font-feature-settings: "cv11", "ss01";
 }
 
 ::selection { background: color-mix(in oklab, var(--color-accent) 22%, transparent); }
@@ -70,8 +71,7 @@ body {
 /* Cartão: branco, borda fina, sombra quase imperceptível. */
 .glass {
   background: #fff;
-  border: 1px solid rgb(31 30 28 / 0.08);
-  box-shadow: 0 1px 2px rgb(31 30 28 / 0.04);
+  border: 1px solid var(--color-ink-700);
 }
 
 /* Destaque de palavra em títulos: serifa itálica no acento. */
@@ -90,7 +90,7 @@ body {
 
 /* Estado "ativo": só uma borda na cor do contexto, sem brilho. */
 .beam {
-  box-shadow: 0 0 0 1px var(--beam-color, var(--color-accent)), 0 1px 2px rgb(31 30 28 / 0.04);
+  box-shadow: 0 0 0 1px var(--beam-color, var(--color-accent));
   border-color: transparent !important;
 }
 
@@ -105,6 +105,8 @@ body {
 .react-flow { --xy-background-color: transparent; }
 .react-flow__attribution { display: none; }
 .react-flow__handle { opacity: 0; }
+
+.tabular-nums, .num { font-variant-numeric: tabular-nums; }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 0.001ms !important; animation-iteration-count: 1 !important; transition-duration: 0.001ms !important; }
