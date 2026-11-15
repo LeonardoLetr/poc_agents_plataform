@@ -22,7 +22,7 @@ export function Card({ children, className = "" }: { children: ReactNode; classN
 type Variant = "primary" | "ghost" | "danger" | "subtle";
 const variants: Record<Variant, string> = {
   primary: "bg-accent text-white hover:bg-[#1d4ed8]",
-  ghost: "border border-ink-700 bg-white text-ink-200 hover:border-ink-600 hover:bg-ink-900 hover:text-ink-100",
+  ghost: "border border-ink-700 bg-surface text-ink-200 hover:border-ink-600 hover:bg-ink-900 hover:text-ink-100",
   danger: "border border-bad/30 bg-bad/10 text-bad hover:bg-bad/20",
   subtle: "text-ink-400 hover:bg-ink-850 hover:text-ink-100",
 };
@@ -43,19 +43,20 @@ export function Button({ variant = "ghost", size = "md", className = "", childre
 export function Badge({ children, color = "ink", className = "" }: { children: ReactNode; color?: "ink" | "accent" | "info" | "ok" | "warn" | "bad" | "mcp" | "memory"; className?: string }) {
   const map = {
     // Etiquetas suaves: fundo claro + texto forte da mesma família, sem borda.
+    // Tons derivados dos tokens: funcionam em qualquer tema (claro, bege ou escuro).
     ink: "bg-ink-850 text-ink-400",
-    accent: "bg-[#eff6ff] text-[#1d4ed8]",
-    info: "bg-[#f0f9ff] text-[#0369a1]",
-    ok: "bg-[#f0fdf4] text-[#15803d]",
-    warn: "bg-[#fffbeb] text-[#b45309]",
-    bad: "bg-[#fef2f2] text-[#b91c1c]",
-    mcp: "bg-[#fff7ed] text-[#c2410c]",
-    memory: "bg-[#f5f3ff] text-[#6d28d9]",
+    accent: "bg-accent/10 text-accent",
+    info: "bg-info/10 text-info",
+    ok: "bg-ok/10 text-ok",
+    warn: "bg-warn/12 text-warn",
+    bad: "bg-bad/10 text-bad",
+    mcp: "bg-mcp/10 text-mcp",
+    memory: "bg-memory/10 text-memory",
   };
   return <span className={`inline-flex items-center gap-1 whitespace-nowrap rounded-[5px] px-1.5 py-[2px] text-[11px] font-medium leading-none ${map[color]} ${className}`}>{children}</span>;
 }
 
-const field = "w-full rounded-lg border border-ink-700 bg-white px-3 text-[13px] text-ink-100 placeholder:text-ink-500 outline-none transition focus:border-accent focus:ring-[3px] focus:ring-[#dbeafe]";
+const field = "w-full rounded-lg border border-ink-700 bg-surface px-3 text-[13px] text-ink-100 placeholder:text-ink-500 outline-none transition focus:border-accent focus:ring-[3px] focus:ring-accent/20";
 
 export function Input(props: InputHTMLAttributes<HTMLInputElement>) {
   return <input {...props} className={`${field} h-8 ${props.className ?? ""}`} />;
@@ -83,7 +84,7 @@ export function Toggle({ checked, onChange, label, description }: { checked: boo
   return (
     <button type="button" onClick={() => onChange(!checked)} className="flex w-full items-start gap-3 rounded-xl p-2 text-left transition hover:bg-black/[0.022]">
       <span className={`relative mt-0.5 inline-flex h-5 w-9 shrink-0 rounded-full transition ${checked ? "bg-accent" : "bg-ink-600"}`}>
-        <motion.span layout transition={{ type: "spring", stiffness: 500, damping: 32 }} className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow ${checked ? "right-0.5" : "left-0.5"}`} />
+        <motion.span layout transition={{ type: "spring", stiffness: 500, damping: 32 }} className={`absolute top-0.5 h-4 w-4 rounded-full bg-surface shadow ${checked ? "right-0.5" : "left-0.5"}`} />
       </span>
       <span>
         <span className="block text-[13px] font-medium text-ink-100">{label}</span>
@@ -104,7 +105,7 @@ export function Modal({ open, onClose, title, children, wide }: { open: boolean;
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 12, scale: 0.98 }}
             transition={{ type: "spring", stiffness: 380, damping: 32 }}
-            className={`relative max-h-[90vh] w-full overflow-y-auto rounded-xl border border-ink-700 bg-white p-5 shadow-[0_8px_24px_rgb(0_0_0/0.08)] ${wide ? "max-w-3xl" : "max-w-lg"}`}
+            className={`relative max-h-[90vh] w-full overflow-y-auto rounded-xl border border-ink-700 bg-surface p-5 shadow-[0_8px_24px_rgb(0_0_0/0.08)] ${wide ? "max-w-3xl" : "max-w-lg"}`}
           >
             <div className="mb-5 flex items-center justify-between gap-4">
               <h2 className="text-[15px] font-semibold text-ink-100">{title}</h2>

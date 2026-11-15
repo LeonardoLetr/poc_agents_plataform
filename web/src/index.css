@@ -11,6 +11,7 @@
   --font-mono: "Geist Mono", ui-monospace, monospace;
   --font-serif: "Inter", ui-sans-serif, system-ui, sans-serif;
 
+  --color-surface: #ffffff; /* cartões, campos, menus */
   --color-ink-950: #ffffff; /* fundo do conteúdo */
   --color-ink-900: #fafafa; /* sidebar, colunas do quadro, blocos de código */
   --color-ink-850: #f4f4f5; /* item ativo, aba ativa, hover */
@@ -47,6 +48,47 @@
 
 :root { color-scheme: light; }
 
+/*
+ * Variações de tema. A estrutura e os componentes são os mesmos; só os tokens mudam.
+ * Ativação: atributo data-theme no <html> (ver main.tsx).
+ */
+:root[data-theme="bege"] {
+  --color-ink-950: #f7f5ef;
+  --color-ink-900: #f1eee6;
+  --color-ink-850: #ebe7dc;
+  --color-ink-800: #e4dfd3;
+  --color-ink-700: #e2ddd1;
+  --color-ink-600: #d2cbbd;
+  --color-ink-500: #a39c8e;
+  --color-ink-400: #716b60;
+  --color-ink-300: #57524a;
+  --color-ink-200: #3d3a34;
+  --color-ink-100: #1f1e1c;
+}
+
+:root[data-theme="escuro"] {
+  color-scheme: dark;
+  --color-surface: #30302e;
+  --color-ink-950: #262624;
+  --color-ink-900: #1f1e1d;
+  --color-ink-850: #393937;
+  --color-ink-800: #42413e;
+  --color-ink-700: #41403c;
+  --color-ink-600: #55534e;
+  --color-ink-500: #8a877f;
+  --color-ink-400: #a7a49b;
+  --color-ink-300: #c4c1b8;
+  --color-ink-200: #dfdcd3;
+  --color-ink-100: #f5f4ef;
+  --color-accent: #4b8bf5;
+  --color-info: #38bdf8;
+  --color-ok: #4ade80;
+  --color-warn: #fbbf24;
+  --color-bad: #f87171;
+  --color-mcp: #fb923c;
+  --color-memory: #a78bfa;
+}
+
 html, body, #root { height: 100%; }
 
 /* Trava contra rolagem lateral no celular: nada pode ser mais largo que a tela.
@@ -70,7 +112,7 @@ body {
 
 /* Cartão: branco, borda fina, sombra quase imperceptível. */
 .glass {
-  background: #fff;
+  background: var(--color-surface);
   border: 1px solid var(--color-ink-700);
 }
 

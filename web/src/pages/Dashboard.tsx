@@ -50,11 +50,11 @@ export default function Dashboard({ health }: { health: Health | null }) {
         actions={
           <div className="flex items-center">
             {agents.data?.slice(0, 4).map((a, i) => (
-              <span key={a.id} className="-ml-1.5 flex h-6 w-6 items-center justify-center rounded-full border-2 border-white text-[12px] first:ml-0" style={{ background: `${a.color}22`, zIndex: 10 - i }} title={a.name}>
+              <span key={a.id} className="-ml-1.5 flex h-6 w-6 items-center justify-center rounded-full border-2 border-surface text-[12px] first:ml-0" style={{ background: `${a.color}22`, zIndex: 10 - i }} title={a.name}>
                 {a.emoji}
               </span>
             ))}
-            {(agents.data?.length ?? 0) > 4 && <span className="-ml-1.5 flex h-6 w-6 items-center justify-center rounded-full border-2 border-white bg-ink-850 text-[10px] font-medium text-ink-400">+{agents.data!.length - 4}</span>}
+            {(agents.data?.length ?? 0) > 4 && <span className="-ml-1.5 flex h-6 w-6 items-center justify-center rounded-full border-2 border-surface bg-ink-850 text-[10px] font-medium text-ink-400">+{agents.data!.length - 4}</span>}
           </div>
         }
       />
@@ -117,7 +117,7 @@ export default function Dashboard({ health }: { health: Health | null }) {
           ))}
         </div>
         <Link to="/audit" className="ml-auto">
-          <span className="inline-flex h-7 items-center gap-1.5 rounded-lg border border-ink-700 bg-white px-2.5 text-[12px] font-medium text-ink-200 hover:bg-ink-900">
+          <span className="inline-flex h-7 items-center gap-1.5 rounded-lg border border-ink-700 bg-surface px-2.5 text-[12px] font-medium text-ink-200 hover:bg-ink-900">
             <ShieldCheck size={13} /> Auditoria completa
           </span>
         </Link>
@@ -129,7 +129,7 @@ export default function Dashboard({ health }: { health: Health | null }) {
             {agents.data?.map((a) => {
               const l = llmOf(a);
               return (
-                <Link key={a.id} to="/playground" className="group flex flex-col rounded-xl border border-ink-700 bg-white p-3 transition-colors hover:border-ink-600">
+                <Link key={a.id} to="/playground" className="group flex flex-col rounded-xl border border-ink-700 bg-surface p-3 transition-colors hover:border-ink-600">
                   <div className="flex items-center gap-1.5 text-[10.5px] font-medium uppercase tracking-[0.04em] text-ink-400">
                     <Cpu size={12} strokeWidth={1.7} /> {l ? PROVIDER_LABEL[l.provider] : "Sem LLM"}
                     <span className="ml-auto normal-case tracking-normal">{l && <Badge color={l.ready ? "ok" : "warn"}>{l.ready ? "Pronta" : "Sem chave"}</Badge>}</span>
@@ -153,7 +153,7 @@ export default function Dashboard({ health }: { health: Health | null }) {
         )}
 
         {tab === "activity" && (
-          <div className="overflow-hidden rounded-xl border border-ink-700 bg-white">
+          <div className="overflow-hidden rounded-xl border border-ink-700 bg-surface">
             {activity.length === 0 && <p className="p-8 text-center text-[13px] text-ink-400">Nenhuma atividade ainda. Rode um agente no Playground.</p>}
             {activity.map((e) => (
               <div key={e.id} className="flex items-center gap-3 border-b border-ink-850 px-4 py-2.5 last:border-0">
@@ -168,7 +168,7 @@ export default function Dashboard({ health }: { health: Health | null }) {
         )}
 
         {tab === "tools" && (
-          <div className="rounded-xl border border-ink-700 bg-white p-4">
+          <div className="rounded-xl border border-ink-700 bg-surface p-4">
             {toolUsage.length === 0 && <p className="py-6 text-center text-[13px] text-ink-400">Nenhuma ferramenta chamada ainda.</p>}
             <div className="grid gap-x-8 gap-y-3 md:grid-cols-2">
               {toolUsage.map(([name, n]) => (

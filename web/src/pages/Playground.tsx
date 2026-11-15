@@ -135,7 +135,7 @@ export default function Playground() {
               if (runId) navigate("/playground");
             }}
             className={`relative flex shrink-0 items-center gap-2.5 rounded-2xl border px-3.5 py-2.5 text-left transition ${
-              agent?.id === a.id ? "border-black/[0.16] bg-white shadow-[0_1px_2px_rgb(31_30_28/0.06)]" : "border-black/[0.07] hover:bg-white/70"
+              agent?.id === a.id ? "border-black/[0.16] bg-surface shadow-[0_1px_2px_rgb(31_30_28/0.06)]" : "border-black/[0.07] hover:bg-surface/70"
             } disabled:opacity-50`}
           >
             {agent?.id === a.id && <motion.div layoutId="agent-pick" className="absolute inset-x-3 -bottom-px h-px" style={{ background: a.color }} />}
@@ -351,7 +351,7 @@ function RecentRuns({ runs, current }: { runs: RunSummary[]; current?: string })
       </Button>
       <AnimatePresence>
         {open && (
-          <motion.div initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }} className="absolute right-0 z-30 mt-2 max-h-96 w-80 overflow-y-auto rounded-2xl border border-black/[0.08] bg-white p-1.5 shadow-2xl backdrop-blur-xl">
+          <motion.div initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }} className="absolute right-0 z-30 mt-2 max-h-96 w-80 overflow-y-auto rounded-2xl border border-black/[0.08] bg-surface p-1.5 shadow-2xl backdrop-blur-xl">
             {runs.length === 0 && <div className="p-3 text-sm text-ink-400">Nenhuma execução ainda.</div>}
             {runs.map((r) => (
               <Link key={r.id} to={`/playground/${r.id}`} onClick={() => setOpen(false)} className={`block rounded-xl px-3 py-2 transition hover:bg-black/[0.038] ${r.id === current ? "bg-black/[0.038]" : ""}`}>

@@ -54,7 +54,7 @@ export default function Llms({ health, onChange }: { health: Health | null; onCh
       />
 
       {browser && (
-        <div className="mb-6 rounded-2xl border border-black/[0.08] bg-white p-4 text-[13px] leading-relaxed text-ink-300">
+        <div className="mb-6 rounded-2xl border border-black/[0.08] bg-surface p-4 text-[13px] leading-relaxed text-ink-300">
           <div className="flex items-start gap-3">
             <ShieldAlert size={18} className="mt-0.5 shrink-0 text-warn" />
             <div>

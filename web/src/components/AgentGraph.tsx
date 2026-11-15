@@ -50,11 +50,11 @@ function AgentNode({ data }: NodeProps<Node<{ agent: Agent; view: RunView; llmLa
             <circle cx="51" cy="51" r="49" fill="none" stroke="var(--color-accent)" strokeWidth="1.6" strokeLinecap="round" strokeDasharray="70 238" />
           </svg>
         )}
-        <div className="absolute inset-0 flex items-center justify-center rounded-full border border-black/[0.1] bg-white text-[38px] shadow-[0_1px_3px_rgb(31_30_28/0.08)]">
+        <div className="absolute inset-0 flex items-center justify-center rounded-full border border-black/[0.1] bg-surface text-[38px] shadow-[0_1px_3px_rgb(31_30_28/0.08)]">
           {agent.emoji}
         </div>
         {view.iteration > 0 && (
-          <div className="absolute -right-1 -top-1 rounded-full border border-black/[0.1] bg-white px-1.5 py-0.5 font-mono text-[10px] text-ink-300">#{view.iteration}</div>
+          <div className="absolute -right-1 -top-1 rounded-full border border-black/[0.1] bg-surface px-1.5 py-0.5 font-mono text-[10px] text-ink-300">#{view.iteration}</div>
         )}
       </div>
       <div className="mt-2 text-center">
@@ -73,7 +73,7 @@ function ToolNode({ data }: NodeProps<Node<{ label: string; sub?: string; icon: 
       {handles}
       <motion.div
         animate={{ scale: data.active ? 1.03 : 1 }}
-        className={`flex min-w-[150px] items-center gap-2.5 rounded-xl border bg-white px-2.5 py-2 transition-colors ${data.dim ? "opacity-50" : ""}`}
+        className={`flex min-w-[150px] items-center gap-2.5 rounded-xl border bg-surface px-2.5 py-2 transition-colors ${data.dim ? "opacity-50" : ""}`}
         style={{
           borderColor: data.active ? data.color : "rgb(31 30 28 / 0.1)",
           background: data.active ? `color-mix(in oklab, ${data.color} 7%, #ffffff)` : "#ffffff",
@@ -235,7 +235,7 @@ function GraphInner({ agent, tools, view, llmLabel }: { agent: Agent; tools: Too
       maxZoom={1.4}
     >
       {/* Pontilhado discreto: dá referência espacial sem competir com os nós. */}
-      <Background variant={BackgroundVariant.Dots} gap={22} size={1.2} color="#e4e4e7" />
+      <Background variant={BackgroundVariant.Dots} gap={22} size={1.2} color="var(--color-ink-700)" />
     </ReactFlow>
   );
 }

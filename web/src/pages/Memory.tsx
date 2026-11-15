@@ -90,7 +90,7 @@ export default function MemoryPage() {
                       initial={{ opacity: 0, y: 6 }}
                       animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0 }}
-                      className={`group rounded-[10px] border bg-white p-3 ${highlighted.has(m.id) ? "border-accent" : "border-ink-700"}`}
+                      className={`group rounded-[10px] border bg-surface p-3 ${highlighted.has(m.id) ? "border-accent" : "border-ink-700"}`}
                     >
                       <div className="flex items-center gap-1.5 text-[10.5px] font-medium uppercase tracking-[0.04em] text-ink-400">
                         <Brain size={11} /> <span className="truncate">{agentName(m.agentId)}</span>
@@ -248,7 +248,7 @@ function Constellation({ memories, highlighted }: { memories: Memory[]; highligh
       })}
       <AnimatePresence>
         {hover && (
-          <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="absolute bottom-3 left-3 right-3 rounded-xl border border-black/[0.08] bg-white p-3 text-[12.5px] text-ink-200 backdrop-blur">
+          <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="absolute bottom-3 left-3 right-3 rounded-xl border border-black/[0.08] bg-surface p-3 text-[12.5px] text-ink-200 backdrop-blur">
             <Badge>{kindLabel[hover.kind]}</Badge> {hover.content}
           </motion.div>
         )}

@@ -204,7 +204,7 @@ function AgentEditor({ initial, id, onClose, onSaved }: { initial: AgentInput; i
             <span className="flex items-center gap-1">
               <FileText size={11} /> inserir da biblioteca:
               <select
-                className="ml-1 rounded-md border border-black/10 bg-white px-1 text-ink-200"
+                className="ml-1 rounded-md border border-black/10 bg-surface px-1 text-ink-200"
                 value=""
                 onChange={(e) => {
                   const p = prompts.data?.find((x) => x.id === e.target.value);

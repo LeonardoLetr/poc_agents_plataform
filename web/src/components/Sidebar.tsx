@@ -78,8 +78,8 @@ export function Sidebar({ health }: { health: Health | null }) {
 
       <div className="mt-auto hidden space-y-0.5 p-3 md:block">
         {link({ to: "/learn", label: "Aprender", icon: BookOpen })}
-        <div className="mt-2 flex items-center gap-2.5 rounded-lg border border-ink-700 bg-white p-2.5">
-          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-ink-100 text-white">
+        <div className="mt-2 flex items-center gap-2.5 rounded-lg border border-ink-700 bg-surface p-2.5">
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-ink-100 text-ink-950">
             {health?.runtime === "browser" ? <Globe size={15} /> : <Server size={15} />}
           </div>
           <div className="min-w-0">

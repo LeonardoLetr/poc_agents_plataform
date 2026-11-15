@@ -34,7 +34,7 @@ function ToolCard({ tool }: { tool: ToolStep }) {
     denied: { icon: <XCircle size={11} />, badge: "bad" as const, text: "Negada" },
   }[tool.status];
   return (
-    <motion.div layout {...enter} className={`overflow-hidden rounded-[10px] border bg-white ${tool.status === "running" ? "beam [--beam-color:var(--color-warn)]" : "border-ink-700"}`}>
+    <motion.div layout {...enter} className={`overflow-hidden rounded-[10px] border bg-surface ${tool.status === "running" ? "beam [--beam-color:var(--color-warn)]" : "border-ink-700"}`}>
       {/* Cartão de item: categoria em caixa alta + status, nome, rodapé com duração */}
       <button onClick={() => setOpen(!open)} className="block w-full p-3 text-left">
         <div className="flex items-center gap-1.5 text-[10.5px] font-medium uppercase tracking-[0.04em] text-ink-400">

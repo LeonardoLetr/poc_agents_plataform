@@ -22,7 +22,7 @@ export function KpiCard({
   children?: ReactNode;
 }) {
   return (
-    <div className="flex min-h-[148px] flex-col rounded-xl border border-ink-700 bg-white p-4">
+    <div className="flex min-h-[148px] flex-col rounded-xl border border-ink-700 bg-surface p-4">
       <div className="flex items-center gap-2">
         <span className="flex h-5 w-5 items-center justify-center rounded-[5px] text-white" style={{ background: iconColor }}>
           {icon}
@@ -50,7 +50,7 @@ export function BarSpark({ values, color = "#3b82f6", height = 28, length = 40 }
         <span
           key={i}
           className="w-[3px] rounded-full"
-          style={{ height: `${Math.max(8, (v / max) * 100)}%`, background: v ? color : "#e4e4e7", opacity: v ? 0.35 + 0.65 * (v / max) : 1 }}
+          style={{ height: `${Math.max(8, (v / max) * 100)}%`, background: v ? color : "var(--color-ink-700)", opacity: v ? 0.35 + 0.65 * (v / max) : 1 }}
         />
       ))}
     </div>
@@ -68,7 +68,7 @@ export function DotHistogram({ values, color = "#f97316", rows = 5, length = 28 
         return (
           <div key={i} className="flex flex-col-reverse gap-[3px]">
             {Array.from({ length: rows }, (_, r) => (
-              <span key={r} className="h-[3px] w-[3px] rounded-full" style={{ background: r < lit ? color : "#e4e4e7" }} />
+              <span key={r} className="h-[3px] w-[3px] rounded-full" style={{ background: r < lit ? color : "var(--color-ink-700)" }} />
             ))}
           </div>
         );
