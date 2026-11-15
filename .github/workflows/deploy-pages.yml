@@ -5,9 +5,9 @@ name: Deploy no GitHub Pages
 # (salvas só no localStorage dele). Nenhum segredo é usado no build.
 on:
   push:
+    # Só a main publica: branches de experimento (feat/*) passam pelo CI, mas não alteram o site.
     branches:
       - main
-      - "feat/**"
   workflow_dispatch:
 
 permissions:
