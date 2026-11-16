@@ -86,6 +86,8 @@ export interface McpServer {
   args?: string[];
   env?: Record<string, string>;
   url?: string;
+  /** Nomes dos cabeçalhos; os valores chegam ocultos (••••). */
+  headers?: Record<string, string>;
   enabled: boolean;
   createdAt: string;
   state: {

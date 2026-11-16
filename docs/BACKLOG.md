@@ -24,6 +24,7 @@ Melhorias e novas funcionalidades planejadas, priorizadas por impacto e esforço
 | AL-12 | Preços de modelos compatíveis com OpenAI | Melhoria | P3 | P | a fazer |
 | AL-13 | Busca semântica de memória com embeddings | Funcionalidade | P3 | M | a fazer |
 | AL-14 | Publicação do servidor na AWS | Infraestrutura | P3 | G | a fazer |
+| AL-15 | Servidores MCP remotos via conector da API do Claude | Funcionalidade | P2 | M | a fazer |
 
 Sequência sugerida: AL-01 → AL-02/AL-03 → AL-04 → AL-06 → AL-05 → AL-07 → demais → AL-14 (último).
 
@@ -148,6 +149,17 @@ Sequência sugerida: AL-01 → AL-02/AL-03 → AL-04 → AL-06 → AL-05 → AL-
 - **Problema:** mesmo com melhor ranking lexical, sinônimos e paráfrases não são recuperados.
 - **Proposta:** provedor de embeddings opcional, com comparação entre busca lexical e semântica no laboratório de recuperação.
 - **Critérios de aceite:** funciona sem embeddings (fallback lexical); a pontuação de cada método fica visível.
+
+### AL-15 · Servidores MCP remotos via conector da API do Claude
+- **Problema:** no modo navegador, a conexão com um servidor MCP remoto sai da própria página e depende de o servidor
+  permitir CORS. Servidores como o do Resend (`https://mcp.resend.com/mcp`) podem recusar, e a conexão falha com
+  "Failed to fetch".
+- **Proposta:** opção "conectar pela Anthropic" no servidor MCP: em agentes com LLM Anthropic, o servidor é enviado na
+  requisição (`mcp_servers` + `mcp_toolset`, beta `mcp-client-2025-11-20`) e a própria API do Claude faz a conexão,
+  sem passar pelo navegador. Chamadas e resultados (`mcp_tool_use` / `mcp_tool_result`) aparecem na linha do tempo,
+  como as ferramentas de servidor.
+- **Critérios de aceite:** servidor MCP sem CORS utilizável no modo navegador com LLM Anthropic; chave do servidor
+  enviada só à API da Anthropic; erros de conexão visíveis na linha do tempo.
 
 ---
 

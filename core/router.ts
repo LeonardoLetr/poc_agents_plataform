@@ -297,10 +297,12 @@ const McpInput = z.object({
   headers: z.record(z.string(), z.string()).default({}),
   enabled: z.boolean().default(true),
 });
+/** Valores de variáveis e cabeçalhos nunca saem da API. */
+const MASK = "••••";
 const mcpView = (s: McpServerConfig) => ({
   ...s,
-  env: Object.fromEntries(Object.keys(s.env ?? {}).map((k) => [k, "••••"])),
-  headers: Object.fromEntries(Object.keys(s.headers ?? {}).map((k) => [k, "••••"])),
+  env: Object.fromEntries(Object.keys(s.env ?? {}).map((k) => [k, MASK])),
+  headers: Object.fromEntries(Object.keys(s.headers ?? {}).map((k) => [k, MASK])),
   state: publicState(s.id),
 });
 const findServer = (id: string) => db.mcpServers.find((s) => s.id === id) ?? notFound("Servidor MCP");
@@ -313,6 +315,34 @@ route("POST", "/api/mcp", async (_p, req) => {
   db.mcpServers.push(server);
   persist();
   audit({ type: "config.changed", actor: "user", summary: `Servidor MCP "${server.name}" adicionado`, data: { ...server, env: Object.keys(server.env ?? {}), headers: Object.keys(server.headers ?? {}) } });
+  if (server.enabled) await connect(server);
+  return mcpView(server);
+});
+/** Edição: valores ocultos ("••••") mantêm o que já estava salvo; renomear atualiza as ferramentas dos agentes. */
+route("PUT", "/api/mcp/:id", async ({ id }, req) => {
+  const server = findServer(id);
+  const body = McpInput.parse(req.body);
+  if (body.name !== server.name && db.mcpServers.some((s) => s.name === body.name)) throw new HttpError(409, "Já existe um servidor com esse nome");
+  const keepMasked = (next: Record<string, string>, prev: Record<string, string> = {}) =>
+    Object.fromEntries(Object.entries(next).map(([k, v]) => [k, v === MASK ? (prev[k] ?? "") : v]));
+  const oldName = server.name;
+  Object.assign(server, {
+    name: body.name,
+    transport: body.transport,
+    command: body.command,
+    args: body.args,
+    env: keepMasked(body.env, server.env),
+    url: body.url,
+    headers: keepMasked(body.headers, server.headers),
+    enabled: body.enabled,
+  });
+  if (oldName !== server.name) {
+    const prefix = `mcp__${oldName}__`;
+    for (const a of db.agents) a.tools = a.tools.map((t) => (t.startsWith(prefix) ? `mcp__${server.name}__${t.slice(prefix.length)}` : t));
+  }
+  persist();
+  audit({ type: "config.changed", actor: "user", summary: `Servidor MCP "${server.name}" atualizado`, data: { ...server, env: Object.keys(server.env ?? {}), headers: Object.keys(server.headers ?? {}) } });
+  await disconnect(server.id, false);
   if (server.enabled) await connect(server);
   return mcpView(server);
 });

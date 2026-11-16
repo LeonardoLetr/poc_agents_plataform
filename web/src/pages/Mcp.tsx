@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from "motion/react";
-import { ChevronDown, Loader2, Plug, PlugZap, Plus, Power, Terminal, Trash2, Zap } from "lucide-react";
+import { ArrowLeft, ArrowRight, ChevronDown, Loader2, Pencil, Plug, PlugZap, Plus, Power, Terminal, Trash2, Zap } from "lucide-react";
 import { useState } from "react";
 import { LiveDot } from "../components/effects";
 import { JsonView } from "../components/JsonView";
@@ -14,6 +14,7 @@ const PRESETS = [
   { name: "memory_graph", label: "Memory (grafo de conhecimento)", transport: "stdio", command: "npx", args: "-y @modelcontextprotocol/server-memory", note: "Memória persistente em forma de grafo de entidades e relações." },
   { name: "fetch", label: "Fetch (Python/uvx)", transport: "stdio", command: "uvx", args: "mcp-server-fetch", note: "Busca páginas e converte para markdown. Requer uv instalado." },
   { name: "git", label: "Git (Python/uvx)", transport: "stdio", command: "uvx", args: "mcp-server-git --repository .", note: "Ferramentas para ler histórico e diffs de um repositório git." },
+  { name: "resend", label: "Resend (e-mail)", transport: "http", url: "https://mcp.resend.com/mcp", headers: "Authorization: Bearer re_sua_chave", note: "Servidor oficial do Resend para enviar e-mails. Use a chave criada em resend.com/api-keys." },
   { name: "remoto", label: "Servidor remoto (HTTP)", transport: "http", url: "https://exemplo.com/mcp", note: "Qualquer servidor MCP via Streamable HTTP (com fallback para SSE)." },
 ] as const;
 
@@ -28,6 +29,7 @@ export default function Mcp() {
   const servers = useResource<McpServer[]>("/api/mcp");
   const health = useResource<Health>("/api/health");
   const [adding, setAdding] = useState(false);
+  const [editing, setEditing] = useState<McpServer | null>(null);
 
   useEventStream<{ id: string } & McpServer["state"]>("/api/mcp/events", (e) => {
     servers.setData((list) => list?.map((s) => (s.id === e.id ? { ...s, state: { ...e } } : s)) ?? list);
@@ -52,18 +54,23 @@ export default function Mcp() {
         }
       />
 
-      <ProtocolStrip />
+      <ProtocolExplainer />
 
       {servers.data?.length === 0 && <EmptyState icon={<Plug />} title="Nenhum servidor MCP" description="Adicione um para expandir as capacidades dos seus agentes." />}
       <div className="grid gap-4 lg:grid-cols-2">
-        {servers.data?.map((s) => <ServerCard key={s.id} server={s} onChange={servers.reload} />)}
+        {servers.data?.map((s) => <ServerCard key={s.id} server={s} onChange={servers.reload} onEdit={() => setEditing(s)} />)}
       </div>
-      {adding && (
-        <AddServer
+      {(adding || editing) && (
+        <ServerForm
           health={health.data}
-          onClose={() => setAdding(false)}
+          initial={editing}
+          onClose={() => {
+            setAdding(false);
+            setEditing(null);
+          }}
           onSaved={() => {
             setAdding(false);
+            setEditing(null);
             void servers.reload();
           }}
         />
@@ -72,39 +79,91 @@ export default function Mcp() {
   );
 }
 
-/** Mini animação explicando o handshake MCP. */
-function ProtocolStrip() {
-  const steps = ["initialize", "tools/list", "tools/call", "resultado"];
+const PROTOCOL_STEPS = [
+  {
+    title: "Conectar",
+    method: "initialize",
+    direction: "cliente → servidor",
+    text: "O Agent Lab abre a conexão e os dois lados combinam a versão do protocolo e o que cada um suporta.",
+    example: { jsonrpc: "2.0", id: 1, method: "initialize", params: { protocolVersion: "2025-06-18", clientInfo: { name: "agent-lab" } } },
+  },
+  {
+    title: "Descobrir ferramentas",
+    method: "tools/list",
+    direction: "cliente → servidor",
+    text: "O servidor responde com a lista de ferramentas: nome, descrição e o esquema dos argumentos. Elas aparecem para os agentes como mcp__servidor__ferramenta.",
+    example: { tools: [{ name: "send_email", description: "Envia um e-mail", inputSchema: { type: "object", properties: { to: { type: "string" }, subject: { type: "string" } } } }] },
+  },
+  {
+    title: "Chamar",
+    method: "tools/call",
+    direction: "cliente → servidor",
+    text: "Quando o modelo decide usar a ferramenta, o loop do agente envia a chamada com os argumentos que o modelo gerou.",
+    example: { jsonrpc: "2.0", id: 7, method: "tools/call", params: { name: "send_email", arguments: { to: "ana@exemplo.com", subject: "Relatório" } } },
+  },
+  {
+    title: "Resultado",
+    method: "result",
+    direction: "servidor → cliente",
+    text: "O servidor executa e devolve o conteúdo. O loop entrega esse resultado ao modelo como tool_result, e o modelo decide o próximo passo.",
+    example: { jsonrpc: "2.0", id: 7, result: { content: [{ type: "text", text: "E-mail enviado (id 4f2a)" }], isError: false } },
+  },
+];
+
+/** Explicação do protocolo em etapas, no ritmo de quem lê (sem animação automática). */
+function ProtocolExplainer() {
+  const [step, setStep] = useState(0);
+  const current = PROTOCOL_STEPS[step];
   return (
-    <Card className="mb-6 overflow-hidden p-4">
-      {/* No celular os blocos empilham e a faixa animada ocupa a largura toda — nada passa da tela. */}
-      <div className="flex flex-col items-stretch gap-2 sm:flex-row sm:items-center sm:gap-3">
-        <div className="flex shrink-0 items-center gap-2 rounded-lg border border-ink-700 bg-ink-950 px-3 py-2 text-[12px] text-ink-200">Agent Lab (cliente)</div>
-        <div className="relative h-10 min-w-0 flex-1 overflow-hidden">
-          <div className="absolute inset-x-0 top-1/2 h-px bg-ink-800" />
-          {steps.map((s, i) => (
-            <motion.div
-              key={s}
-              className={`absolute top-1/2 -translate-y-1/2 whitespace-nowrap rounded-full border px-2 py-0.5 font-mono text-[10px] ${i === 3 ? "border-ok/40 bg-ink-900 text-ok" : "border-ink-600 bg-ink-900 text-ink-200"}`}
-              initial={{ left: i === 3 ? "70%" : "0%", opacity: 0 }}
-              animate={{ left: i === 3 ? ["70%", "0%"] : ["0%", "70%"], opacity: [0, 1, 1, 0] }}
-              transition={{ duration: 2.4, delay: i * 1.2, repeat: Infinity, repeatDelay: steps.length * 1.2 - 2.4 + 1, ease: "easeInOut" }}
-            >
-              {i === 3 ? "← " : ""}
-              {s}
-              {i < 3 ? " →" : ""}
-            </motion.div>
+    <Card className="mb-6 p-4">
+      <div className="mb-3 flex flex-wrap items-center gap-2">
+        <span className="text-[13px] font-medium text-ink-100">Como o MCP funciona</span>
+        <span className="text-[12px] text-ink-400">quatro mensagens entre o Agent Lab (cliente) e o servidor</span>
+      </div>
+      <div className="grid gap-4 md:grid-cols-[220px_1fr]">
+        <ol className="flex gap-1.5 overflow-x-auto md:flex-col md:overflow-visible">
+          {PROTOCOL_STEPS.map((s, i) => (
+            <li key={s.method} className="shrink-0">
+              <button
+                onClick={() => setStep(i)}
+                className={`flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left transition-colors ${i === step ? "bg-ink-850" : "hover:bg-ink-850/60"}`}
+                aria-current={i === step ? "step" : undefined}
+              >
+                <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[11px] font-semibold ${i === step ? "bg-mcp text-white" : i < step ? "bg-mcp/15 text-mcp" : "bg-ink-850 text-ink-400"}`}>{i + 1}</span>
+                <span className="min-w-0">
+                  <span className={`block text-[12.5px] ${i === step ? "font-medium text-ink-100" : "text-ink-300"}`}>{s.title}</span>
+                  <span className="block font-mono text-[10.5px] text-ink-500">{s.method}</span>
+                </span>
+              </button>
+            </li>
           ))}
-        </div>
-        <div className="flex shrink-0 items-center gap-2 rounded-lg border border-mcp/25 bg-mcp/[0.06] px-3 py-2 text-[12px] text-mcp">
-          <Plug size={13} /> Servidor MCP
-        </div>
+        </ol>
+        <motion.div key={step} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.2 }} className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2 text-[12px]">
+            <span className="rounded-md border border-ink-700 px-2 py-0.5 text-ink-300">Agent Lab</span>
+            <span className="font-mono text-[11px] text-ink-400">{current.direction.startsWith("cliente") ? "———→" : "←———"}</span>
+            <span className="rounded-md border border-mcp/30 bg-mcp/[0.06] px-2 py-0.5 text-mcp">Servidor MCP</span>
+            <code className="ml-auto rounded bg-ink-850 px-1.5 py-0.5 font-mono text-[11px] text-info">{current.method}</code>
+          </div>
+          <p className="mt-2.5 text-[13px] leading-relaxed text-ink-300">{current.text}</p>
+          <div className="mt-2.5">
+            <JsonView value={current.example} maxHeight={170} />
+          </div>
+          <div className="mt-3 flex justify-between">
+            <Button size="sm" onClick={() => setStep(step - 1)} disabled={step === 0}>
+              <ArrowLeft size={13} /> Anterior
+            </Button>
+            <Button size="sm" onClick={() => setStep(step + 1)} disabled={step === PROTOCOL_STEPS.length - 1}>
+              Próximo <ArrowRight size={13} />
+            </Button>
+          </div>
+        </motion.div>
       </div>
     </Card>
   );
 }
 
-function ServerCard({ server, onChange }: { server: McpServer; onChange: () => void }) {
+function ServerCard({ server, onChange, onEdit }: { server: McpServer; onChange: () => void; onEdit: () => void }) {
   const [busy, setBusy] = useState(false);
   const [showLogs, setShowLogs] = useState(false);
   const [testing, setTesting] = useState<McpServer["state"]["tools"][number] | null>(null);
@@ -149,6 +208,9 @@ function ServerCard({ server, onChange }: { server: McpServer; onChange: () => v
                 {busy ? <Loader2 size={13} className="animate-spin" /> : <Zap size={13} />} Conectar
               </Button>
             )}
+            <Button size="sm" variant="subtle" aria-label="Editar" title="Editar" onClick={onEdit}>
+              <Pencil size={13} />
+            </Button>
             <Button
               size="sm"
               variant="subtle"
@@ -165,7 +227,7 @@ function ServerCard({ server, onChange }: { server: McpServer; onChange: () => v
           </div>
         </div>
 
-        {server.state.error && <div className="mt-3 rounded-lg bg-bad/10 px-3 py-2 font-mono text-[11.5px] text-bad">{server.state.error}</div>}
+        {server.state.error && <div className="mt-3 whitespace-pre-line rounded-lg bg-bad/10 px-3 py-2 text-[12px] leading-relaxed text-bad">{server.state.error}</div>}
         {server.state.instructions && <p className="mt-3 text-[12.5px] text-ink-300">📋 {server.state.instructions}</p>}
 
         {server.state.tools.length > 0 && (
@@ -273,10 +335,16 @@ function ToolTester({ server, tool, onClose }: { server: McpServer; tool: McpSer
   );
 }
 
-function AddServer({ health, onClose, onSaved }: { health: Health | null; onClose: () => void; onSaved: () => void }) {
+/** Cadastro e edição. Na edição, valores ocultos (••••) mantêm o que já está salvo no servidor. */
+function ServerForm({ health, initial, onClose, onSaved }: { health: Health | null; initial: McpServer | null; onClose: () => void; onSaved: () => void }) {
   const stdio = health?.capabilities.stdio ?? true;
   type T = "stdio" | "http" | "builtin";
-  const [form, setForm] = useState({ name: "", transport: (stdio ? "stdio" : "http") as T, command: stdio ? "npx" : "", args: "", env: "", url: "", headers: "" });
+  const lines = (o?: Record<string, string>, sep = ": ") => Object.entries(o ?? {}).map(([k, v]) => `${k}${sep}${v}`).join("\n");
+  const [form, setForm] = useState(
+    initial
+      ? { name: initial.name, transport: initial.transport as T, command: initial.command ?? "", args: (initial.args ?? []).join(" "), env: lines(initial.env, "="), url: initial.url ?? "", headers: lines(initial.headers) }
+      : { name: "", transport: (stdio ? "stdio" : "http") as T, command: stdio ? "npx" : "", args: "", env: "", url: "", headers: "" },
+  );
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -296,7 +364,7 @@ function AddServer({ health, onClose, onSaved }: { health: Health | null; onClos
     setBusy(true);
     setError(null);
     try {
-      await api.post("/api/mcp", {
+      const payload = {
         name: form.name,
         transport: form.transport,
         command: form.transport !== "http" ? form.command : undefined,
@@ -304,7 +372,10 @@ function AddServer({ health, onClose, onSaved }: { health: Health | null; onClos
         env: kv(form.env),
         url: form.transport === "http" ? form.url : undefined,
         headers: kv(form.headers),
-      });
+        enabled: initial ? initial.enabled : true,
+      };
+      if (initial) await api.put(`/api/mcp/${initial.id}`, payload);
+      else await api.post("/api/mcp", payload);
       onSaved();
     } catch (e) {
       setError((e as Error).message);
@@ -314,8 +385,8 @@ function AddServer({ health, onClose, onSaved }: { health: Health | null; onClos
   }
 
   return (
-    <Modal open onClose={onClose} wide title="Adicionar servidor MCP">
-      <div className="mb-5">
+    <Modal open onClose={onClose} wide title={initial ? `Editar ${initial.name}` : "Adicionar servidor MCP"}>
+      {!initial && <div className="mb-5">
         <div className="mb-2 text-[12px] text-ink-400">Modelos prontos</div>
         <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
           {PRESETS.map((p) => (
@@ -331,6 +402,7 @@ function AddServer({ health, onClose, onSaved }: { health: Health | null; onClos
                   command: "command" in p ? p.command : "",
                   args: "args" in p ? p.args : "",
                   url: "url" in p ? p.url : "",
+                  headers: "headers" in p ? p.headers : "",
                 })
               }
               className="rounded-xl border border-ink-700 bg-ink-900 p-2.5 text-left transition hover:border-mcp/40 hover:bg-mcp/5 disabled:cursor-not-allowed disabled:opacity-35"
@@ -340,7 +412,7 @@ function AddServer({ health, onClose, onSaved }: { health: Health | null; onClos
             </button>
           ))}
         </div>
-      </div>
+      </div>}
       <div className="space-y-4">
         <div className="grid gap-4 md:grid-cols-2">
           <Field label="Nome" hint="vira prefixo: mcp__nome__ferramenta">
@@ -370,7 +442,7 @@ function AddServer({ health, onClose, onSaved }: { health: Health | null; onClos
                 <Input value={form.args} onChange={(e) => setForm({ ...form, args: e.target.value })} className="font-mono" placeholder="-y @modelcontextprotocol/server-everything" />
               </Field>
             </div>
-            <Field label="Variáveis de ambiente" hint="uma por linha: CHAVE=valor (ficam ocultas na UI)">
+            <Field label="Variáveis de ambiente" hint={initial ? "uma por linha: CHAVE=valor · •••• mantém o valor salvo" : "uma por linha: CHAVE=valor (ficam ocultas na UI)"}>
               <Textarea rows={2} value={form.env} onChange={(e) => setForm({ ...form, env: e.target.value })} className="font-mono text-[12px]" placeholder="GITHUB_TOKEN=..." />
             </Field>
           </>
@@ -379,7 +451,7 @@ function AddServer({ health, onClose, onSaved }: { health: Health | null; onClos
             <Field label="URL">
               <Input value={form.url} onChange={(e) => setForm({ ...form, url: e.target.value })} className="font-mono" placeholder="https://.../mcp" />
             </Field>
-            <Field label="Cabeçalhos" hint="um por linha: Nome: valor">
+            <Field label="Cabeçalhos" hint={initial ? "um por linha: Nome: valor · •••• mantém o valor salvo" : "um por linha: Nome: valor"}>
               <Textarea rows={2} value={form.headers} onChange={(e) => setForm({ ...form, headers: e.target.value })} className="font-mono text-[12px]" placeholder="Authorization: Bearer ..." />
             </Field>
           </>
@@ -388,7 +460,7 @@ function AddServer({ health, onClose, onSaved }: { health: Health | null; onClos
         <div className="flex justify-end gap-2">
           <Button onClick={onClose}>Cancelar</Button>
           <Button variant="primary" onClick={save} disabled={busy || !form.name}>
-            {busy ? <Loader2 size={14} className="animate-spin" /> : <PlugZap size={14} />} Salvar e conectar
+            {busy ? <Loader2 size={14} className="animate-spin" /> : <PlugZap size={14} />} {initial ? "Salvar e reconectar" : "Salvar e conectar"}
           </Button>
         </div>
       </div>
