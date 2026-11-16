@@ -14,7 +14,7 @@ Melhorias e novas funcionalidades planejadas, priorizadas por impacto e esforço
 | AL-02 | Ranking de memória mais robusto | Correção | P1 | P | concluído |
 | AL-03 | Episódios de memória sem acúmulo de conteúdo | Correção | P1 | P | concluído |
 | AL-04 | Comparação de LLMs e agentes lado a lado | Funcionalidade | P1 | M | concluído |
-| AL-05 | Multiagente: agente como ferramenta e supervisor | Funcionalidade | P1 | G | a fazer |
+| AL-05 | Multiagente: agente como ferramenta e supervisor | Funcionalidade | P1 | G | concluído |
 | AL-06 | Ferramentas de servidor do Claude (web search e web fetch) | Funcionalidade | P1 | P | concluído |
 | AL-07 | Gestão da janela de contexto (medidor e resumo) | Funcionalidade | P1 | M | a fazer |
 | AL-08 | Replay passo a passo de execuções | Funcionalidade | P2 | M | a fazer |
@@ -82,6 +82,11 @@ Sequência sugerida: AL-01 → AL-02/AL-03 → AL-04 → AL-06 → AL-05 → AL-
   vinculada à execução pai; visualizar a delegação no grafo e na linha do tempo; limite de profundidade.
 - **Critérios de aceite:** execução pai mostra as execuções filhas com tokens agregados; auditoria registra a cadeia de
   delegação; proteção contra recursão infinita.
+- **Resultado:** ferramenta `agent__<id>` por agente (`core/agent/delegation.ts`), habilitada em "Delegar para agentes"
+  no editor. Cada delegação cria uma execução filha vinculada à pai (profundidade, cadeia e tokens agregados), com
+  limite de 2 níveis, bloqueio de delegação circular e cancelamento em cascata. A linha do tempo acompanha a filha ao
+  vivo, o grafo ganha nós de agentes e a auditoria registra a cadeia (`agent.delegated`). O agente "Coordenador
+  (offline)" demonstra o recurso sem chave de API e é adicionado aos dados existentes pela migração para a versão 3.
 
 ### AL-06 · Ferramentas de servidor do Claude
 - **Problema:** no modo navegador, `http_fetch` só acessa sites com CORS liberado, o que limita agentes de pesquisa.
