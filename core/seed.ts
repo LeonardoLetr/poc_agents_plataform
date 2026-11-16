@@ -95,8 +95,12 @@ function demoAgent(): AgentConfig {
     llmId: SEED_LLM.demo,
     systemPrompt: "Você é um agente de demonstração que explica cada passo do loop agêntico.",
     tools: ["calculator", "current_time", "memory_save", "memory_search", "scratchpad_write", "http_fetch", "mcp__laboratorio__*"],
+    // Janela simulada pequena (4 mil tokens): ao continuar a conversa algumas vezes, o resumo automático aparece.
+    context: DEMO_CONTEXT,
   });
 }
+
+const DEMO_CONTEXT = { autoCompact: true, thresholdPct: 50 };
 
 /** Supervisor de exemplo: delega ao agente demo, para o multiagente funcionar sem chave de API. */
 export function coordinatorAgent(demoId: string): AgentConfig {
@@ -205,7 +209,7 @@ export function seedPrompts(): PromptTemplate[] {
 
 export function seedDb(runtime: "server" | "browser"): DB {
   return {
-    version: 3,
+    version: 4,
     llms: seedLlms(),
     agents: seedAgents(),
     memories: seedMemories(),
@@ -222,7 +226,7 @@ export function migrate(raw: Record<string, unknown>, runtime: "server" | "brows
   // Dados salvos, mas sem nenhum agente nem LLM (armazenamento vazio ou corrompido): começa do conjunto inicial.
   if (!data.agents?.length && !data.llms?.length) return seedDb(runtime);
   const out: DB = {
-    version: 3,
+    version: 4,
     llms: data.llms ?? [],
     agents: data.agents ?? [],
     memories: data.memories ?? [],
@@ -256,6 +260,10 @@ export function migrate(raw: Record<string, unknown>, runtime: "server" | "brows
     // Versão 3: multiagente. Adiciona o coordenador de exemplo quando o agente demo ainda existe.
     const demo = out.agents.find((a) => a.llmId === SEED_LLM.demo && a.name === "Agente Demo (offline)");
     if (demo && out.llms.some((l) => l.id === SEED_LLM.demo) && !out.agents.some((a) => a.name === "Coordenador (offline)")) out.agents.push(coordinatorAgent(demo.id));
+  }
+  if ((data.version ?? 1) < 4) {
+    // Versão 4: gestão de contexto. O agente demo passa a resumir o histórico automaticamente.
+    for (const a of out.agents) if (a.name === "Agente Demo (offline)" && a.llmId === SEED_LLM.demo && !a.context) a.context = { ...DEMO_CONTEXT };
   }
   return out;
 }

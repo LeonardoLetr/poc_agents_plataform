@@ -1,4 +1,5 @@
 import { hostEnv } from "../env.js";
+import { COMPACTED_MARKER, estimateTokens, SUMMARY_REQUEST_MARKER } from "../agent/context.js";
 import type { RunEvent } from "../types.js";
 import type { AssistantTurn, LlmCall } from "./types.js";
 
@@ -158,15 +159,70 @@ function summarize(results: { name: string; content: string }[], agentNames: Map
   return lines.join("\n");
 }
 
+/** Tokens de entrada estimados como na API: prompt de sistema + ferramentas + histórico. */
+const demoInputTokens = (call: LlmCall) => estimateTokens(call.system) + estimateTokens(call.tools) + estimateTokens(call.messages);
+
+/** Lê o que já foi feito a partir de uma mensagem de contexto resumido. */
+function parseCompacted(text: string) {
+  const summary = text.match(/<summary>([\s\S]*?)<\/summary>/)?.[1] ?? "";
+  return {
+    task: summary.match(/Tarefa: (.*)/)?.[1]?.trim() ?? text.match(/Tarefa original: (.*)/)?.[1]?.trim() ?? "",
+    done: Number(summary.match(/\((\d+) chamadas de ferramenta\)/)?.[1] ?? 0),
+    lines: summary.split("\n").filter((l) => /^\s*- /.test(l) && !/nenhuma ferramenta/.test(l)),
+  };
+}
+
+/** Resumo determinístico do histórico, para a compactação funcionar no modo demo. */
+function demoSummary(messages: LlmCall["messages"], task: string): string {
+  const names = new Map<string, string>();
+  const results: { name: string; content: string }[] = [];
+  let currentTask = "";
+  let doneForCurrent = 0;
+  for (const m of messages) {
+    // Cada mensagem de texto do usuário é um novo pedido; o resumo acompanha o mais recente.
+    if (typeof m.content === "string" && !m.content.startsWith(COMPACTED_MARKER)) {
+      currentTask = m.content;
+      doneForCurrent = 0;
+      continue;
+    }
+    if (!Array.isArray(m.content)) continue;
+    for (const b of m.content as { type: string; id?: string; name?: string; tool_use_id?: string; content?: unknown }[]) {
+      if (b.type === "tool_use") names.set(b.id!, b.name!);
+      if (b.type === "tool_result") {
+        results.push({ name: names.get(b.tool_use_id!) ?? "ferramenta", content: String(b.content) });
+        doneForCurrent++;
+      }
+    }
+  }
+  // Um resumo anterior no início do histórico é incorporado ao novo.
+  const prior = typeof messages[0]?.content === "string" && messages[0].content.startsWith(COMPACTED_MARKER) ? parseCompacted(messages[0].content) : null;
+  if (!currentTask && prior) doneForCurrent += prior.done;
+  const lines = [...(prior?.lines ?? []), ...(results.length ? summarize(results).split("\n") : [])];
+  return `Tarefa: ${currentTask || prior?.task || task}\nConcluído até aqui (${doneForCurrent} chamadas de ferramenta):\n${lines.join("\n") || "- nenhuma ferramenta executada"}\nPendente: compor a resposta final.`;
+}
+
 export async function demoTurn(call: LlmCall): Promise<AssistantTurn> {
   const { run, tools, signal, emit, messages } = call;
+  const usageFor = (text: string) => ({ input: demoInputTokens(call), output: Math.round(text.length / 4) });
+
+  // Pedido de resumo do contexto (compactação).
+  const lastMsg = messages[messages.length - 1];
+  if (typeof lastMsg?.content === "string" && lastMsg.content.startsWith(SUMMARY_REQUEST_MARKER)) {
+    await sleep(350, signal);
+    const firstTask = messages.find((m) => typeof m.content === "string")?.content as string | undefined;
+    const text = `<summary>\n${demoSummary(messages.slice(0, -1), firstTask ?? run.input)}\n</summary>`;
+    return { content: [{ type: "text", text }], stopReason: "end_turn", usage: usageFor(text), model: "demo-simulado" };
+  }
 
   // Encontra a última mensagem do usuário que é texto (a tarefa atual).
   let taskIdx = messages.length - 1;
   while (taskIdx >= 0 && typeof messages[taskIdx].content !== "string") taskIdx--;
-  const task = String(messages[taskIdx]?.content ?? run.input);
+  const rawTask = String(messages[taskIdx]?.content ?? run.input);
+  // Histórico resumido: retoma o plano da tarefa original a partir do que o resumo diz que já foi feito.
+  const compacted = rawTask.startsWith(COMPACTED_MARKER) ? parseCompacted(rawTask) : null;
+  const task = compacted?.task || rawTask;
   const sinceTask = messages.slice(taskIdx + 1);
-  const stepIndex = sinceTask.filter((m) => m.role === "assistant").length;
+  const stepIndex = (compacted?.done ?? 0) + sinceTask.filter((m) => m.role === "assistant").length;
 
   const toolNames = tools.map((t) => t.name);
   const agentNames = new Map(tools.flatMap((t) => (t.name.startsWith("agent__") ? [[t.name, t.description?.match(/agente "([^"]+)"/)?.[1] ?? t.name] as [string, string]] : [])));
@@ -185,7 +241,7 @@ export async function demoTurn(call: LlmCall): Promise<AssistantTurn> {
     return {
       content,
       stopReason: "tool_use",
-      usage: { input: Math.round(400 + JSON.stringify(messages).length / 4), output: Math.round((step.thinking.length + step.say.length) / 4 + 30) },
+      usage: { input: demoInputTokens(call), output: Math.round((step.thinking.length + step.say.length) / 4 + 30) },
       model: "demo-simulado",
     };
   }
@@ -200,6 +256,14 @@ export async function demoTurn(call: LlmCall): Promise<AssistantTurn> {
       if (b.type === "tool_result") results.push({ name: toolUseNames.get(b.tool_use_id!) ?? "ferramenta", content: String(b.content) });
     }
   }
+  if (compacted) {
+    const thinking = "Parte do trabalho está no resumo do contexto; junto com as observações novas, já posso compor a resposta final.";
+    const lines = [...compacted.lines, ...(results.length ? summarize(results, agentNames).split("\n") : [])];
+    const answer = `Pronto! Retomei a tarefa a partir do contexto resumido:\n\n${lines.join("\n")}\n\n> _Modo demonstração: o histórico foi substituído por um resumo para liberar a janela de contexto._`;
+    await streamText(thinking, "thinking.delta", emit, signal);
+    await streamText(answer, "text.delta", emit, signal);
+    return { content: [{ type: "thinking", thinking, signature: "demo" }, { type: "text", text: answer }], stopReason: "end_turn", usage: usageFor(answer), model: "demo-simulado" };
+  }
   const thinking = results.length
     ? `Já tenho ${results.length} observações. Vou sintetizar a resposta final a partir delas.`
     : "Nenhuma ferramenta parece necessária para esta tarefa no modo demo. Vou responder diretamente e explicar como o loop funcionaria.";
@@ -213,7 +277,7 @@ export async function demoTurn(call: LlmCall): Promise<AssistantTurn> {
   return {
     content,
     stopReason: "end_turn",
-    usage: { input: Math.round(400 + JSON.stringify(messages).length / 4), output: Math.round(answer.length / 4) },
+    usage: { input: demoInputTokens(call), output: Math.round(answer.length / 4) },
     model: "demo-simulado",
   };
 }
