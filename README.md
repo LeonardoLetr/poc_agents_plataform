@@ -142,6 +142,11 @@ Agent Lab ou pela API da Anthropic, e servidores embutidos. As ferramentas são 
 `mcp__<servidor>__<ferramenta>` e podem ser habilitadas por agente, todas de uma vez (`mcp__<servidor>__*`) ou
 individualmente. O servidor embutido de exemplo, em `core/mcp/lab-server.ts`, serve de modelo para novos servidores.
 
+Nos servidores conectados pela API da Anthropic, a lista de ferramentas não passa pela página. O botão **Descobrir
+ferramentas** faz uma chamada curta ao Claude com o servidor anexado e registra os nomes e descrições devolvidos;
+além disso, cada ferramenta que um agente usar fica registrada no servidor. Ferramentas conhecidas podem ser
+habilitadas individualmente no editor do agente.
+
 ## Segurança
 
 - `http_fetch` bloqueia endereços locais e privados; a calculadora não utiliza `eval`.

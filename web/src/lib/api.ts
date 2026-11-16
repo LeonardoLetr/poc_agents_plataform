@@ -90,6 +90,7 @@ export interface McpServer {
   /** Nomes dos cabeçalhos; os valores chegam ocultos (••••). */
   headers?: Record<string, string>;
   via?: "client" | "anthropic";
+  knownTools?: { name: string; description?: string; source: "discovered" | "used" }[];
   enabled: boolean;
   createdAt: string;
   state: {

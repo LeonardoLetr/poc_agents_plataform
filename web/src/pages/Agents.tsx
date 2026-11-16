@@ -296,14 +296,18 @@ function AgentEditor({ initial, id, onClose, onSaved }: { initial: AgentInput; i
                     <label className="flex cursor-pointer items-center gap-2 text-[13px]">
                       <input type="checkbox" className="accent-[#2563eb]" checked={form.tools.includes(wildcard)} onChange={() => toggleTool(wildcard)} />
                       <span className="font-medium text-mcp">MCP: {server}</span>{" "}
-                      <span className="text-ink-400">{viaAnthropic ? "— via Anthropic: ferramentas descobertas na execução" : `— todas as ${serverTools.length} ferramentas`}</span>
+                      <span className="text-ink-400">{viaAnthropic
+                          ? serverTools.length > 1
+                            ? `— via Anthropic: todas as ferramentas (${serverTools.length - 1} conhecidas)`
+                            : "— via Anthropic: ferramentas descobertas na execução"
+                          : `— todas as ${serverTools.length} ferramentas`}</span>
                     </label>
                     {viaAnthropic && serverTools.length > 0 && form.tools.includes(wildcard) && selectedLlm && selectedLlm.provider !== "anthropic" && (
                       <p className="mt-1.5 text-[11.5px] text-warn">Este servidor é conectado pela API da Anthropic: com a LLM selecionada, ele será ignorado.</p>
                     )}
-                    {!viaAnthropic && !form.tools.includes(wildcard) && (
+                    {!form.tools.includes(wildcard) && serverTools.some((t) => t.name !== wildcard) && (
                       <div className="mt-2 flex flex-wrap gap-1.5">
-                        {serverTools.map((t) => (
+                        {serverTools.filter((t) => t.name !== wildcard).map((t) => (
                           <button key={t.name} onClick={() => toggleTool(t.name)} className={`rounded-full border px-2 py-0.5 font-mono text-[11px] ${form.tools.includes(t.name) ? "border-mcp/50 bg-mcp/15 text-mcp" : "border-ink-700 text-ink-400"}`}>
                             {toolLabel(t.name).label}
                           </button>

@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from "motion/react";
-import { ArrowLeft, ArrowRight, ChevronDown, Loader2, Pencil, Plug, PlugZap, Plus, Power, Terminal, Trash2, Zap } from "lucide-react";
+import { ArrowLeft, ArrowRight, ChevronDown, Loader2, Pencil, Plug, PlugZap, Plus, Power, Search, Terminal, Trash2, Zap } from "lucide-react";
 import { useState } from "react";
 import { LiveDot } from "../components/effects";
 import { JsonView } from "../components/JsonView";
@@ -158,6 +158,56 @@ function ProtocolExplainer() {
   );
 }
 
+/**
+ * Servidor conectado pela Anthropic: a lista de ferramentas não chega à página pela conexão.
+ * "Descobrir" pede a lista ao Claude (poucos tokens); ferramentas usadas pelos agentes são registradas sem custo.
+ */
+function RemoteTools({ server, onChange }: { server: McpServer; onChange: () => void }) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const known = server.knownTools ?? [];
+  async function discover() {
+    setBusy(true);
+    setError(null);
+    try {
+      await api.post(`/api/mcp/${server.id}/discover`);
+      onChange();
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+  return (
+    <div className="mt-3">
+      <p className="text-[12.5px] leading-relaxed text-ink-300">
+        A API da Anthropic conecta a este servidor durante as execuções de agentes com LLM Anthropic. Habilite{" "}
+        <code className="text-mcp">mcp__{server.name}__*</code> no editor do agente ou escolha ferramentas específicas depois de descobri-las.
+      </p>
+      <div className="mt-3 flex flex-wrap items-center gap-2">
+        <span className="font-mono text-[10.5px] uppercase tracking-wider text-ink-500">{known.length ? `${known.length} ferramentas conhecidas` : "ferramentas ainda não conhecidas"}</span>
+        <Button size="sm" className="ml-auto" onClick={discover} disabled={busy} title="Faz uma chamada curta ao Claude com o servidor anexado (usa sua chave, poucos tokens)">
+          {busy ? <Loader2 size={13} className="animate-spin" /> : <Search size={13} />} {known.length ? "Atualizar lista" : "Descobrir ferramentas"}
+        </Button>
+      </div>
+      <ErrorNote message={error} />
+      {known.length > 0 && (
+        <div className="mt-2 grid gap-1.5 sm:grid-cols-2">
+          {known.map((t) => (
+            <div key={t.name} className="rounded-lg bg-ink-900 px-2.5 py-2">
+              <div className="flex items-center gap-1.5">
+                <span className="truncate font-mono text-[12px] text-ink-100">{t.name}</span>
+                <Badge color={t.source === "used" ? "ok" : "ink"}>{t.source === "used" ? "usada" : "descoberta"}</Badge>
+              </div>
+              {t.description && <div className="mt-0.5 line-clamp-2 text-[11px] text-ink-400">{t.description}</div>}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function ServerCard({ server, onChange, onEdit }: { server: McpServer; onChange: () => void; onEdit: () => void }) {
   const [busy, setBusy] = useState(false);
   const [showLogs, setShowLogs] = useState(false);
@@ -225,12 +275,7 @@ function ServerCard({ server, onChange, onEdit }: { server: McpServer; onChange:
         </div>
 
         {server.state.error && <div className="mt-3 whitespace-pre-line rounded-lg bg-bad/10 px-3 py-2 text-[12px] leading-relaxed text-bad">{server.state.error}</div>}
-        {server.via === "anthropic" && server.state.status === "connected" && (
-          <p className="mt-3 text-[12.5px] leading-relaxed text-ink-300">
-            A API da Anthropic conecta a este servidor durante as execuções de agentes com LLM Anthropic. As ferramentas aparecem na linha do tempo quando o
-            agente as usa; habilite <code className="text-mcp">mcp__{server.name}__*</code> no editor do agente.
-          </p>
-        )}
+        {server.via === "anthropic" && server.state.status === "connected" && <RemoteTools server={server} onChange={onChange} />}
         {server.state.instructions && <p className="mt-3 text-[12.5px] text-ink-300">📋 {server.state.instructions}</p>}
 
         {server.state.tools.length > 0 && (
