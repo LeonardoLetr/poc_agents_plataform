@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { cancelRun, continueRun, resolveApproval, startRun } from "./agent/runner.js";
 import { audit } from "./audit.js";
+import { exportConfig, importConfig } from "./backup.js";
 import { ANTHROPIC_MODELS, OPENAI_PRESETS, PRICING } from "./llm/catalog.js";
 import { llmHasCredentials, publicLlm } from "./llm/index.js";
 import { BUILTIN_MCP_SERVERS, allMcpTools, callMcpTool, connect, disconnect, forget, publicState } from "./mcp/manager.js";
@@ -147,6 +148,18 @@ route("DELETE", "/api/llms/:id", ({ id }) => {
   persist();
   audit({ type: "config.changed", actor: "user", summary: `LLM "${removed.name}" removida` });
   return { ok: true };
+});
+
+// ───────────────────────── Exportação e importação ─────────────────────────
+route("GET", "/api/export", () => exportConfig());
+route("POST", "/api/import", async (_p, req) => {
+  const body = z.object({ data: z.unknown(), mode: z.enum(["merge", "replace"]).default("merge") }).parse(req.body);
+  try {
+    return await importConfig(body.data, body.mode);
+  } catch (err) {
+    if (err instanceof z.ZodError) throw err;
+    throw new HttpError(400, errorMessage(err));
+  }
 });
 
 // ───────────────────────── Ferramentas ─────────────────────────
@@ -519,7 +532,7 @@ export async function handle(req: ApiRequest): Promise<ApiResponse> {
     const params = Object.fromEntries(r.keys.map((k, i) => [k, decodeURIComponent(m[i + 1])]));
     try {
       const body = await r.handler(params, req);
-      return { status: req.method === "POST" && !req.path.match(/\/(connect|disconnect|cancel|approve|messages|call)$/) ? 201 : 200, body };
+      return { status: req.method === "POST" && !req.path.match(/\/(connect|disconnect|cancel|approve|messages|call|import)$/) ? 201 : 200, body };
     } catch (err) {
       if (err instanceof z.ZodError) return { status: 400, body: { error: "Dados inválidos", issues: err.issues } };
       if (err instanceof HttpError) return { status: err.status, body: { error: err.message } };
