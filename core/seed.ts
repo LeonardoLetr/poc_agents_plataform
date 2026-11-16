@@ -196,6 +196,8 @@ export function seedDb(runtime: "server" | "browser"): DB {
 /** Converte dados da versão 1 (provedor/modelo dentro do agente) para LLMs separadas. */
 export function migrate(raw: Record<string, unknown>, runtime: "server" | "browser"): DB {
   const data = raw as Partial<DB> & { settings?: { anthropicApiKey?: string }; version?: number };
+  // Dados salvos, mas sem nenhum agente nem LLM (armazenamento vazio ou corrompido): começa do conjunto inicial.
+  if (!data.agents?.length && !data.llms?.length) return seedDb(runtime);
   const out: DB = {
     version: 2,
     llms: data.llms ?? [],
@@ -227,6 +229,5 @@ export function migrate(raw: Record<string, unknown>, runtime: "server" | "brows
     // O laboratorio agora é embutido (funciona sem processo externo).
     for (const s of out.mcpServers) if (s.name === "laboratorio" && s.transport === "stdio") Object.assign(s, { transport: "builtin", command: "laboratorio", args: [] });
   }
-  if (!out.llms.length && !out.agents.length) return seedDb(runtime);
   return out;
 }
