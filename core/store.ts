@@ -4,7 +4,7 @@ import type { AgentConfig, AuditEntry, LlmConfig, McpServerConfig, Memory, Promp
  * Estado da plataforma. O núcleo não sabe ONDE ele é salvo: o hospedeiro
  * (servidor Node → arquivo JSON; navegador → localStorage) fornece um adaptador.
  */
-export interface DB {
+export type DB = {
   version: number;
   llms: LlmConfig[];
   agents: AgentConfig[];
@@ -13,12 +13,12 @@ export interface DB {
   prompts: PromptTemplate[];
   audit: AuditEntry[];
   runs: RunRecord[];
-}
+};
 
-export interface StorageAdapter {
-  load(): unknown | null;
+export type StorageAdapter = {
+  load(): unknown;
   save(db: DB): void;
-}
+};
 
 export const db: DB = { version: 9, llms: [], agents: [], memories: [], mcpServers: [], prompts: [], audit: [], runs: [] };
 
@@ -32,20 +32,21 @@ export function attachStorage(a: StorageAdapter, opts: Partial<typeof limits> = 
 }
 
 export function persist() {
-  if (timer || !adapter) return;
+  const storage = adapter;
+  if (timer || !storage) return;
   timer = setTimeout(() => {
     timer = null;
     if (db.audit.length > limits.maxAudit) db.audit.splice(0, db.audit.length - limits.maxAudit);
     if (db.runs.length > limits.maxRuns) db.runs.splice(0, db.runs.length - limits.maxRuns);
     try {
-      adapter!.save(db);
+      storage.save(db);
     } catch (err) {
       // Ex.: cota do localStorage estourada — descarta execuções antigas e tenta de novo.
       console.warn("Falha ao salvar, compactando histórico…", err);
       db.runs.splice(0, Math.ceil(db.runs.length / 2));
       db.audit.splice(0, Math.ceil(db.audit.length / 2));
       try {
-        adapter!.save(db);
+        storage.save(db);
       } catch {
         /* desiste silenciosamente */
       }

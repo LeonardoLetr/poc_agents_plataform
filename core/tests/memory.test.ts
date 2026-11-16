@@ -59,7 +59,7 @@ describe("memória de longo prazo", () => {
   it("registra acesso quando a busca marca uso (touch)", () => {
     const [first] = mem.searchMemories("deploy github", { touch: true });
     if (!first) throw new Error("memória não encontrada");
-    expect(first?.memory.accessCount).toBe(1);
+    expect(first.memory.accessCount).toBe(1);
     expect(first.memory.lastAccessedAt).not.toBeNull();
   });
 

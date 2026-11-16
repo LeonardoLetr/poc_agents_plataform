@@ -89,10 +89,10 @@ export async function callAnthropic(call: LlmCall): Promise<AssistantTurn> {
     } else if (b.type === "server_tool_use" && b.id && b.name) {
       serverCalls.set(b.id, { name: b.name, started: Date.now() });
       emit({ type: "tool.call", id: b.id, name: b.name, input: b.input ?? {}, source: "server" });
-    } else if (isServerToolResult(b as { type: string; tool_use_id?: unknown })) {
-      const id = b.tool_use_id!;
+    } else if (isServerToolResult(b)) {
+      const id = b.tool_use_id;
       const callInfo = serverCalls.get(id);
-      const { output, isError } = describeServerResult(b as { type: string });
+      const { output, isError } = describeServerResult(b);
       emit({
         type: "tool.result",
         id,

@@ -8,7 +8,7 @@ export type Effort = "low" | "medium" | "high" | "xhigh" | "max";
  * Uma "LLM" configurada em tempo de execução: provedor + modelo + credenciais.
  * Vários agentes podem compartilhar a mesma LLM, e a LLM de um agente pode ser trocada a qualquer momento.
  */
-export interface LlmConfig {
+export type LlmConfig = {
   id: string;
   name: string;
   provider: Provider;
@@ -26,9 +26,9 @@ export interface LlmConfig {
   contextWindow?: number | undefined;
   createdAt: string;
   updatedAt: string;
-}
+};
 
-export interface AgentConfig {
+export type AgentConfig = {
   id: string;
   name: string;
   emoji: string;
@@ -61,11 +61,12 @@ export interface AgentConfig {
     | undefined;
   createdAt: string;
   updatedAt: string;
-}
+};
 
-export type MemoryKind = "fact" | "episode" | "preference" | "procedure";
+export const MEMORY_KINDS = ["fact", "preference", "procedure", "episode"] as const;
+export type MemoryKind = (typeof MEMORY_KINDS)[number];
 
-export interface Memory {
+export type Memory = {
   id: string;
   /** null = memória compartilhada entre todos os agentes. */
   agentId: string | null;
@@ -77,12 +78,12 @@ export interface Memory {
   createdAt: string;
   lastAccessedAt: string | null;
   source: "user" | "agent" | "auto";
-}
+};
 
 /** http: servidor remoto · builtin: servidor embutido que roda em memória. */
 export type McpTransport = "http" | "builtin";
 
-export interface McpServerConfig {
+export type McpServerConfig = {
   id: string;
   name: string; // usado no prefixo das ferramentas: mcp__<name>__<tool>
   transport: McpTransport;
@@ -100,24 +101,24 @@ export interface McpServerConfig {
   knownTools?: { name: string; description?: string | undefined; source: "discovered" | "used" }[] | undefined;
   enabled: boolean;
   createdAt: string;
-}
+};
 
-export interface PromptTemplate {
+export type PromptTemplate = {
   id: string;
   name: string;
   description: string;
   content: string;
   category: "system" | "task";
   createdAt: string;
-}
+};
 
 /** Consumo de tokens de uma chamada (ou de uma execução). */
-export interface Usage {
+export type Usage = {
   input: number;
   output: number;
   cacheRead?: number | undefined;
   cacheWrite?: number | undefined;
-}
+};
 
 export type AuditType =
   | "run.started"
@@ -142,7 +143,7 @@ export type AuditType =
   | "mcp.error"
   | "config.changed";
 
-export interface AuditEntry {
+export type AuditEntry = {
   id: string;
   ts: string;
   type: AuditType;
@@ -153,7 +154,7 @@ export interface AuditEntry {
   data?: unknown;
   durationMs?: number | undefined;
   tokens?: Usage | undefined;
-}
+};
 
 /** Eventos ao vivo de uma execução (enviados via SSE para a UI). */
 export type RunEvent =
@@ -219,7 +220,7 @@ export type RunEvent =
 
 export type RunStatus = "running" | "awaiting_approval" | "completed" | "failed" | "cancelled";
 
-export interface RunRecord {
+export type RunRecord = {
   id: string;
   agentId: string;
   agentName: string;
@@ -255,4 +256,4 @@ export interface RunRecord {
   compactions?: { iteration: number; tokensBefore: number; messagesBefore: number; at: string }[] | undefined;
   /** Tokens consumidos pelas execuções filhas (inclui as netas). */
   childUsage?: { input: number; output: number } | undefined;
-}
+};

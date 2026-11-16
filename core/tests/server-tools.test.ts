@@ -178,8 +178,7 @@ describe("provedor Anthropic com ferramentas de servidor", () => {
     const events: RunEvent[] = [];
     const call: LlmCall = {
       llm: llm("sk-ant-teste-provedor"),
-      agent: {} as LlmCall["agent"],
-      run: {} as LlmCall["run"],
+      input: "",
       system: "Pesquise.",
       messages: [{ role: "user", content: "o que são agentes?" }],
       tools: [],

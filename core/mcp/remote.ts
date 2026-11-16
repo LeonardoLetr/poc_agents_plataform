@@ -11,7 +11,11 @@ import type { AgentConfig, LlmConfig, McpServerConfig } from "../types.js";
 
 export const MCP_CONNECTOR_BETA = "mcp-client-2025-11-20";
 
-export const isRemoteMcp = (s: McpServerConfig) => s.transport === "http" && s.via === "anthropic";
+/** Servidor MCP conectado pela API da Anthropic, que precisa de uma URL pública. */
+export type RemoteMcpServer = McpServerConfig & { url: string };
+
+export const isRemoteMcp = (s: McpServerConfig): s is RemoteMcpServer =>
+  s.transport === "http" && s.via === "anthropic" && typeof s.url === "string";
 
 /** A API aceita um token de autorização: extraído do cabeçalho Authorization ("Bearer <token>" ou só o token). */
 export function authorizationToken(headers: Record<string, string> = {}): string | undefined {
@@ -27,9 +31,9 @@ export const ignoredHeaders = (headers: Record<string, string> = {}) =>
   Object.keys(headers).filter((k) => k.toLowerCase() !== "authorization");
 
 /** Definição do servidor para o parâmetro `mcp_servers` da API. */
-export function serverDefinition(s: McpServerConfig): Anthropic.Beta.BetaRequestMCPServerURLDefinition {
+export function serverDefinition(s: RemoteMcpServer): Anthropic.Beta.BetaRequestMCPServerURLDefinition {
   const token = authorizationToken(s.headers);
-  return { type: "url", name: s.name, url: s.url!, ...(token ? { authorization_token: token } : {}) };
+  return { type: "url", name: s.name, url: s.url, ...(token ? { authorization_token: token } : {}) };
 }
 
 /**
@@ -37,7 +41,7 @@ export function serverDefinition(s: McpServerConfig): Anthropic.Beta.BetaRequest
  * disponíveis; com nomes individuais, só elas (as demais ficam desligadas).
  */
 export function remoteMcpFor(agent: AgentConfig, llm: LlmConfig, servers: McpServerConfig[]) {
-  const wanted = servers.filter((s) => s.enabled && isRemoteMcp(s) && agent.tools.some((t) => t.startsWith(`mcp__${s.name}__`)));
+  const wanted = servers.filter(isRemoteMcp).filter((s) => s.enabled && agent.tools.some((t) => t.startsWith(`mcp__${s.name}__`)));
   if (llm.provider !== "anthropic") return { servers: [], toolsets: [], ignored: wanted.map((s) => s.name) };
   const defs: Anthropic.Beta.BetaRequestMCPServerURLDefinition[] = [];
   const toolsets: Anthropic.Beta.BetaMCPToolset[] = [];
@@ -94,16 +98,15 @@ export function parseDiscoveredTools(text: string): { name: string; description?
   const raw = text.match(/<tools>([\s\S]*?)<\/tools>/i)?.[1] ?? text.match(/\[[\s\S]*\]/)?.[0];
   if (!raw) return [];
   try {
-    const data = JSON.parse(raw) as unknown;
+    const data: unknown = JSON.parse(raw);
     if (!Array.isArray(data)) return [];
+    const items: unknown[] = data;
     const out: { name: string; description?: string }[] = [];
-    for (const item of data) {
-      const name = typeof item === "string" ? item : (item as { name?: unknown })?.name;
+    for (const item of items) {
+      const fields = typeof item === "object" && item !== null ? item : {};
+      const name = typeof item === "string" ? item : "name" in fields ? fields.name : undefined;
       if (typeof name !== "string" || !/^[\w.-]{1,128}$/.test(name)) continue;
-      const description =
-        typeof (item as { description?: unknown })?.description === "string"
-          ? (item as { description: string }).description.slice(0, 240)
-          : undefined;
+      const description = "description" in fields && typeof fields.description === "string" ? fields.description.slice(0, 240) : undefined;
       if (!out.some((t) => t.name === name)) out.push({ name, ...(description ? { description } : {}) });
     }
     return out;

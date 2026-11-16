@@ -197,7 +197,8 @@ describe("resumo com a API da Anthropic", () => {
     expect(bodies).toHaveLength(3);
     // Pedido de resumo: histórico completo + instrução, com a mesma lista de ferramentas.
     expect(bodies[1]?.tools.map((t) => t.name)).toEqual(bodies[0]?.tools.map((t) => t.name));
-    const summaryRequest = bodies[1]?.messages.at(-1)!;
+    const summaryRequest = bodies[1]?.messages.at(-1);
+    if (!summaryRequest) throw new Error("pedido de resumo não enviado");
     expect(summaryRequest.role).toBe("user");
     expect(String(summaryRequest.content).startsWith(SUMMARY_REQUEST_MARKER)).toBe(true);
     // Depois do resumo, nenhuma mensagem antiga (nem bloco de raciocínio) é reenviada.

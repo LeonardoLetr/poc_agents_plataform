@@ -21,14 +21,14 @@ export const BUILTIN_MCP_SERVERS: Record<string, { description: string; create: 
 
 export type McpStatus = "disconnected" | "connecting" | "connected" | "error";
 
-export interface McpToolInfo {
+export type McpToolInfo = {
   name: string; // nome original no servidor
   qualifiedName: string; // nome exposto ao LLM
   description: string;
   inputSchema: Record<string, unknown>;
-}
+};
 
-interface Connection {
+type Connection = {
   status: McpStatus;
   client?: Client | undefined;
   transport?: Transport | undefined;
@@ -38,7 +38,7 @@ interface Connection {
   instructions?: string | undefined;
   connectedAt?: string | undefined;
   logs: string[];
-}
+};
 
 const connections = new Map<string, Connection>();
 
@@ -144,17 +144,18 @@ export async function connect(cfg: McpServerConfig, opts: { silent?: boolean } =
       await client.connect(transport);
     } catch (err) {
       // Servidores HTTP antigos só falam SSE: tenta o transporte legado.
-      if (cfg.transport !== "http") throw err;
+      if (cfg.transport !== "http" || !cfg.url) throw err;
       const first = errorMessage(err);
       log(cfg.id, `Streamable HTTP falhou (${first}); tentando SSE legado…`);
       client = new Client({ name: "agent-lab", version: "0.1.0" });
-      transport = new SSEClientTransport(new URL(cfg.url!), { requestInit: { headers: cfg.headers ?? {} } });
+      // eslint-disable-next-line @typescript-eslint/no-deprecated -- recurso deliberado para servidores que só falam SSE
+      transport = new SSEClientTransport(new URL(cfg.url), { requestInit: { headers: cfg.headers ?? {} } });
       try {
         await client.connect(transport);
       } catch (sseErr) {
         // Os dois erros importam: o do Streamable HTTP costuma ser a causa real (ex.: 401), o do SSE só o confirma.
         const second = errorMessage(sseErr);
-        throw new Error(first === second ? first : `Streamable HTTP: ${first} · SSE: ${second}`);
+        throw new Error(first === second ? first : `Streamable HTTP: ${first} · SSE: ${second}`, { cause: sseErr });
       }
     }
 
@@ -165,7 +166,7 @@ export async function connect(cfg: McpServerConfig, opts: { silent?: boolean } =
       name: t.name,
       qualifiedName: qualify(cfg.name, t.name),
       description: t.description ?? "",
-      inputSchema: (t.inputSchema as Record<string, unknown>) ?? { type: "object", properties: {} },
+      inputSchema: t.inputSchema,
     }));
     const info = client.getServerVersion();
     c.serverInfo = info ? { name: info.name, version: info.version } : undefined;
@@ -234,7 +235,7 @@ export function allMcpTools(servers: McpServerConfig[]): { server: McpServerConf
         definition: {
           name: tool.qualifiedName,
           description: `[MCP: ${server.name}] ${tool.description}`.slice(0, 1024),
-          input_schema: { type: "object", ...tool.inputSchema } as Anthropic.Tool.InputSchema,
+          input_schema: { type: "object", ...tool.inputSchema },
         },
       });
     }

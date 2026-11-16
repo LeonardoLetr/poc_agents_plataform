@@ -17,7 +17,6 @@ export function useResource<T>(url: string | null, deps: unknown[] = []) {
     } finally {
       setLoading(false);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [url, ...deps]);
 
   useEffect(() => {
@@ -27,7 +26,11 @@ export function useResource<T>(url: string | null, deps: unknown[] = []) {
   return { data, setData, error, loading, reload };
 }
 
-/** Assina um endpoint SSE e chama `onMessage` para cada evento. */
+/**
+ * Assina um endpoint SSE e chama `onMessage` para cada evento.
+ * Quem assina informa o tipo dos eventos daquele endpoint; eles vêm do próprio núcleo, no mesmo processo.
+ */
+// eslint-disable-next-line @typescript-eslint/no-unnecessary-type-parameters -- o tipo nomeia o fluxo assinado
 export function useEventStream<T>(url: string | null, onMessage: (data: T) => void) {
   const handler = useRef(onMessage);
   handler.current = onMessage;
@@ -35,7 +38,11 @@ export function useEventStream<T>(url: string | null, onMessage: (data: T) => vo
 
   useEffect(() => {
     if (!url) return;
-    return subscribeStream(url, (data) => handler.current(data as T), setConnected);
+    return subscribeStream(
+      url,
+      (data) => handler.current(data as T) /* os eventos do endpoint seguem o tipo informado por quem assina */,
+      setConnected,
+    );
   }, [url]);
 
   return connected;

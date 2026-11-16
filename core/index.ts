@@ -7,12 +7,12 @@ import { now } from "./util.js";
 export { handle, subscribe, type ApiRequest, type ApiResponse } from "./router.js";
 export type { StorageAdapter } from "./store.js";
 
-export interface CoreOptions {
+export type CoreOptions = {
   storage: StorageAdapter;
   /** Multiplicador dos atrasos simulados da LLM demo (padrão 1; 0 nos testes). */
   demoDelayScale?: number;
   limits?: { maxAudit?: number; maxRuns?: number };
-}
+};
 
 let started = false;
 

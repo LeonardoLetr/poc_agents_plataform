@@ -1,7 +1,7 @@
 import { hostEnv } from "../env.js";
 import { COMPACTED_MARKER, estimateTokens, SUMMARY_REQUEST_MARKER } from "../agent/context.js";
 import type { RunEvent } from "../types.js";
-import type { AssistantTurn, LlmCall } from "./types.js";
+import type { AssistantTurn, LlmCall, Msg } from "./types.js";
 
 /**
  * Modelo simulado para o modo demonstração. Segue um plano definido por
@@ -10,15 +10,18 @@ import type { AssistantTurn, LlmCall } from "./types.js";
  * o loop agêntico, a memória e a auditoria funcionam sem chave de API.
  */
 
-interface Step {
+type Step = {
   thinking: string;
   say: string;
   tool: { name: string; input: Record<string, unknown> };
-}
+};
 
 const sleep = (ms: number, signal: AbortSignal) =>
   new Promise<void>((resolve, reject) => {
-    if (signal.aborted) return reject(new DOMException("cancelado", "AbortError"));
+    if (signal.aborted) {
+      reject(new DOMException("cancelado", "AbortError"));
+      return;
+    }
     const t = setTimeout(resolve, ms * hostEnv.demoDelayScale);
     signal.addEventListener(
       "abort",
@@ -155,6 +158,24 @@ function plan(input: string, tools: string[], agentNames: Map<string, string> = 
   return steps;
 }
 
+/** Resultados de ferramenta de uma mensagem, com o nome da ferramenta; as chamadas vistas ficam em `names`. */
+function readToolResults(content: Msg["content"], names: Map<string, string>): { name: string; content: string }[] {
+  if (!Array.isArray(content)) return [];
+  const found: { name: string; content: string }[] = [];
+  for (const b of content) {
+    if (b.type === "tool_use") names.set(b.id, b.name);
+    else if (b.type === "tool_result")
+      found.push({
+        name: names.get(b.tool_use_id) ?? "ferramenta",
+        content: typeof b.content === "string" ? b.content : JSON.stringify(b.content ?? ""),
+      });
+  }
+  return found;
+}
+
+/** Valor lido de um resultado JSON, pronto para entrar no texto. */
+const show = (value: unknown) => (typeof value === "string" || typeof value === "number" ? String(value) : JSON.stringify(value));
+
 function summarize(results: { name: string; content: string }[], agentNames: Map<string, string> = new Map()): string {
   const lines: string[] = [];
   for (const r of results) {
@@ -166,11 +187,11 @@ function summarize(results: { name: string; content: string }[], agentNames: Map
     }
     const d = data as Record<string, unknown>;
     if (typeof r.content === "string" && r.content.startsWith("Erro")) lines.push(`- **${r.name}** falhou: ${r.content}`);
-    else if (r.name === "calculator") lines.push(`- **Cálculo:** \`${d.expression}\` = **${d.result}**`);
-    else if (r.name === "current_time") lines.push(`- **Agora:** ${d.local}`);
+    else if (r.name === "calculator") lines.push(`- **Cálculo:** \`${show(d.expression)}\` = **${show(d.result)}**`);
+    else if (r.name === "current_time") lines.push(`- **Agora:** ${show(d.local)}`);
     else if (r.name === "http_fetch")
       lines.push(
-        `- **Página** (${d.status}): ${String(d.content ?? "")
+        `- **Página** (${show(d.status)}): ${show(d.content ?? "")
           .slice(0, 280)
           .replace(/\s+/g, " ")}…`,
       );
@@ -186,8 +207,8 @@ function summarize(results: { name: string; content: string }[], agentNames: Map
       );
     } else if (r.name === "memory_save") lines.push("- **Memória salva** para as próximas conversas.");
     else if (r.name.endsWith("dados_rolar"))
-      lines.push(`- **Dados (via MCP):** ${d.notacao} → [${(d.rolagens as number[]).join(", ")}] = **${d.total}**`);
-    else if (r.name.endsWith("notas_adicionar")) lines.push(`- **Nota salva no servidor MCP** (total: ${d.total})`);
+      lines.push(`- **Dados (via MCP):** ${show(d.notacao)} → [${(d.rolagens as number[]).join(", ")}] = **${show(d.total)}**`);
+    else if (r.name.endsWith("notas_adicionar")) lines.push(`- **Nota salva no servidor MCP** (total: ${show(d.total)})`);
     else if (r.name === "scratchpad_write") lines.push("- Plano registrado no scratchpad.");
     else if (r.name.startsWith("agent__")) {
       // Mantém só os itens da resposta do agente delegado (sem o aviso de modo demonstração).
@@ -229,14 +250,9 @@ function demoSummary(messages: LlmCall["messages"], task: string): string {
       doneForCurrent = 0;
       continue;
     }
-    if (!Array.isArray(m.content)) continue;
-    for (const b of m.content as { type: string; id?: string; name?: string; tool_use_id?: string; content?: unknown }[]) {
-      if (b.type === "tool_use") names.set(b.id!, b.name!);
-      if (b.type === "tool_result") {
-        results.push({ name: names.get(b.tool_use_id!) ?? "ferramenta", content: String(b.content) });
-        doneForCurrent++;
-      }
-    }
+    const found = readToolResults(m.content, names);
+    results.push(...found);
+    doneForCurrent += found.length;
   }
   // Um resumo anterior no início do histórico é incorporado ao novo.
   const prior =
@@ -249,7 +265,7 @@ function demoSummary(messages: LlmCall["messages"], task: string): string {
 }
 
 export async function demoTurn(call: LlmCall): Promise<AssistantTurn> {
-  const { run, tools, signal, emit, messages } = call;
+  const { input, tools, signal, emit, messages } = call;
   const usageFor = (text: string) => ({ input: demoInputTokens(call), output: Math.round(text.length / 4) });
 
   // Pedido de resumo do contexto (compactação).
@@ -257,14 +273,15 @@ export async function demoTurn(call: LlmCall): Promise<AssistantTurn> {
   if (typeof lastMsg?.content === "string" && lastMsg.content.startsWith(SUMMARY_REQUEST_MARKER)) {
     await sleep(350, signal);
     const firstTask = messages.find((m) => typeof m.content === "string")?.content as string | undefined;
-    const text = `<summary>\n${demoSummary(messages.slice(0, -1), firstTask ?? run.input)}\n</summary>`;
+    const text = `<summary>\n${demoSummary(messages.slice(0, -1), firstTask ?? input)}\n</summary>`;
     return { content: [{ type: "text", text }], stopReason: "end_turn", usage: usageFor(text), model: "demo-simulado" };
   }
 
   // Encontra a última mensagem do usuário que é texto (a tarefa atual).
   let taskIdx = messages.length - 1;
   while (taskIdx >= 0 && typeof messages[taskIdx]?.content !== "string") taskIdx--;
-  const rawTask = String(messages[taskIdx]?.content ?? run.input);
+  const taskContent = messages[taskIdx]?.content;
+  const rawTask = typeof taskContent === "string" ? taskContent : input;
   // Histórico resumido: retoma o plano da tarefa original a partir do que o resumo diz que já foi feito.
   const compacted = rawTask.startsWith(COMPACTED_MARKER) ? parseCompacted(rawTask) : null;
   const task = compacted?.task || rawTask;
@@ -300,13 +317,7 @@ export async function demoTurn(call: LlmCall): Promise<AssistantTurn> {
   // Sem mais passos: compõe a resposta final a partir dos resultados observados.
   const toolUseNames = new Map<string, string>();
   const results: { name: string; content: string }[] = [];
-  for (const m of sinceTask) {
-    if (!Array.isArray(m.content)) continue;
-    for (const b of m.content as { type: string; id?: string; name?: string; tool_use_id?: string; content?: unknown }[]) {
-      if (b.type === "tool_use") toolUseNames.set(b.id!, b.name!);
-      if (b.type === "tool_result") results.push({ name: toolUseNames.get(b.tool_use_id!) ?? "ferramenta", content: String(b.content) });
-    }
-  }
+  for (const m of sinceTask) results.push(...readToolResults(m.content, toolUseNames));
   if (compacted) {
     const thinking = "Parte do trabalho está no resumo do contexto; junto com as observações novas, já posso compor a resposta final.";
     const lines = [...compacted.lines, ...(results.length ? summarize(results, agentNames).split("\n") : [])];

@@ -8,11 +8,11 @@ import type Anthropic from "@anthropic-ai/sdk";
  * Disponíveis somente para LLMs do provedor Anthropic.
  */
 
-export interface ServerToolInfo {
+export type ServerToolInfo = {
   name: string;
   description: string;
   category: string;
-}
+};
 
 export const SERVER_TOOLS: Record<string, ServerToolInfo> = {
   web_search: {
@@ -67,9 +67,9 @@ const clip = (s: string, n: number) => (s.length > n ? `${s.slice(0, n - 1)}…`
 
 /** Texto legível do resultado, para a linha do tempo e a auditoria. Erros chegam como objeto, nunca como exceção. */
 export function describeServerResult(block: AnyBlock): { output: string; isError: boolean } {
-  const content = block.content as unknown;
+  const content = block.content;
   if (content && typeof content === "object" && !Array.isArray(content) && "error_code" in content) {
-    return { output: `Erro da ferramenta de servidor: ${String((content as { error_code: unknown }).error_code)}`, isError: true };
+    return { output: `Erro da ferramenta de servidor: ${String(content.error_code)}`, isError: true };
   }
   // web_search: lista de resultados.
   if (Array.isArray(content)) {
@@ -104,11 +104,11 @@ export function describeServerResult(block: AnyBlock): { output: string; isError
   return { output: clip(JSON.stringify(content ?? null), 1500), isError: false };
 }
 
-export interface Citation {
+export type Citation = {
   url: string;
   title: string | null;
   citedText: string;
-}
+};
 
 /** Citações anexadas aos blocos de texto da resposta (busca e leitura de páginas). */
 export function collectCitations(content: AnyBlock[]): Citation[] {

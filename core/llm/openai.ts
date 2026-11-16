@@ -1,3 +1,5 @@
+import type Anthropic from "@anthropic-ai/sdk";
+import { z } from "zod";
 import type { LlmConfig } from "../types.js";
 import type { AssistantTurn, Block, LlmCall, Msg } from "./types.js";
 
@@ -7,12 +9,12 @@ import type { AssistantTurn, Block, LlmCall, Msg } from "./types.js";
  * nos dois sentidos: tool_use ↔ tool_calls e tool_result ↔ mensagens com role "tool".
  */
 
-interface OaMessage {
+type OaMessage = {
   role: "system" | "user" | "assistant" | "tool";
   content: string | null;
   tool_calls?: { id: string; type: "function"; function: { name: string; arguments: string } }[];
   tool_call_id?: string;
-}
+};
 
 const DEFAULT_BASE = "https://api.openai.com/v1";
 const isLocal = (url?: string) => Boolean(url && /localhost|127\.0\.0\.1/.test(url));
@@ -23,52 +25,96 @@ export function openaiHasCredentials(llm: LlmConfig) {
 
 function toOpenAi(system: string, messages: Msg[]): OaMessage[] {
   const out: OaMessage[] = [{ role: "system", content: system }];
-  for (const m of messages) {
-    if (typeof m.content === "string") {
-      out.push({ role: m.role, content: m.content });
+  for (const { role, content } of messages) {
+    // Mensagens de sistema do SDK podem vir sem conteúdo (só configuração); não há o que converter.
+    if (content === undefined) continue;
+    if (typeof content === "string") {
+      out.push({ role, content });
       continue;
     }
-    const blocks = m.content as {
-      type: string;
-      text?: string;
-      id?: string;
-      name?: string;
-      input?: unknown;
-      tool_use_id?: string;
-      content?: unknown;
-    }[];
-    if (m.role === "assistant") {
-      const text = blocks
-        .filter((b) => b.type === "text")
+    if (role === "assistant") {
+      const text = content
+        .filter((b): b is Anthropic.Beta.BetaTextBlockParam => b.type === "text")
         .map((b) => b.text)
         .join("");
-      const calls = blocks.filter((b) => b.type === "tool_use");
+      const calls = content.filter((b): b is Anthropic.Beta.BetaToolUseBlockParam => b.type === "tool_use");
       out.push({
         role: "assistant",
         content: text || null,
         ...(calls.length
           ? {
               tool_calls: calls.map((c) => ({
-                id: c.id!,
+                id: c.id,
                 type: "function" as const,
-                function: { name: c.name!, arguments: JSON.stringify(c.input ?? {}) },
+                function: { name: c.name, arguments: JSON.stringify(c.input ?? {}) },
               })),
             }
           : {}),
       });
     } else {
-      for (const b of blocks) {
+      for (const b of content) {
         if (b.type === "tool_result")
           out.push({
             role: "tool",
-            tool_call_id: b.tool_use_id!,
+            tool_call_id: b.tool_use_id,
             content: typeof b.content === "string" ? b.content : JSON.stringify(b.content),
           });
-        else if (b.type === "text") out.push({ role: "user", content: b.text ?? "" });
+        else if (b.type === "text") out.push({ role: "user", content: b.text });
       }
     }
   }
   return out;
+}
+
+/** Pedaço do stream de Chat Completions: só os campos usados; o resto é ignorado. */
+const Chunk = z.object({
+  model: z.string().optional(),
+  usage: z.object({ prompt_tokens: z.number().optional(), completion_tokens: z.number().optional() }).nullish(),
+  choices: z
+    .array(
+      z.object({
+        delta: z
+          .object({
+            content: z.string().nullish(),
+            reasoning: z.string().nullish(),
+            reasoning_content: z.string().nullish(),
+            tool_calls: z
+              .array(
+                z.object({
+                  index: z.number(),
+                  id: z.string().optional(),
+                  function: z.object({ name: z.string().optional(), arguments: z.string().optional() }).optional(),
+                }),
+              )
+              .optional(),
+          })
+          .optional(),
+        finish_reason: z.string().nullish(),
+      }),
+    )
+    .optional(),
+});
+
+/** Lê uma linha "data:" do stream; JSON inválido ou fora do formato é descartado. */
+function parseChunk(data: string): z.infer<typeof Chunk> | null {
+  try {
+    const parsed = Chunk.safeParse(JSON.parse(data));
+    return parsed.success ? parsed.data : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Argumentos de ferramenta gerados pelo modelo: precisam ser um objeto JSON. */
+function parseToolArgs(args: string): Record<string, unknown> {
+  if (!args) return {};
+  try {
+    const parsed = z.record(z.string(), z.unknown()).safeParse(JSON.parse(args));
+    if (parsed.success) return parsed.data;
+  } catch {
+    // cai no retorno abaixo
+  }
+  return { _erro: "argumentos JSON inválidos gerados pelo modelo", bruto: args };
 }
 
 export async function callOpenAi(call: LlmCall): Promise<AssistantTurn> {
@@ -98,9 +144,10 @@ export async function callOpenAi(call: LlmCall): Promise<AssistantTurn> {
       }),
     });
   } catch (err) {
-    if ((err as Error).name === "AbortError") throw err;
+    if (err instanceof Error && err.name === "AbortError") throw err;
     throw new Error(
-      `Não foi possível conectar a ${url} (${(err as Error).message}). Verifique a URL base da LLM e se o provedor permite chamadas do navegador (CORS).`,
+      `Não foi possível conectar a ${url} (${err instanceof Error ? err.message : String(err)}). Verifique a URL base da LLM e se o provedor permite chamadas do navegador (CORS).`,
+      { cause: err },
     );
   }
   if (!res.ok || !res.body) {
@@ -127,24 +174,8 @@ export async function callOpenAi(call: LlmCall): Promise<AssistantTurn> {
     for (const line of lines) {
       const data = line.trim().replace(/^data:\s*/, "");
       if (!data || data === "[DONE]" || !line.trim().startsWith("data:")) continue;
-      let chunk: {
-        model?: string;
-        usage?: { prompt_tokens?: number; completion_tokens?: number };
-        choices?: {
-          delta?: {
-            content?: string;
-            reasoning?: string;
-            reasoning_content?: string;
-            tool_calls?: { index: number; id?: string; function?: { name?: string; arguments?: string } }[];
-          };
-          finish_reason?: string | null;
-        }[];
-      };
-      try {
-        chunk = JSON.parse(data);
-      } catch {
-        continue;
-      }
+      const chunk = parseChunk(data);
+      if (!chunk) continue;
       if (chunk.model) model = chunk.model;
       if (chunk.usage) usage = { input: chunk.usage.prompt_tokens ?? 0, output: chunk.usage.completion_tokens ?? 0 };
       const choice = chunk.choices?.[0];
@@ -169,12 +200,7 @@ export async function callOpenAi(call: LlmCall): Promise<AssistantTurn> {
   const content: Block[] = [];
   if (text) content.push({ type: "text", text });
   for (const c of calls.filter(Boolean)) {
-    let input: Record<string, unknown> = {};
-    try {
-      input = c.args ? JSON.parse(c.args) : {};
-    } catch {
-      input = { _erro: "argumentos JSON inválidos gerados pelo modelo", bruto: c.args };
-    }
+    const input = parseToolArgs(c.args);
     content.push({ type: "tool_use", id: c.id || `call_${Math.random().toString(36).slice(2, 10)}`, name: c.name, input });
   }
   const stopReason = calls.length ? "tool_use" : finish === "length" ? "max_tokens" : "end_turn";

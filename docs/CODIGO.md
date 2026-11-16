@@ -215,10 +215,17 @@ Antes de abrir ou aprovar uma mudança, responda:
 ## 9. Ferramentas
 
 - **TypeScript** com as opções da seção 2.
-- **typescript-eslint** com a configuração `strict-type-checked`, mais:
+- **typescript-eslint** (`npm run lint`, configurado em `eslint.config.mjs`) sobre `core/` e `web/src/lib/`, com a
+  configuração `strict-type-checked`, mais:
   - `no-floating-promises` e `no-misused-promises`: promises esquecidas;
   - `switch-exhaustiveness-check`: uniões tratadas por completo;
   - `consistent-type-assertions` e `no-non-null-assertion`: limita casts e `!`;
+  - `consistent-type-definitions`: `type` no lugar de `interface`;
   - `no-explicit-any`.
-- **Formatação** automática, adotada junto com o lint, para que a revisão discuta lógica e não espaçamento.
-- A verificação de tipos, o lint e os testes rodam no CI e bloqueiam a publicação.
+
+  `require-await` fica desligada: implementações de contratos assíncronos (`Tool.run`, handlers MCP) nem sempre
+  aguardam algo. Nos testes, as regras de `any`, casts e `!` são relaxadas, porque eles leem respostas sem tipo e
+  montam entradas parciais. Uma exceção pontual usa `eslint-disable-next-line` com a regra e o motivo.
+- **Prettier** (`npm run format`) formata o código com linhas de até 140 caracteres; arquivos Markdown mantêm a
+  quebra manual.
+- A verificação de tipos, o lint, a formatação e os testes rodam no CI e bloqueiam a publicação.

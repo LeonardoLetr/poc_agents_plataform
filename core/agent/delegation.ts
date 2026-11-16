@@ -35,8 +35,7 @@ export function agentToolDefinition(agent: AgentConfig): Anthropic.Tool {
 }
 
 /** Motivo para recusar a delegação, ou null quando ela é permitida. */
-export function delegationBlocked(chain: string[], depth: number, target: AgentConfig | undefined): string | null {
-  if (!target) return "O agente indicado não existe mais.";
+export function delegationBlocked(chain: string[], depth: number, target: AgentConfig): string | null {
   if (depth >= MAX_DELEGATION_DEPTH)
     return `Profundidade máxima de delegação (${MAX_DELEGATION_DEPTH}) atingida. Resolva esta parte sem delegar.`;
   if (chain.includes(target.id)) return `Delegação circular bloqueada: "${target.name}" já está na cadeia desta execução.`;

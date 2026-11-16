@@ -12,7 +12,7 @@ import { builtinTools } from "./tools/builtin.js";
 import { SERVER_TOOLS } from "./tools/server.js";
 import { DISCOVERY_PROMPT, isRemoteMcp, mergeKnownTools, parseDiscoveredTools, serverDefinition } from "./mcp/remote.js";
 import { agentToolDefinition, agentToolName } from "./agent/delegation.js";
-import type { AgentConfig, AuditEntry, McpServerConfig, PromptTemplate, RunRecord } from "./types.js";
+import { MEMORY_KINDS, type AgentConfig, type AuditEntry, type McpServerConfig, type PromptTemplate, type RunRecord } from "./types.js";
 import { bus, clip, errorMessage, now, uid } from "./util.js";
 
 /**
@@ -21,17 +21,17 @@ import { bus, clip, errorMessage, now, uid } from "./util.js";
  * `handle` direto. Streams (SSE no servidor) passam por `subscribe`.
  */
 
-export interface ApiRequest {
+export type ApiRequest = {
   method: string;
   path: string;
   query: Record<string, string>;
   body: unknown;
-}
-export interface ApiResponse {
+};
+export type ApiResponse = {
   status: number;
   body: unknown;
   headers?: Record<string, string>;
-}
+};
 
 class HttpError extends Error {
   constructor(
@@ -50,7 +50,7 @@ type PathParams<P extends string> = P extends `${string}:${infer Key}/${infer Re
   ? { [K in Key]: string } & PathParams<`/${Rest}`>
   : P extends `${string}:${infer Key}`
     ? { [K in Key]: string }
-    : Record<never, never>;
+    : object;
 
 type Handler = (p: Record<string, string>, req: ApiRequest) => unknown;
 const routes: { method: string; pattern: RegExp; keys: string[]; handler: Handler }[] = [];
@@ -85,7 +85,7 @@ route("GET", "/api/stats", () => {
   const toolCalls = db.audit.filter((a) => a.type === "tool.call");
   const toolUsage: Record<string, number> = {};
   for (const t of toolCalls) {
-    const name = String((t.summary.match(/Chamou (\S+)/) ?? [])[1] ?? "?");
+    const name = t.summary.match(/Chamou (\S+)/)?.[1] ?? "?";
     toolUsage[name] = (toolUsage[name] ?? 0) + 1;
   }
   return {
@@ -341,7 +341,7 @@ route("DELETE", "/api/prompts/:id", ({ id }) => {
 // ───────────────────────── Memória ─────────────────────────
 const MemoryInput = z.object({
   content: z.string().min(1),
-  kind: z.enum(["fact", "episode", "preference", "procedure"]).default("fact"),
+  kind: z.enum(MEMORY_KINDS).default("fact"),
   tags: z.array(z.string()).default([]),
   importance: z.number().min(1).max(5).default(3),
   agentId: z.string().nullable().default(null),
@@ -453,14 +453,13 @@ route("POST", "/api/mcp/:id/discover", async ({ id }, req) => {
       400,
       "Só servidores conectados pela API da Anthropic precisam de descoberta; os demais listam as ferramentas ao conectar.",
     );
-  const wanted = (req.body as { llmId?: string })?.llmId;
+  const wanted = z.object({ llmId: z.string().optional() }).optional().parse(req.body)?.llmId;
   const llm = db.llms.find((l) => l.provider === "anthropic" && llmHasCredentials(l) && (!wanted || l.id === wanted));
   if (!llm) throw new HttpError(400, "Para descobrir as ferramentas é preciso uma LLM Anthropic com chave. Cadastre a chave em “LLMs”.");
   const started = Date.now();
   const turn = await callLlm({
     llm: { ...structuredClone(llm), effort: "low", maxTokens: 4000 },
-    agent: {} as AgentConfig,
-    run: {} as RunRecord,
+    input: DISCOVERY_PROMPT,
     system: "Você descreve as ferramentas disponíveis, sem executá-las.",
     messages: [{ role: "user", content: DISCOVERY_PROMPT }],
     tools: [],
@@ -471,7 +470,7 @@ route("POST", "/api/mcp/:id/discover", async ({ id }, req) => {
   }).catch((err: unknown) => {
     throw new HttpError(502, friendlyLlmError(err) ?? (err as Error).message);
   });
-  const text = turnText(turn.content as { type: string; text?: string }[]);
+  const text = turnText(turn.content);
   const discovered = parseDiscoveredTools(text);
   if (!discovered.length)
     throw new HttpError(502, `O modelo não devolveu uma lista de ferramentas. Resposta: ${clip(text || "(vazia)", 300)}`);
@@ -516,7 +515,11 @@ route("DELETE", "/api/mcp/:id", async ({ id }) => {
 route("POST", "/api/mcp/:id/tools/:tool/call", async ({ id, tool }, req) => {
   const server = findServer(id);
   const started = Date.now();
-  const args = ((req.body as { arguments?: unknown })?.arguments ?? {}) as Record<string, unknown>;
+  const args =
+    z
+      .object({ arguments: z.record(z.string(), z.unknown()).default({}) })
+      .optional()
+      .parse(req.body)?.arguments ?? {};
   try {
     const result = await callMcpTool(server.id, decodeURIComponent(tool), args);
     audit({

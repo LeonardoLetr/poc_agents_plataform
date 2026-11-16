@@ -1,21 +1,21 @@
 import type Anthropic from "@anthropic-ai/sdk";
 import { createMemory, deleteMemory, searchMemories } from "../memory.js";
-import type { Memory, MemoryKind } from "../types.js";
-import { clip } from "../util.js";
+import { MEMORY_KINDS, type Memory } from "../types.js";
+import { clip, errorMessage } from "../util.js";
 import { evaluate } from "./calculator.js";
 
-export interface ToolContext {
+export type ToolContext = {
   agentId: string;
   runId: string;
   scratchpad: string[];
   onMemoryCreated?: (m: Memory) => void;
-}
+};
 
-export interface BuiltinTool {
+export type BuiltinTool = {
   definition: Anthropic.Tool;
   category: "raciocínio" | "memória" | "web" | "utilidade";
   run: (input: Record<string, unknown>, ctx: ToolContext) => Promise<string>;
-}
+};
 
 const str = (v: unknown, name: string): string => {
   if (typeof v !== "string" || !v.trim()) throw new Error(`Parâmetro "${name}" é obrigatório (texto).`);
@@ -121,7 +121,8 @@ export const builtinTools: Record<string, BuiltinTool> = {
       } catch (err) {
         throw new Error(
           `O navegador bloqueou a requisição (CORS ou rede): só funcionam sites que liberam CORS. ` +
-            `Com uma LLM Anthropic, use as ferramentas web_search e web_fetch para ler qualquer página. Detalhe: ${(err as Error).message}`,
+            `Com uma LLM Anthropic, use as ferramentas web_search e web_fetch para ler qualquer página. Detalhe: ${errorMessage(err)}`,
+          { cause: err },
         );
       }
       const type = res.headers.get("content-type") ?? "";
@@ -142,7 +143,7 @@ export const builtinTools: Record<string, BuiltinTool> = {
         type: "object",
         properties: {
           content: { type: "string", description: "A informação, escrita de forma autocontida." },
-          kind: { type: "string", enum: ["fact", "preference", "procedure", "episode"] },
+          kind: { type: "string", enum: [...MEMORY_KINDS] },
           tags: { type: "array", items: { type: "string" } },
           importance: { type: "integer", minimum: 1, maximum: 5 },
         },
@@ -152,7 +153,7 @@ export const builtinTools: Record<string, BuiltinTool> = {
     run: async (input, ctx) => {
       const memory = createMemory({
         content: str(input.content, "content"),
-        kind: (input.kind as MemoryKind) ?? "fact",
+        kind: MEMORY_KINDS.find((k) => k === input.kind) ?? "fact",
         tags: Array.isArray(input.tags) ? input.tags.map(String) : [],
         importance: typeof input.importance === "number" ? input.importance : 3,
         agentId: ctx.agentId,

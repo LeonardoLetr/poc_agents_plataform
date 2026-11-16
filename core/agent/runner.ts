@@ -32,7 +32,7 @@ import { bus, clip, errorMessage, now, uid } from "../util.js";
  * Cada passo emite um evento (para a visualização ao vivo) e um registro de auditoria.
  */
 
-interface LiveRun {
+type LiveRun = {
   record: RunRecord;
   agent: AgentConfig;
   llm: LlmConfig;
@@ -41,7 +41,7 @@ interface LiveRun {
   busy: boolean;
   /** Resolve quando o loop atual termina (usado pela delegação para aguardar a filha). */
   finished?: Promise<void>;
-}
+};
 
 const live = new Map<string, LiveRun>();
 
@@ -171,7 +171,7 @@ async function executeTool(
     const builtin = builtinTools[block.name];
     if (builtin) output = await builtin.run(input, ctx);
     else if (delegated) {
-      const r = await delegate(run, block.id, agentIdFromTool(block.name), String(input.task ?? "").trim());
+      const r = await delegate(run, block.id, agentIdFromTool(block.name), typeof input.task === "string" ? input.task.trim() : "");
       output = r.output;
       isError = r.isError;
     } else if (mcp) {
@@ -203,19 +203,20 @@ async function delegate(parent: LiveRun, toolUseId: string, agentId: string, tas
   const target = db.agents.find((a) => a.id === agentId);
   const depth = parent.record.depth ?? 0;
   const chain = parent.record.chain ?? [parent.agent.id];
+  if (!target) throw new Error("O agente indicado não existe mais.");
   const blocked = delegationBlocked(chain, depth, target);
   if (blocked) throw new Error(blocked);
   if (!task) throw new Error("Informe a subtarefa no campo task.");
 
-  const child = startRun(target!, task, {
+  const child = startRun(target, task, {
     parentRunId: parent.record.id,
     parentToolUseId: toolUseId,
     depth: depth + 1,
-    chain: [...chain, target!.id],
+    chain: [...chain, target.id],
   });
   (parent.record.childRunIds ??= []).push(child.id);
-  const names = [...chain, target!.id].map((id) => db.agents.find((a) => a.id === id)?.name ?? id);
-  emit(parent, { type: "delegation.started", toolUseId, childRunId: child.id, agentId: target!.id, agentName: target!.name, task });
+  const names = [...chain, target.id].map((id) => db.agents.find((a) => a.id === id)?.name ?? id);
+  emit(parent, { type: "delegation.started", toolUseId, childRunId: child.id, agentId: target.id, agentName: target.name, task });
   audit({
     type: "agent.delegated",
     actor: "agent",
@@ -249,16 +250,16 @@ async function delegate(parent: LiveRun, toolUseId: string, agentId: string, tas
   audit({
     type: "agent.delegation_finished",
     actor: "agent",
-    agentId: target!.id,
+    agentId: target.id,
     runId: parent.record.id,
-    summary: `${target!.name} ${child.status === "completed" ? "concluiu" : "não concluiu"} a subtarefa em ${child.iterations} iterações`,
+    summary: `${target.name} ${child.status === "completed" ? "concluiu" : "não concluiu"} a subtarefa em ${child.iterations} iterações`,
     tokens: childUsage,
     data: { childRunId: child.id, status: child.status },
   });
 
   if (child.status === "completed") return { output: child.output || "(o agente não retornou texto)", isError: false };
   if (child.status === "cancelled") return { output: "A execução delegada foi cancelada.", isError: true };
-  return { output: `O agente "${target!.name}" falhou: ${child.error ?? "erro desconhecido"}`, isError: true };
+  return { output: `O agente "${target.name}" falhou: ${child.error ?? "erro desconhecido"}`, isError: true };
 }
 
 /**
@@ -284,8 +285,7 @@ async function compactHistory(
 
   const turn = await callLlm({
     llm,
-    agent,
-    run: record,
+    input: record.input,
     system: record.systemPrompt,
     messages: [...toSummarize, { role: "user", content: SUMMARY_PROMPT }],
     // As mesmas ferramentas da conversa: trocar a lista invalidaria o raciocínio já registrado.
@@ -297,7 +297,7 @@ async function compactHistory(
   });
   record.usage.input += turn.usage.input;
   record.usage.output += turn.usage.output;
-  const summary = extractSummary(turnText(turn.content as { type: string; text?: string }[]));
+  const summary = extractSummary(turnText(turn.content));
   if (!summary) {
     audit({
       type: "context.compacted",
@@ -466,8 +466,7 @@ async function loop(run: LiveRun) {
       const started = Date.now();
       const turn = await callLlm({
         llm,
-        agent,
-        run: record,
+        input: record.input,
         system: record.systemPrompt,
         messages: record.messages as Msg[],
         tools,
@@ -493,10 +492,8 @@ async function loop(run: LiveRun) {
         breakdown: contextBreakdown(record.systemPrompt, [...tools, ...providerTools], record.messages),
         messageCount: record.messages.length,
       });
-      const toolUses = (turn.content as { type: string; id?: string; name?: string; input?: unknown }[]).filter(
-        (b) => b.type === "tool_use",
-      );
-      const text = turnText(turn.content as { type: string; text?: string }[]);
+      const toolUses = turn.content.filter((b): b is Anthropic.Beta.BetaToolUseBlockParam => b.type === "tool_use");
+      const text = turnText(turn.content);
       audit({
         type: "llm.response",
         actor: "agent",
@@ -522,12 +519,12 @@ async function loop(run: LiveRun) {
       }
       if (turn.stopReason === "max_tokens" && toolUses.length) throw new Error("Entrada de ferramenta truncada (max_tokens).");
       if (toolUses.length === 0) {
-        finalText = answerText(turn.content as { type: string; text?: string }[], [carried, text].filter(Boolean).join("\n\n"));
+        finalText = answerText(turn.content, [carried, text].filter(Boolean).join("\n\n"));
         break;
       }
 
       // Executa as ferramentas em paralelo e devolve TODOS os resultados em uma única mensagem de usuário.
-      const results = await Promise.all(toolUses.map((b) => executeTool(run, { id: b.id!, name: b.name!, input: b.input }, ctx)));
+      const results = await Promise.all(toolUses.map((b) => executeTool(run, b, ctx)));
       record.messages.push({ role: "user", content: results });
     }
 
@@ -650,14 +647,14 @@ export function summarizeEpisode(input: string, iterations: number, events: RunR
  * Inicia uma execução. `llmId` troca a LLM só nesta execução (sem alterar o agente);
  * `comparisonId` agrupa execuções disparadas juntas pela comparação lado a lado.
  */
-export interface StartRunOptions {
+export type StartRunOptions = {
   llmId?: string | undefined;
   comparisonId?: string | undefined;
   parentRunId?: string | undefined;
   parentToolUseId?: string | undefined;
   depth?: number | undefined;
   chain?: string[] | undefined;
-}
+};
 
 export function startRun(agent: AgentConfig, input: string, opts: StartRunOptions = {}): RunRecord {
   const llm = llmFor(agent, opts.llmId);

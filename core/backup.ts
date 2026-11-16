@@ -15,7 +15,7 @@ import { now } from "./util.js";
 
 export const EXPORT_FORMAT = "agent-lab-export";
 
-export interface ExportFile {
+export type ExportFile = {
   format: typeof EXPORT_FORMAT;
   version: number;
   exportedAt: string;
@@ -24,7 +24,7 @@ export interface ExportFile {
   prompts: PromptTemplate[];
   mcpServers: McpServerConfig[];
   memories: Memory[];
-}
+};
 
 export function exportConfig(): ExportFile {
   return {
@@ -43,7 +43,7 @@ export function exportConfig(): ExportFile {
 }
 
 /** Validação da estrutura do arquivo: o conteúdo de cada item é normalizado pela migração de dados. */
-const withId = z.object({ id: z.string().min(1) }).passthrough();
+const withId = z.object({ id: z.string().min(1) }).loose();
 const ImportSchema = z.object({
   format: z.literal(EXPORT_FORMAT, { message: "Arquivo não é uma exportação do Agent Lab." }),
   version: z.number().int().min(1),
@@ -57,14 +57,14 @@ const ImportSchema = z.object({
 type Collection = "llms" | "agents" | "prompts" | "mcpServers" | "memories";
 const COLLECTIONS: Collection[] = ["llms", "agents", "prompts", "mcpServers", "memories"];
 
-export interface ImportReport {
+export type ImportReport = {
   mode: "merge" | "replace";
   /** Por coleção: itens adicionados, substituídos e ignorados (conflitos no modo mesclar). */
   counts: Record<Collection, { added: number; replaced: number; skipped: number }>;
   /** Itens que já existiam (mesmo id) e foram mantidos no modo mesclar. */
   conflicts: { collection: Collection; id: string; name: string }[];
   warnings: string[];
-}
+};
 
 const label = (item: { id: string; name?: string; content?: string }) => item.name ?? (item.content ? item.content.slice(0, 60) : item.id);
 
@@ -78,7 +78,7 @@ export async function importConfig(raw: unknown, mode: "merge" | "replace"): Pro
   if (parsed.version > db.version)
     throw new Error(`O arquivo é de uma versão mais nova da plataforma (${parsed.version}); atualize a página e tente de novo.`);
   // A migração normaliza arquivos de versões anteriores para o formato atual.
-  const incoming = migrate({ ...parsed, audit: [], runs: [] } as unknown as Record<string, unknown>);
+  const incoming = migrate({ ...parsed, audit: [], runs: [] });
   const report: ImportReport = {
     mode,
     counts: Object.fromEntries(COLLECTIONS.map((c) => [c, { added: 0, replaced: 0, skipped: 0 }])) as ImportReport["counts"],

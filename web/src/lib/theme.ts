@@ -8,7 +8,7 @@ export type Theme = "claro" | "escuro";
 
 const KEY = "agentlab.tema";
 const META: Record<Theme, string> = { claro: "#f7f5ef", escuro: "#262624" };
-const media = () => window.matchMedia?.("(prefers-color-scheme: dark)");
+const media = () => window.matchMedia("(prefers-color-scheme: dark)");
 
 function stored(): Theme | null {
   try {
@@ -20,7 +20,7 @@ function stored(): Theme | null {
 }
 
 export function resolveTheme(): Theme {
-  return stored() ?? (media()?.matches ? "escuro" : "claro");
+  return stored() ?? (media().matches ? "escuro" : "claro");
 }
 
 export function applyTheme(theme: Theme) {
@@ -45,7 +45,7 @@ export function initTheme() {
   if (fromUrl === "claro" || fromUrl === "escuro") saveTheme(fromUrl);
   else applyTheme(resolveTheme());
   // Acompanha mudanças do sistema enquanto o usuário não escolheu um tema.
-  media()?.addEventListener?.("change", () => {
+  media().addEventListener("change", () => {
     if (!stored()) applyTheme(resolveTheme());
   });
 }
@@ -54,8 +54,8 @@ export function useTheme() {
   const [theme, setTheme] = useState<Theme>(resolveTheme);
   useEffect(() => {
     const sync = () => setTheme(resolveTheme());
-    media()?.addEventListener?.("change", sync);
-    return () => media()?.removeEventListener?.("change", sync);
+    media().addEventListener("change", sync);
+    return () => media().removeEventListener("change", sync);
   }, []);
   const toggle = () => {
     const next: Theme = theme === "escuro" ? "claro" : "escuro";

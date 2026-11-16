@@ -99,12 +99,12 @@ export function termSimilarity(a: string, b: string): number {
 const K1 = 1.2;
 const B = 0.75;
 
-export interface ScoredMemory {
+export type ScoredMemory = {
   memory: Memory;
   score: number;
   /** relevance: BM25 normalizado (0–1) · importance: 0–1 · recency: 0–1 */
   breakdown: { relevance: number; importance: number; recency: number };
-}
+};
 
 export function searchMemories(
   query: string,

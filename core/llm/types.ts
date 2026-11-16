@@ -1,14 +1,14 @@
 import type Anthropic from "@anthropic-ai/sdk";
-import type { AgentConfig, LlmConfig, RunEvent, RunRecord, Usage } from "../types.js";
+import type { LlmConfig, RunEvent, Usage } from "../types.js";
 
 /** O histórico é sempre guardado no formato de mensagens da Anthropic; outros provedores convertem. */
 export type Msg = Anthropic.Beta.BetaMessageParam;
 export type Block = Anthropic.Beta.BetaContentBlockParam;
 
-export interface LlmCall {
+export type LlmCall = {
   llm: LlmConfig;
-  agent: AgentConfig;
-  run: RunRecord;
+  /** Pedido original da execução: a LLM demo o usa quando o histórico não traz o texto do usuário. */
+  input: string;
   system: string;
   messages: Msg[];
   tools: Anthropic.Tool[];
@@ -18,11 +18,11 @@ export interface LlmCall {
   mcpServers?: Anthropic.Beta.BetaRequestMCPServerURLDefinition[] | undefined;
   signal: AbortSignal;
   emit: (ev: RunEvent) => void;
-}
+};
 
-export interface AssistantTurn {
+export type AssistantTurn = {
   content: Block[];
   stopReason: string | null;
   usage: Usage;
   model: string;
-}
+};

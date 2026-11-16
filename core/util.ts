@@ -18,8 +18,9 @@ export function errorMessage(err: unknown): string {
 export class Emitter {
   private handlers = new Map<string, Set<(payload: unknown) => void>>();
   on(event: string, fn: (payload: unknown) => void) {
-    if (!this.handlers.has(event)) this.handlers.set(event, new Set());
-    this.handlers.get(event)!.add(fn);
+    const handlers = this.handlers.get(event) ?? new Set();
+    handlers.add(fn);
+    this.handlers.set(event, handlers);
     return () => this.off(event, fn);
   }
   off(event: string, fn: (payload: unknown) => void) {

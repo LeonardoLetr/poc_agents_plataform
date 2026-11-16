@@ -5,7 +5,7 @@ import type { Citation, Memory, RunEvent, RunStatus } from "./api";
  * a timeline (passos) e o "nó ativo" do grafo.
  */
 
-export interface ToolStep {
+export type ToolStep = {
   id: string;
   name: string;
   input: unknown;
@@ -16,7 +16,7 @@ export interface ToolStep {
   status: "running" | "awaiting_approval" | "done" | "error" | "denied";
   output?: string;
   durationMs?: number;
-}
+};
 
 export type Step =
   | { kind: "user"; text: string; ts: string }
@@ -50,7 +50,7 @@ export type Step =
   | { kind: "final"; text: string; ts: string }
   | { kind: "error"; text: string; ts: string };
 
-export interface ContextPoint {
+export type ContextPoint = {
   iteration: number;
   tokens: number;
   window: number;
@@ -59,9 +59,9 @@ export interface ContextPoint {
   messageCount: number;
   /** Houve resumo do histórico antes desta iteração. */
   compactedBefore?: boolean;
-}
+};
 
-export interface RunView {
+export type RunView = {
   status: RunStatus | "idle";
   steps: Step[];
   /** Nó em destaque no grafo: "llm", "memory", "scratchpad", nome de ferramenta ou servidor MCP. */
@@ -78,7 +78,7 @@ export interface RunView {
   model?: string;
   provider?: string;
   pendingApprovals: ToolStep[];
-}
+};
 
 export const emptyRun: RunView = {
   status: "idle",

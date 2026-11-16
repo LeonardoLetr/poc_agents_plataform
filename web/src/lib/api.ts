@@ -4,7 +4,7 @@ import { getCore } from "./runtime";
 export type Provider = "anthropic" | "openai" | "demo";
 export type Effort = "low" | "medium" | "high" | "xhigh" | "max";
 
-export interface Agent {
+export type Agent = {
   id: string;
   name: string;
   emoji: string;
@@ -19,9 +19,9 @@ export interface Agent {
   context?: { autoCompact: boolean; thresholdPct: number };
   createdAt: string;
   updatedAt: string;
-}
+};
 
-export interface Llm {
+export type Llm = {
   id: string;
   name: string;
   provider: Provider;
@@ -37,8 +37,8 @@ export interface Llm {
   agents: string[];
   createdAt: string;
   updatedAt: string;
-}
-export interface LlmInput {
+};
+export type LlmInput = {
   name: string;
   provider: Provider;
   model: string;
@@ -48,12 +48,12 @@ export interface LlmInput {
   refusalFallback: boolean;
   maxTokens?: number;
   contextWindow?: number | undefined;
-}
+};
 
 export type AgentInput = Omit<Agent, "id" | "createdAt" | "updatedAt">;
 
 export type MemoryKind = "fact" | "episode" | "preference" | "procedure";
-export interface Memory {
+export type Memory = {
   id: string;
   agentId: string | null;
   kind: MemoryKind;
@@ -64,9 +64,9 @@ export interface Memory {
   createdAt: string;
   lastAccessedAt: string | null;
   source: "user" | "agent" | "auto";
-}
+};
 
-export interface ToolInfo {
+export type ToolInfo = {
   name: string;
   description: string;
   inputSchema: { properties?: Record<string, { type?: string; description?: string; enum?: string[] }>; required?: string[] };
@@ -78,9 +78,9 @@ export interface ToolInfo {
   label?: string;
   /** MCP conectado pela API da Anthropic: ferramentas conhecidas só durante a execução. */
   viaAnthropic?: boolean;
-}
+};
 
-export interface McpServer {
+export type McpServer = {
   id: string;
   name: string;
   transport: "http" | "builtin";
@@ -102,18 +102,18 @@ export interface McpServer {
     connectedAt?: string;
     logs: string[];
   };
-}
+};
 
-export interface PromptTemplate {
+export type PromptTemplate = {
   id: string;
   name: string;
   description: string;
   content: string;
   category: "system" | "task";
   createdAt: string;
-}
+};
 
-export interface AuditEntry {
+export type AuditEntry = {
   id: string;
   ts: string;
   type: string;
@@ -124,10 +124,10 @@ export interface AuditEntry {
   data?: unknown;
   durationMs?: number;
   tokens?: { input: number; output: number; cacheRead?: number };
-}
+};
 
 export type RunStatus = "running" | "awaiting_approval" | "completed" | "failed" | "cancelled";
-export interface RunSummary {
+export type RunSummary = {
   id: string;
   agentId: string;
   agentName: string;
@@ -144,19 +144,19 @@ export interface RunSummary {
   depth?: number;
   childRunIds?: string[];
   childUsage?: { input: number; output: number };
-}
-export interface RunDetail extends RunSummary {
+};
+export type RunDetail = {
   events: RunEvent[];
   messages: unknown[];
   systemPrompt: string;
   scratchpad: string[];
-}
+} & RunSummary;
 
-export interface Citation {
+export type Citation = {
   url: string;
   title: string | null;
   citedText: string;
-}
+};
 
 export type RunEvent = { ts: string } & (
   | { type: "run.started"; runId: string; agentId: string; input: string; provider: Provider; model: string; llmName?: string }
@@ -218,7 +218,7 @@ export type RunEvent = { ts: string } & (
   | { type: "run.cancelled" }
 );
 
-export interface Health {
+export type Health = {
   ok: boolean;
   capabilities: { builtinMcp: string[] };
   llmsReady: number;
@@ -227,9 +227,9 @@ export interface Health {
     anthropic: { id: string; label: string; note: string; fallback: boolean }[];
     openai: { id: string; label: string; baseUrl: string; model: string; needsKey: boolean }[];
   };
-}
+};
 
-export interface Stats {
+export type Stats = {
   agents: number;
   llms: number;
   runs: number;
@@ -242,7 +242,7 @@ export interface Stats {
   tokens: { input: number; output: number };
   estimatedCostUsd: number;
   auditEntries: number;
-}
+};
 
 /** A "requisição" é uma chamada de função ao núcleo, na mesma aba. */
 async function request<T>(method: string, url: string, body?: unknown): Promise<T> {
@@ -267,7 +267,7 @@ export function subscribeStream(url: string, onMessage: (data: unknown) => void,
     if (closed) return;
     // Entrega assíncrona e com cópia, para a UI nunca compartilhar objetos com o núcleo.
     const stop = core.subscribe(url, (data) => {
-      const copy = JSON.parse(JSON.stringify(data));
+      const copy: unknown = JSON.parse(JSON.stringify(data));
       queueMicrotask(() => onMessage(copy));
     });
     onStatus(Boolean(stop));
@@ -287,7 +287,7 @@ export const api = {
   del: <T>(url: string) => request<T>("DELETE", url),
 };
 
-export interface CompareResult {
+export type CompareResult = {
   runId: string;
   agentId: string;
   agentName: string;
@@ -304,18 +304,18 @@ export interface CompareResult {
   durationMs: number | null;
   toolCalls: number;
   tools: string[];
-}
-export interface Comparison {
+};
+export type Comparison = {
   id: string;
   input: string;
   startedAt: string;
   done: boolean;
   results: CompareResult[];
-}
-export interface ComparisonSummary {
+};
+export type ComparisonSummary = {
   id: string;
   input: string;
   startedAt: string;
   count: number;
   done: boolean;
-}
+};

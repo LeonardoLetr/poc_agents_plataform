@@ -26,6 +26,8 @@
 
 ```bash
 npm run typecheck     # tipos do núcleo (core) e da interface (web)
+npm run lint          # typescript-eslint na lógica (core e web/src/lib)
+npm run format:check  # formatação (Prettier); `npm run format` corrige
 npm test              # suíte do núcleo (Vitest, core/tests)
 npm run build         # build da interface
 ```

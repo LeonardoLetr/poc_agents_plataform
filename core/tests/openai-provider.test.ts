@@ -33,8 +33,7 @@ function call(messages: LlmCall["messages"], emit: (e: RunEvent) => void = () =>
     tools: [
       { name: "calculator", description: "Calcula", input_schema: { type: "object", properties: { expression: { type: "string" } } } },
     ],
-    agent: {} as LlmCall["agent"],
-    run: {} as LlmCall["run"],
+    input: "",
   };
 }
 

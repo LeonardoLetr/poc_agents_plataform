@@ -60,7 +60,7 @@ describe("migração para a versão 3 (multiagente)", () => {
   });
 
   it("não duplica o coordenador nem o cria sem o agente demo", () => {
-    const twice = migrate(migrate(structuredClone(v2())) as never);
+    const twice = migrate(migrate(structuredClone(v2())));
     expect(twice.agents.filter((a) => a.name === "Coordenador (offline)")).toHaveLength(1);
     const noDemo = v2();
     noDemo.agents = noDemo.agents.filter((a) => a.name !== "Agente Demo (offline)");
@@ -201,7 +201,7 @@ describe("migração para a versão 9 (sem servidor local)", () => {
       ],
       agents: fresh.agents.map((a) => (a.name === "Explorador MCP" ? { ...a, tools: [...a.tools, "mcp__everything__*"] } : a)),
     };
-    const db = migrate(structuredClone(data) as never);
+    const db = migrate(structuredClone(data));
     expect(db.mcpServers.map((s) => s.name)).toEqual(["laboratorio"]);
     expect(db.agents.find((a) => a.name === "Explorador MCP")!.tools).toEqual(["mcp__laboratorio__*", "calculator"]);
     expect(db.mcpServers[0]).not.toHaveProperty("env");
