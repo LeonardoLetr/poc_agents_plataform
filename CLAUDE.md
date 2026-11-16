@@ -4,11 +4,13 @@
 
 - **Idioma:** nomes de branch e mensagens de commit sempre em inglês. Documentação, comentários de código e textos da
   interface permanecem em português.
-- **Branches:** `dev` é a branch de integração. Cada mudança é feita em uma branch criada a partir da `dev`, com
-  prefixo do tipo e nome descritivo em kebab-case: `feat/`, `fix/`, `test/`, `docs/`, `refactor/`, `chore/`, `ci/`
-  (ex.: `feat/model-comparison`, `fix/approval-race`). Depois de validada, a branch é integrada à `dev`.
-- **`main`:** recebe mudanças apenas a partir da `dev` e somente quando solicitado. Todo push na `main` publica o site
-  no GitHub Pages.
+- **Branches:** cada funcionalidade ou correção tem a própria branch, criada a partir da `main`, com prefixo do tipo
+  e nome descritivo em kebab-case: `feat/`, `fix/`, `test/`, `docs/`, `refactor/`, `chore/`, `ci/`
+  (ex.: `feat/model-comparison`, `fix/approval-race`). Não há branch de integração intermediária.
+- **Branches dependentes:** quando uma funcionalidade depende de outra ainda não integrada, a nova branch parte da
+  anterior; o merge na `main` segue a mesma ordem.
+- **`main`:** o merge de uma branch na `main` só é feito com autorização explícita do responsável pelo repositório.
+  Todo push na `main` publica o site no GitHub Pages.
 - **Commits:** padrão Conventional Commits (`feat:`, `fix:`, `test:`, `docs:`, `refactor:`, `chore:`, `ci:`), com
   escopo opcional (`feat(memory): ...`), assunto no imperativo, até ~72 caracteres, e corpo explicando o motivo quando
   relevante.
