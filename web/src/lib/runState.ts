@@ -1,4 +1,4 @@
-import type { Memory, RunEvent, RunStatus } from "./api";
+import type { Citation, Memory, RunEvent, RunStatus } from "./api";
 
 /**
  * Converte o fluxo de eventos de uma execução em um estado fácil de desenhar:
@@ -9,7 +9,7 @@ export interface ToolStep {
   id: string;
   name: string;
   input: unknown;
-  source: "builtin" | "mcp";
+  source: "builtin" | "mcp" | "server";
   server?: string;
   status: "running" | "awaiting_approval" | "done" | "error" | "denied";
   output?: string;
@@ -26,6 +26,7 @@ export type Step =
       thinking: string;
       text: string;
       tools: ToolStep[];
+      citations?: Citation[];
       usage?: { input: number; output: number; cacheRead?: number };
       stopReason?: string | null;
       durationMs?: number;
@@ -60,8 +61,13 @@ export const emptyRun: RunView = {
   pendingApprovals: [],
 };
 
+/** Ferramentas executadas pela Anthropic durante a chamada ao modelo (não pelo loop local). */
+export const SERVER_TOOL_NAMES = ["web_search", "web_fetch"];
+
 /** Para qual nó do grafo uma ferramenta "aponta". */
 export function graphTarget(name: string, server?: string): string {
+  // Execução de código interna da filtragem dinâmica: aparece junto ao modelo.
+  if (/code_execution/.test(name)) return "llm";
   if (name.startsWith("memory_")) return "memory";
   if (name.startsWith("scratchpad_")) return "scratchpad";
   if (server) return `mcp:${server}`;
@@ -140,6 +146,9 @@ export function reduceRun(state: RunView, ev: RunEvent): RunView {
         ...it,
         tools: it.tools.map((t) => (t.id === ev.id ? { ...t, status: t.status === "denied" ? "denied" : ev.isError ? "error" : "done", output: ev.output, durationMs: ev.durationMs } : t)),
       }));
+      return { ...state, steps };
+    case "citations":
+      updateIter((it) => ({ ...it, citations: [...(it.citations ?? []), ...ev.items] }));
       return { ...state, steps };
     case "memory.created":
       return { ...state, steps: [...steps, { kind: "memory", memory: ev.memory, ts: ev.ts }], active: "memory" };

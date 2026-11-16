@@ -1,7 +1,8 @@
 import { AnimatePresence, motion } from "motion/react";
-import { AlertTriangle, Brain, CheckCircle2, ChevronDown, CircleDashed, Hand, Loader2, MessageSquare, Plug, User, Wrench, XCircle } from "lucide-react";
+import { AlertTriangle, Brain, CheckCircle2, ChevronDown, CircleDashed, Cloud, Hand, Link2, Loader2, MessageSquare, Plug, User, Wrench, XCircle } from "lucide-react";
 import { useState } from "react";
 import { fmtMs, fmtNumber, kindLabel, toolLabel } from "../lib/format";
+import type { Citation } from "../lib/api";
 import type { Step, ToolStep } from "../lib/runState";
 import { JsonView } from "./JsonView";
 import { Markdown } from "./Markdown";
@@ -38,8 +39,8 @@ function ToolCard({ tool }: { tool: ToolStep }) {
       {/* Cartão de item: categoria em caixa alta + status, nome, rodapé com duração */}
       <button onClick={() => setOpen(!open)} className="block w-full p-3 text-left">
         <div className="flex items-center gap-1.5 text-[10.5px] font-medium uppercase tracking-[0.04em] text-ink-400">
-          {server ? <Plug size={11} /> : <Wrench size={11} />}
-          {server ? `MCP · ${server}` : "Ferramenta nativa"}
+          {server ? <Plug size={11} /> : tool.source === "server" ? <Cloud size={11} /> : <Wrench size={11} />}
+          {server ? `MCP · ${server}` : tool.source === "server" ? "Servidor Anthropic" : "Ferramenta nativa"}
           <span className="ml-auto normal-case tracking-normal">
             <Badge color={status.badge}>
               {status.icon} {status.text}
@@ -56,6 +57,7 @@ function ToolCard({ tool }: { tool: ToolStep }) {
         {open && (
           <motion.div initial={{ height: 0 }} animate={{ height: "auto" }} exit={{ height: 0 }} className="overflow-hidden">
             <div className="space-y-2 border-t border-ink-850 p-3">
+              {tool.source === "server" && <p className="text-[11.5px] text-ink-400">Executada pela Anthropic durante a chamada ao modelo; o resultado entra no contexto sem passar pelo loop local.</p>}
               <div className="font-mono text-[10px] uppercase tracking-wider text-ink-500">entrada (gerada pelo LLM)</div>
               <JsonView value={tool.input} maxHeight={160} />
               {tool.output !== undefined && (
@@ -70,6 +72,36 @@ function ToolCard({ tool }: { tool: ToolStep }) {
       </AnimatePresence>
     </motion.div>
   );
+}
+
+function Sources({ items }: { items: Citation[] }) {
+  const byUrl = [...new Map(items.map((c) => [c.url, c])).values()];
+  return (
+    <div className="mt-2.5 rounded-[10px] border border-ink-700 bg-surface p-3">
+      <div className="mb-1.5 flex items-center gap-1.5 text-[10.5px] font-medium uppercase tracking-[0.04em] text-ink-400">
+        <Link2 size={11} /> Fontes citadas · {byUrl.length}
+      </div>
+      <ol className="space-y-1.5">
+        {byUrl.map((c, i) => (
+          <li key={c.url} className="min-w-0 text-[12px] leading-snug">
+            <a href={c.url} target="_blank" rel="noreferrer noopener" className="font-medium text-info hover:underline">
+              {i + 1}. {c.title || hostOf(c.url)}
+            </a>
+            <span className="ml-1.5 text-ink-500">{hostOf(c.url)}</span>
+            {c.citedText && <div className="mt-0.5 line-clamp-2 text-ink-400">“{c.citedText}”</div>}
+          </li>
+        ))}
+      </ol>
+    </div>
+  );
+}
+
+function hostOf(url: string) {
+  try {
+    return new URL(url).hostname.replace(/^www\./, "");
+  } catch {
+    return url;
+  }
 }
 
 function Iteration({ step, live }: { step: Extract<Step, { kind: "iteration" }>; live: boolean }) {
@@ -109,10 +141,12 @@ function Iteration({ step, live }: { step: Extract<Step, { kind: "iteration" }>;
 
       {step.tools.length > 0 && <div className="mt-2.5 space-y-2">{step.tools.map((t) => <ToolCard key={t.id} tool={t} />)}</div>}
 
+      {step.citations && step.citations.length > 0 && <Sources items={step.citations} />}
+
       {step.stopReason && (
         <div className="mt-2 font-mono text-[10px] text-ink-500">
           stop_reason: <span className={step.stopReason === "tool_use" ? "text-warn" : "text-ok"}>{step.stopReason}</span>
-          {step.stopReason === "tool_use" ? " → executar ferramentas e voltar ao LLM" : " → fim do loop"}
+          {step.stopReason === "tool_use" ? " → executar ferramentas e voltar ao LLM" : step.stopReason === "pause_turn" ? " → pausa do servidor; o loop reenvia para retomar" : " → fim do loop"}
         </div>
       )}
     </div>

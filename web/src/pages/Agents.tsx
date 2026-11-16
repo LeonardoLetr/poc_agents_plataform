@@ -1,5 +1,5 @@
 import { motion } from "motion/react";
-import { Bot, Copy, FileText, Pencil, Play, Plus, Trash2 } from "lucide-react";
+import { Bot, Cloud, Copy, FileText, Pencil, Play, Plus, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { SpotlightCard } from "../components/effects";
@@ -133,6 +133,9 @@ function AgentEditor({ initial, id, onClose, onSaved }: { initial: AgentInput; i
   const toggleTool = (name: string) => set("tools", form.tools.includes(name) ? form.tools.filter((t) => t !== name) : [...form.tools, name]);
 
   const builtin = tools.data?.filter((t) => t.source === "builtin") ?? [];
+  const serverTools = tools.data?.filter((t) => t.source === "server") ?? [];
+  const selectedLlm = llms.data?.find((l) => l.id === form.llmId);
+  const serverToolsUnsupported = Boolean(selectedLlm && selectedLlm.provider !== "anthropic" && serverTools.some((t) => form.tools.includes(t.name)));
   const mcpServers = [...new Set(tools.data?.filter((t) => t.source === "mcp").map((t) => t.server!) ?? [])];
 
   async function save() {
@@ -235,6 +238,29 @@ function AgentEditor({ initial, id, onClose, onSaved }: { initial: AgentInput; i
               </label>
             ))}
           </div>
+          {serverTools.length > 0 && (
+            <div className="mt-3">
+              <div className="mb-1.5 flex flex-wrap items-center gap-x-2 text-[12px] text-ink-400">
+                <Cloud size={12} /> Executadas pela Anthropic <span className="text-ink-500">· apenas LLMs Anthropic · até 5 usos por chamada</span>
+              </div>
+              <div className="grid gap-2 md:grid-cols-2">
+                {serverTools.map((t) => (
+                  <label key={t.name} className={`flex cursor-pointer gap-2.5 rounded-lg border p-2.5 transition ${form.tools.includes(t.name) ? "border-ink-400/50 bg-ink-950" : "border-ink-700 hover:bg-ink-950"}`}>
+                    <input type="checkbox" className="mt-0.5 accent-[#2563eb]" checked={form.tools.includes(t.name)} onChange={() => toggleTool(t.name)} />
+                    <span className="min-w-0">
+                      <span className="flex items-center gap-1.5 font-mono text-[12px] text-ink-100">
+                        {t.name} <Badge color="info">servidor</Badge>
+                      </span>
+                      <span className="line-clamp-2 text-[11.5px] text-ink-400">{t.description}</span>
+                    </span>
+                  </label>
+                ))}
+              </div>
+              {serverToolsUnsupported && (
+                <p className="mt-1.5 text-[11.5px] text-warn">A LLM selecionada não é da Anthropic: as ferramentas de servidor serão ignoradas nas execuções.</p>
+              )}
+            </div>
+          )}
           {mcpServers.length > 0 && (
             <div className="mt-3 space-y-2">
               {mcpServers.map((server) => {

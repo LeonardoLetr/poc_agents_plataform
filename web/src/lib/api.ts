@@ -67,7 +67,7 @@ export interface ToolInfo {
   name: string;
   description: string;
   inputSchema: { properties?: Record<string, { type?: string; description?: string; enum?: string[] }>; required?: string[] };
-  source: "builtin" | "mcp";
+  source: "builtin" | "mcp" | "server";
   server?: string;
   category: string;
 }
@@ -137,6 +137,12 @@ export interface RunDetail extends RunSummary {
   scratchpad: string[];
 }
 
+export interface Citation {
+  url: string;
+  title: string | null;
+  citedText: string;
+}
+
 export type RunEvent = { ts: string } & (
   | { type: "run.started"; runId: string; agentId: string; input: string; provider: Provider; model: string; llmName?: string }
   | { type: "memory.recalled"; memories: { id: string; content: string; score: number; kind: MemoryKind }[] }
@@ -145,10 +151,11 @@ export type RunEvent = { ts: string } & (
   | { type: "thinking.delta"; text: string }
   | { type: "text.delta"; text: string }
   | { type: "llm.response"; iteration: number; stopReason: string | null; usage: { input: number; output: number; cacheRead?: number }; durationMs: number; model: string }
-  | { type: "tool.call"; id: string; name: string; input: unknown; source: "builtin" | "mcp"; server?: string }
+  | { type: "tool.call"; id: string; name: string; input: unknown; source: "builtin" | "mcp" | "server"; server?: string }
   | { type: "tool.approval_requested"; id: string; name: string; input: unknown }
   | { type: "tool.approval_resolved"; id: string; approved: boolean }
   | { type: "tool.result"; id: string; name: string; output: string; isError: boolean; durationMs: number }
+  | { type: "citations"; items: Citation[] }
   | { type: "memory.created"; memory: Memory }
   | { type: "user.message"; text: string }
   | { type: "run.completed"; output: string; iterations: number; usage: { input: number; output: number } }

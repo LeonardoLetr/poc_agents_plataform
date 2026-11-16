@@ -3,7 +3,7 @@ import { motion } from "motion/react";
 import { Brain, Calculator, Clock, Globe, NotebookPen, Plug, User, Wrench } from "lucide-react";
 import { useEffect, useMemo } from "react";
 import type { Agent, ToolInfo } from "../lib/api";
-import { graphTarget, type RunView } from "../lib/runState";
+import { graphTarget, SERVER_TOOL_NAMES, type RunView } from "../lib/runState";
 
 /**
  * Grafo ao vivo do agente: mostra o LLM no centro, a memória, o scratchpad e
@@ -17,6 +17,8 @@ const ICONS: Record<string, typeof Wrench> = {
   calculator: Calculator,
   current_time: Clock,
   http_fetch: Globe,
+  web_search: Globe,
+  web_fetch: Globe,
 };
 
 const handles = (
@@ -155,6 +157,9 @@ function GraphInner({ agent, tools, view, llmLabel }: { agent: Agent; tools: Too
       if (last && last.kind === "iteration") {
         if (last.phase === "tools") {
           for (const t of last.tools) if (t.status === "running" || t.status === "awaiting_approval") flows.set(graphTarget(t.name, t.server), "out");
+        } else if (last.phase === "llm" && last.tools.some((t) => t.status === "running")) {
+          // Ferramentas de servidor rodam durante a própria chamada ao modelo.
+          for (const t of last.tools) if (t.status === "running") flows.set(graphTarget(t.name, t.server), "out");
         } else if (last.phase === "llm") {
           const prev = [...view.steps].reverse().filter((s) => s.kind === "iteration")[1];
           if (prev && prev.kind === "iteration" && prev.tools.length) for (const t of prev.tools) flows.set(graphTarget(t.name, t.server), "back");
@@ -166,7 +171,11 @@ function GraphInner({ agent, tools, view, llmLabel }: { agent: Agent; tools: Too
     if (view.status === "completed") flows.set("user", "back");
 
     const toolNodes: { id: string; label: string; sub?: string; icon: typeof Wrench; color: string; dim?: boolean }[] = [
-      ...builtin.map((t) => ({ id: `tool:${t}`, label: t, sub: "ferramenta nativa", icon: ICONS[t] ?? Wrench, color: "#d97706" })),
+      ...builtin.map((t) =>
+        SERVER_TOOL_NAMES.includes(t)
+          ? { id: `tool:${t}`, label: t, sub: "servidor Anthropic", icon: ICONS[t] ?? Globe, color: "#0891b2" }
+          : { id: `tool:${t}`, label: t, sub: "ferramenta nativa", icon: ICONS[t] ?? Wrench, color: "#d97706" },
+      ),
       ...[...mcpServers].map((s) => {
         const available = tools.filter((t) => t.server === s).length;
         return { id: `mcp:${s}`, label: s, sub: available ? `MCP · ${available} ferramentas` : "MCP · desconectado", icon: Plug, color: "#ea580c", dim: !available };
