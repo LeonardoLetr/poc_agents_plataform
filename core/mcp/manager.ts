@@ -106,7 +106,8 @@ async function buildTransport(cfg: McpServerConfig): Promise<Transport> {
   return new StreamableHTTPClientTransport(new URL(cfg.url), { requestInit: { headers: cfg.headers ?? {} } });
 }
 
-export async function connect(cfg: McpServerConfig): Promise<void> {
+/** `silent`: não registra a conexão bem-sucedida na auditoria (reconexão automática ao iniciar). */
+export async function connect(cfg: McpServerConfig, opts: { silent?: boolean } = {}): Promise<void> {
   await disconnect(cfg.id, false);
   const c = conn(cfg.id);
   c.status = "connecting";
@@ -154,7 +155,7 @@ export async function connect(cfg: McpServerConfig): Promise<void> {
       }
     };
 
-    audit({
+    if (!opts.silent) audit({
       type: "mcp.connected",
       actor: "system",
       summary: `MCP "${cfg.name}" conectado (${c.tools.length} ferramentas)`,

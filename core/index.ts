@@ -35,5 +35,7 @@ export function initCore(opts: CoreOptions) {
     }
   }
   persist();
-  for (const s of db.mcpServers.filter((s) => s.enabled)) void connect(s);
+  // Reconecta os servidores habilitados. Os embutidos reconectam a cada carregamento no modo navegador,
+  // então não geram registro de auditoria (falhas continuam sendo registradas).
+  for (const s of db.mcpServers.filter((s) => s.enabled)) void connect(s, { silent: s.transport === "builtin" });
 }
