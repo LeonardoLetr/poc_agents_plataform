@@ -18,6 +18,8 @@ import {
 } from "./context.js";
 import { agentIdFromTool, agentToolDefinition, delegationBlocked, isAgentTool } from "./delegation.js";
 import { collectCitations, isServerTool, serverToolDefinitions } from "../tools/server.js";
+import type { AssistantTurn } from "../llm/types.js";
+import { toolUsesOf, turnOutcome, turnText } from "./turn.js";
 import type { AgentConfig, LlmConfig, RunEvent, RunRecord } from "../types.js";
 import { bus, clip, errorMessage, isRecord, now, uid } from "../util.js";
 
@@ -109,6 +111,36 @@ function buildSystemPrompt(agent: AgentConfig, recalled: { content: string; kind
   return parts.join("\n\n");
 }
 
+/** Pede aprovação ao usuário e aguarda a decisão; cancelar a execução conta como negar. */
+async function requestApproval(run: LiveRun, toolUseId: string, name: string, input: unknown): Promise<boolean> {
+  run.record.status = "awaiting_approval";
+  // O receptor da decisão é registrado ANTES de anunciar o pedido: uma resposta imediata não pode se perder.
+  const decision = new Promise<boolean>((resolve) => {
+    run.approvals.set(toolUseId, resolve);
+    run.abort.signal.addEventListener("abort", () => resolve(false), { once: true });
+  });
+  emit(run, { type: "tool.approval_requested", id: toolUseId, name, input });
+  audit({
+    type: "tool.approval_requested",
+    actor: "system",
+    agentId: run.agent.id,
+    runId: run.record.id,
+    summary: `Aguardando aprovação para ${name}`,
+  });
+  const approved = await decision;
+  run.approvals.delete(toolUseId);
+  if (run.approvals.size === 0) run.record.status = "running";
+  emit(run, { type: "tool.approval_resolved", id: toolUseId, approved });
+  audit({
+    type: "tool.approval_resolved",
+    actor: "user",
+    agentId: run.agent.id,
+    runId: run.record.id,
+    summary: `${approved ? "Aprovou" : "Negou"} ${name}`,
+  });
+  return approved;
+}
+
 async function executeTool(
   run: LiveRun,
   block: { id: string; name: string; input: unknown },
@@ -134,37 +166,10 @@ async function executeTool(
     data: { toolUseId: block.id, input, server: mcp?.server.name },
   });
 
-  if (run.agent.requireApproval) {
-    run.record.status = "awaiting_approval";
-    // O receptor da decisão é registrado ANTES de anunciar o pedido: uma resposta imediata não pode se perder.
-    const decision = new Promise<boolean>((resolve) => {
-      run.approvals.set(block.id, resolve);
-      run.abort.signal.addEventListener("abort", () => resolve(false), { once: true });
-    });
-    emit(run, { type: "tool.approval_requested", id: block.id, name: block.name, input });
-    audit({
-      type: "tool.approval_requested",
-      actor: "system",
-      agentId: run.agent.id,
-      runId: run.record.id,
-      summary: `Aguardando aprovação para ${block.name}`,
-    });
-    const approved = await decision;
-    run.approvals.delete(block.id);
-    if (run.approvals.size === 0) run.record.status = "running";
-    emit(run, { type: "tool.approval_resolved", id: block.id, approved });
-    audit({
-      type: "tool.approval_resolved",
-      actor: "user",
-      agentId: run.agent.id,
-      runId: run.record.id,
-      summary: `${approved ? "Aprovou" : "Negou"} ${block.name}`,
-    });
-    if (!approved) {
-      const output = "O usuário NEGOU a execução desta ferramenta. Siga sem ela ou pergunte como prosseguir.";
-      emit(run, { type: "tool.result", id: block.id, name: block.name, output, isError: true, durationMs: 0 });
-      return { type: "tool_result", tool_use_id: block.id, content: output, is_error: true };
-    }
+  if (run.agent.requireApproval && !(await requestApproval(run, block.id, block.name, input))) {
+    const output = "O usuário NEGOU a execução desta ferramenta. Siga sem ela ou pergunte como prosseguir.";
+    emit(run, { type: "tool.result", id: block.id, name: block.name, output, isError: true, durationMs: 0 });
+    return { type: "tool_result", tool_use_id: block.id, content: output, is_error: true };
   }
 
   const started = Date.now();
@@ -267,18 +272,81 @@ async function delegate(parent: LiveRun, toolUseId: string, agentId: string, tas
   return { output: `O agente "${target.name}" falhou: ${child.error ?? "erro desconhecido"}`, isError: true };
 }
 
+/** Ferramentas de uma execução: as locais (executadas pelo loop) e as do provedor (executadas pela Anthropic). */
+type RunTools = {
+  local: Anthropic.Tool[];
+  /** Ferramentas de servidor e conjuntos de ferramentas dos servidores MCP conectados pela API. */
+  provider: Anthropic.Beta.BetaToolUnion[];
+  mcpServers: Anthropic.Beta.BetaRequestMCPServerURLDefinition[];
+  /** Nomes para a auditoria, incluindo os curingas dos servidores MCP remotos. */
+  names: string[];
+  /** Habilitadas no agente, mas fora desta chamada porque a LLM não é da Anthropic. */
+  ignored: { serverTools: string[]; remoteMcp: string[] };
+};
+
+function prepareTools({ agent, llm }: LiveRun): RunTools {
+  const local = resolveTools(agent);
+  const server = resolveServerTools(agent, llm);
+  const remote = remoteMcpFor(agent, llm, db.mcpServers);
+  return {
+    local,
+    provider: [...server.defs, ...remote.toolsets],
+    mcpServers: remote.servers,
+    names: [
+      ...local.map((t) => t.name),
+      ...agent.tools.filter(isServerTool).filter(() => server.defs.length > 0),
+      ...remote.servers.map((s) => `mcp__${s.name}__*`),
+    ],
+    ignored: { serverTools: server.ignored, remoteMcp: remote.ignored },
+  };
+}
+
+/**
+ * Repassa os eventos do provedor à execução. Chamadas que a Anthropic executa (ferramentas de servidor e MCP
+ * pela API) não passam por executeTool, então são auditadas aqui.
+ */
+function providerEventForwarder(run: LiveRun): (ev: RunEvent) => void {
+  const { agent, record } = run;
+  const remoteCalls = new Set<string>();
+  const auditCall = (ev: Extract<RunEvent, { type: "tool.call" }>, via: string, extra: Record<string, unknown>) =>
+    audit({
+      type: "tool.call",
+      actor: "agent",
+      agentId: agent.id,
+      runId: record.id,
+      summary: `Chamou ${ev.name} (${via})`,
+      data: { toolUseId: ev.id, input: ev.input, ...extra, executedBy: "anthropic" },
+    });
+  const auditResult = (ev: Extract<RunEvent, { type: "tool.result" }>, via: string) =>
+    audit({
+      type: "tool.result",
+      actor: "system",
+      agentId: agent.id,
+      runId: record.id,
+      summary: `${ev.name} ${ev.isError ? "falhou" : "respondeu"} em ${ev.durationMs}ms (${via})`,
+      durationMs: ev.durationMs,
+      data: { toolUseId: ev.id, output: clip(ev.output, 2000), isError: ev.isError },
+    });
+
+  return (ev) => {
+    emit(run, ev);
+    if (ev.type === "tool.call" && ev.source === "mcp") {
+      remoteCalls.add(ev.id);
+      // A ferramenta usada fica registrada no servidor: a lista na tela cresce com o uso, sem custo.
+      const remoteServer = db.mcpServers.find((s) => s.name === ev.server);
+      if (remoteServer && ev.server && rememberUsedTool(remoteServer, ev.name.slice(`mcp__${ev.server}__`.length))) persist();
+      auditCall(ev, "MCP via Anthropic", { server: ev.server });
+    } else if (ev.type === "tool.result" && remoteCalls.has(ev.id)) auditResult(ev, "MCP via Anthropic");
+    else if (ev.type === "tool.call" && ev.source === "server") auditCall(ev, "servidor Anthropic", {});
+    else if (ev.type === "tool.result" && isServerTool(ev.name)) auditResult(ev, "servidor Anthropic");
+  };
+}
+
 /**
  * Substitui o histórico por um resumo gerado pelo próprio modelo (compactação simples).
  * Só roda no início de uma iteração, com a rodada de ferramentas anterior já respondida.
  */
-async function compactHistory(
-  run: LiveRun,
-  tools: Anthropic.Tool[],
-  serverTools: Anthropic.Beta.BetaToolUnion[],
-  mcpServers: Anthropic.Beta.BetaRequestMCPServerURLDefinition[],
-  iteration: number,
-  window: number,
-) {
+async function compactHistory(run: LiveRun, tools: RunTools, iteration: number, window: number) {
   const { record, llm, agent } = run;
   const messages = record.messages;
   const tokensBefore = record.context?.tokens ?? 0;
@@ -294,9 +362,9 @@ async function compactHistory(
     system: record.systemPrompt,
     messages: [...toSummarize, { role: "user", content: SUMMARY_PROMPT }],
     // As mesmas ferramentas da conversa: trocar a lista invalidaria o raciocínio já registrado.
-    tools,
-    serverTools,
-    mcpServers,
+    tools: tools.local,
+    serverTools: tools.provider,
+    mcpServers: tools.mcpServers,
     signal: run.abort.signal,
     emit: () => undefined,
   });
@@ -316,7 +384,7 @@ async function compactHistory(
 
   const messagesBefore = messages.length;
   record.messages = [{ role: "user", content: compactedMessage(record.input, summary) }, ...(keepLast ? [last] : [])];
-  const tokensAfter = estimateTokens(record.systemPrompt) + estimateTokens(tools) + estimateTokens(record.messages);
+  const tokensAfter = estimateTokens(record.systemPrompt) + estimateTokens(tools.local) + estimateTokens(record.messages);
   record.context = { tokens: tokensAfter, window };
   (record.compactions ??= []).push({ iteration, tokensBefore, messagesBefore, at: now() });
   emit(run, { type: "context.compacted", iteration, tokensBefore, tokensAfter, messagesBefore, summary, thresholdPct });
@@ -331,285 +399,225 @@ async function compactHistory(
   });
 }
 
-async function loop(run: LiveRun) {
+async function compactIfNeeded(run: LiveRun, tools: RunTools, iteration: number) {
+  const { record, agent, llm } = run;
+  if (!record.context) return;
+  const window = contextWindowFor(llm);
+  const lastCompaction = record.compactions?.at(-1);
+  const due = shouldCompact({
+    enabled: agent.context?.autoCompact ?? false,
+    thresholdPct: agent.context?.thresholdPct ?? 60,
+    tokens: record.context.tokens,
+    window,
+    messageCount: record.messages.length,
+    historyShare: historyShare(record.systemPrompt, [...tools.local, ...tools.provider], record.messages),
+    lastMessageFromUser: record.messages.at(-1)?.role === "user",
+    iterationsSinceCompaction: lastCompaction ? iteration - lastCompaction.iteration : null,
+  });
+  if (due) await compactHistory(run, tools, iteration, window);
+}
+
+function announceRequest(run: LiveRun, tools: RunTools, iteration: number) {
   const { agent, record, llm } = run;
-  run.busy = true;
-  record.status = "running";
+  record.iterations = iteration;
+  emit(run, { type: "iteration.started", iteration });
+  emit(run, {
+    type: "llm.request",
+    iteration,
+    messageCount: record.messages.length,
+    toolCount: tools.names.length,
+    systemPrompt: record.systemPrompt,
+  });
+  audit({
+    type: "llm.request",
+    actor: "agent",
+    agentId: agent.id,
+    runId: record.id,
+    summary: `Iteração ${iteration}: ${record.messages.length} mensagens, ${tools.names.length} ferramentas → ${llm.name} (${llm.model})`,
+    data: {
+      llm: llm.name,
+      provider: llm.provider,
+      model: llm.model,
+      effort: llm.provider === "anthropic" ? llm.effort : undefined,
+      tools: tools.names,
+      ...(tools.ignored.serverTools.length
+        ? { serverToolsIgnored: tools.ignored.serverTools, reason: "ferramentas de servidor exigem uma LLM Anthropic" }
+        : {}),
+      ...(tools.ignored.remoteMcp.length
+        ? {
+            remoteMcpIgnored: tools.ignored.remoteMcp,
+            remoteMcpReason: "servidores MCP conectados pela Anthropic exigem uma LLM Anthropic",
+          }
+        : {}),
+    },
+  });
+}
+
+/** Registra a resposta: consumo, medição da janela, citações e o turno no histórico. */
+function recordResponse(run: LiveRun, tools: RunTools, iteration: number, turn: AssistantTurn, durationMs: number) {
+  const { agent, record, llm } = run;
+  record.usage.input += turn.usage.input;
+  record.usage.output += turn.usage.output;
+  emit(run, { type: "llm.response", iteration, stopReason: turn.stopReason, usage: turn.usage, durationMs, model: turn.model });
+
+  // Medição da janela: tokens reais de entrada (com cache) e detalhamento estimado.
+  const window = contextWindowFor(llm);
+  const contextTokens = turn.usage.input + (turn.usage.cacheRead ?? 0) + (turn.usage.cacheWrite ?? 0);
+  record.context = { tokens: contextTokens, window };
+  emit(run, {
+    type: "context.measured",
+    iteration,
+    tokens: contextTokens,
+    window,
+    cacheRead: turn.usage.cacheRead ?? 0,
+    breakdown: contextBreakdown(record.systemPrompt, [...tools.local, ...tools.provider], record.messages),
+    messageCount: record.messages.length,
+  });
+
+  const toolUses = toolUsesOf(turn.content);
+  audit({
+    type: "llm.response",
+    actor: "agent",
+    agentId: agent.id,
+    runId: record.id,
+    summary: `Resposta (${turn.stopReason}) — ${toolUses.length} chamadas de ferramenta`,
+    durationMs,
+    tokens: turn.usage,
+    data: {
+      model: turn.model,
+      stopReason: turn.stopReason,
+      text: clip(turnText(turn.content), 2000),
+      toolUses: toolUses.map((t) => t.name),
+    },
+  });
+  const citations = collectCitations(turn.content);
+  if (citations.length) emit(run, { type: "citations", items: citations });
+
+  // O conteúdo do assistente volta para o histórico exatamente como veio (inclusive blocos de pensamento).
+  record.messages.push({ role: "assistant", content: turn.content });
+}
+
+/** Itera até o modelo entregar a resposta final e a devolve. */
+async function iterate(run: LiveRun, tools: RunTools): Promise<string> {
+  const { agent, record, llm } = run;
   const ctx: ToolContext = {
     agentId: agent.id,
     runId: record.id,
     scratchpad: record.scratchpad,
     onMemoryCreated: (memory) => emit(run, { type: "memory.created", memory }),
   };
-  const tools = resolveTools(agent);
-  const server = resolveServerTools(agent, llm);
-  // Servidores MCP conectados pela API do Claude entram como conjuntos de ferramentas de servidor.
-  const remote = remoteMcpFor(agent, llm, db.mcpServers);
-  const providerTools = [...server.defs, ...remote.toolsets];
-  const remoteCalls = new Set<string>();
-  const toolNames = [
-    ...tools.map((t) => t.name),
-    ...agent.tools.filter(isServerTool).filter(() => server.defs.length > 0),
-    ...remote.servers.map((s) => `mcp__${s.name}__*`),
-  ];
-  // Repassa os eventos do provedor; chamadas a ferramentas de servidor também entram na auditoria.
-  const forward = (ev: RunEvent) => {
-    emit(run, ev);
-    if (ev.type === "tool.call" && ev.source === "mcp") {
-      // Só chegam por aqui as chamadas MCP feitas pela Anthropic; as locais são registradas em executeTool.
-      remoteCalls.add(ev.id);
-      // Ferramenta usada fica registrada no servidor: a lista na tela cresce com o uso, sem custo.
-      const remoteServer = db.mcpServers.find((s) => s.name === ev.server);
-      if (remoteServer && ev.server && rememberUsedTool(remoteServer, ev.name.slice(`mcp__${ev.server}__`.length))) persist();
-      audit({
-        type: "tool.call",
-        actor: "agent",
-        agentId: agent.id,
-        runId: record.id,
-        summary: `Chamou ${ev.name} (MCP via Anthropic)`,
-        data: { toolUseId: ev.id, input: ev.input, server: ev.server, executedBy: "anthropic" },
-      });
-    } else if (ev.type === "tool.result" && remoteCalls.has(ev.id)) {
-      audit({
-        type: "tool.result",
-        actor: "system",
-        agentId: agent.id,
-        runId: record.id,
-        summary: `${ev.name} ${ev.isError ? "falhou" : "respondeu"} em ${ev.durationMs}ms (MCP via Anthropic)`,
-        durationMs: ev.durationMs,
-        data: { toolUseId: ev.id, output: clip(ev.output, 2000), isError: ev.isError },
-      });
-    } else if (ev.type === "tool.call" && ev.source === "server") {
-      audit({
-        type: "tool.call",
-        actor: "agent",
-        agentId: agent.id,
-        runId: record.id,
-        summary: `Chamou ${ev.name} (servidor Anthropic)`,
-        data: { toolUseId: ev.id, input: ev.input, executedBy: "anthropic" },
-      });
-    } else if (ev.type === "tool.result" && isServerTool(ev.name)) {
-      audit({
-        type: "tool.result",
-        actor: "system",
-        agentId: agent.id,
-        runId: record.id,
-        summary: `${ev.name} ${ev.isError ? "falhou" : "respondeu"} em ${ev.durationMs}ms (servidor Anthropic)`,
-        durationMs: ev.durationMs,
-        data: { toolUseId: ev.id, output: clip(ev.output, 2000), isError: ev.isError },
-      });
-    }
-  };
+  const forward = providerEventForwarder(run);
+  let carried = "";
+  const startIteration = record.iterations;
+  for (let i = 1; ; i++) {
+    if (i > agent.maxIterations) throw new Error(`Limite de ${agent.maxIterations} iterações atingido sem concluir a tarefa.`);
+    if (run.abort.signal.aborted) throw new DOMException("cancelado", "AbortError");
+    const iteration = startIteration + i;
+    await compactIfNeeded(run, tools, iteration);
+    announceRequest(run, tools, iteration);
 
+    const started = Date.now();
+    const turn = await callLlm({
+      llm,
+      input: record.input,
+      system: record.systemPrompt,
+      messages: record.messages,
+      tools: tools.local,
+      serverTools: tools.provider,
+      mcpServers: tools.mcpServers,
+      signal: run.abort.signal,
+      emit: forward,
+    });
+    recordResponse(run, tools, iteration, turn, Date.now() - started);
+
+    const outcome = turnOutcome(turn, carried);
+    switch (outcome.kind) {
+      case "failed":
+        throw new Error(outcome.error);
+      case "resume":
+        carried = outcome.carried;
+        break;
+      case "final":
+        return outcome.text;
+      case "tools": {
+        // Executa as ferramentas em paralelo e devolve TODOS os resultados em uma única mensagem de usuário.
+        const results = await Promise.all(outcome.toolUses.map((b) => executeTool(run, b, ctx)));
+        record.messages.push({ role: "user", content: results });
+        break;
+      }
+    }
+  }
+}
+
+function completeRun(run: LiveRun, finalText: string) {
+  const { agent, record } = run;
+  record.status = "completed";
+  record.output = finalText;
+  record.finishedAt = now();
+  emit(run, {
+    type: "run.completed",
+    output: finalText,
+    iterations: record.iterations,
+    usage: record.usage,
+    ...(record.childUsage ? { childUsage: record.childUsage } : {}),
+  });
+  audit({
+    type: "run.completed",
+    actor: "agent",
+    agentId: agent.id,
+    runId: record.id,
+    summary: `Execução concluída em ${record.iterations} iterações`,
+    tokens: record.usage,
+    durationMs: Date.now() - new Date(record.startedAt).getTime(),
+    data: { output: clip(finalText, 2000) },
+  });
+  if (agent.memory.autoEpisode && finalText) {
+    const memory = createMemory({
+      content: summarizeEpisode(record.input, record.iterations, record.events, finalText),
+      kind: "episode",
+      tags: ["episódio", agent.name],
+      importance: 2,
+      agentId: agent.id,
+      source: "auto",
+      runId: record.id,
+    });
+    emit(run, { type: "memory.created", memory });
+  }
+}
+
+function endRun(run: LiveRun, err: unknown) {
+  const { agent, record } = run;
+  record.finishedAt = now();
+  if (run.abort.signal.aborted) {
+    record.status = "cancelled";
+    emit(run, { type: "run.cancelled" });
+    audit({ type: "run.cancelled", actor: "user", agentId: agent.id, runId: record.id, summary: "Execução cancelada pelo usuário" });
+    return;
+  }
+  const message = friendlyLlmError(err) ?? errorMessage(err);
+  record.status = "failed";
+  record.error = message;
+  emit(run, { type: "run.failed", error: message });
+  audit({ type: "run.failed", actor: "system", agentId: agent.id, runId: record.id, summary: `Falhou: ${message}` });
+}
+
+async function loop(run: LiveRun) {
+  run.busy = true;
+  run.record.status = "running";
   try {
-    if (!llmHasCredentials(llm)) {
+    if (!llmHasCredentials(run.llm)) {
       throw new Error(
-        `A LLM "${llm.name}" não tem chave de API. Abra “LLMs”, cole a chave e tente de novo — ` +
+        `A LLM "${run.llm.name}" não tem chave de API. Abra “LLMs”, cole a chave e tente de novo — ` +
           "ou troque o agente para a LLM “Demo (offline)” para ver o loop funcionando sem chave.",
       );
     }
-
-    let finalText = "";
-    // Texto de turnos pausados (pause_turn) é somado à resposta final.
-    let carried = "";
-    const startIteration = record.iterations;
-    for (let i = 1; ; i++) {
-      const iteration = startIteration + i;
-      if (i > agent.maxIterations) throw new Error(`Limite de ${agent.maxIterations} iterações atingido sem concluir a tarefa.`);
-      if (run.abort.signal.aborted) throw new DOMException("cancelado", "AbortError");
-      // Resumo automático: só com a rodada anterior respondida (última mensagem do usuário).
-      const window = contextWindowFor(llm);
-      const lastRole = record.messages.at(-1)?.role;
-      // Intervalo mínimo de 2 iterações entre resumos: com um limite muito baixo, o resumo não pode virar um loop de custo.
-      const lastCompaction = record.compactions?.[record.compactions.length - 1];
-      const recentlyCompacted = lastCompaction !== undefined && iteration - lastCompaction.iteration < 2;
-      if (
-        lastRole === "user" &&
-        !recentlyCompacted &&
-        record.context &&
-        shouldCompact({
-          enabled: agent.context?.autoCompact ?? false,
-          thresholdPct: agent.context?.thresholdPct ?? 60,
-          tokens: record.context.tokens,
-          window,
-          messageCount: record.messages.length,
-          historyShare: historyShare(record.systemPrompt, [...tools, ...providerTools], record.messages),
-        })
-      ) {
-        await compactHistory(run, tools, providerTools, remote.servers, iteration, window);
-      }
-      record.iterations = iteration;
-      emit(run, { type: "iteration.started", iteration });
-      emit(run, {
-        type: "llm.request",
-        iteration,
-        messageCount: record.messages.length,
-        toolCount: toolNames.length,
-        systemPrompt: record.systemPrompt,
-      });
-      audit({
-        type: "llm.request",
-        actor: "agent",
-        agentId: agent.id,
-        runId: record.id,
-        summary: `Iteração ${iteration}: ${record.messages.length} mensagens, ${toolNames.length} ferramentas → ${llm.name} (${llm.model})`,
-        data: {
-          llm: llm.name,
-          provider: llm.provider,
-          model: llm.model,
-          effort: llm.provider === "anthropic" ? llm.effort : undefined,
-          tools: toolNames,
-          ...(server.ignored.length
-            ? { serverToolsIgnored: server.ignored, reason: "ferramentas de servidor exigem uma LLM Anthropic" }
-            : {}),
-          ...(remote.ignored.length
-            ? { remoteMcpIgnored: remote.ignored, remoteMcpReason: "servidores MCP conectados pela Anthropic exigem uma LLM Anthropic" }
-            : {}),
-        },
-      });
-
-      const started = Date.now();
-      const turn = await callLlm({
-        llm,
-        input: record.input,
-        system: record.systemPrompt,
-        messages: record.messages,
-        tools,
-        serverTools: providerTools,
-        mcpServers: remote.servers,
-        signal: run.abort.signal,
-        emit: forward,
-      });
-      const durationMs = Date.now() - started;
-      record.usage.input += turn.usage.input;
-      record.usage.output += turn.usage.output;
-
-      emit(run, { type: "llm.response", iteration, stopReason: turn.stopReason, usage: turn.usage, durationMs, model: turn.model });
-      // Medição da janela: tokens reais de entrada (com cache) e detalhamento estimado.
-      const contextTokens = turn.usage.input + (turn.usage.cacheRead ?? 0) + (turn.usage.cacheWrite ?? 0);
-      record.context = { tokens: contextTokens, window };
-      emit(run, {
-        type: "context.measured",
-        iteration,
-        tokens: contextTokens,
-        window,
-        cacheRead: turn.usage.cacheRead ?? 0,
-        breakdown: contextBreakdown(record.systemPrompt, [...tools, ...providerTools], record.messages),
-        messageCount: record.messages.length,
-      });
-      const toolUses = turn.content.filter((b): b is Anthropic.Beta.BetaToolUseBlockParam => b.type === "tool_use");
-      const text = turnText(turn.content);
-      audit({
-        type: "llm.response",
-        actor: "agent",
-        agentId: agent.id,
-        runId: record.id,
-        summary: `Resposta (${turn.stopReason}) — ${toolUses.length} chamadas de ferramenta`,
-        durationMs,
-        tokens: turn.usage,
-        data: { model: turn.model, stopReason: turn.stopReason, text: clip(text, 2000), toolUses: toolUses.map((t) => t.name) },
-      });
-
-      const citations = collectCitations(turn.content);
-      if (citations.length) emit(run, { type: "citations", items: citations });
-
-      // O conteúdo do assistente volta para o histórico exatamente como veio (inclusive blocos de pensamento).
-      record.messages.push({ role: "assistant", content: turn.content });
-
-      if (turn.stopReason === "refusal") throw new Error("O modelo recusou a solicitação (stop_reason: refusal).");
-      if (turn.stopReason === "pause_turn") {
-        // O servidor atingiu o limite interno de iterações das ferramentas de servidor: reenviar retoma de onde parou.
-        carried = [carried, text].filter(Boolean).join("\n\n");
-        continue;
-      }
-      if (turn.stopReason === "max_tokens" && toolUses.length) throw new Error("Entrada de ferramenta truncada (max_tokens).");
-      if (toolUses.length === 0) {
-        finalText = answerText(turn.content, [carried, text].filter(Boolean).join("\n\n"));
-        break;
-      }
-
-      // Executa as ferramentas em paralelo e devolve TODOS os resultados em uma única mensagem de usuário.
-      const results = await Promise.all(toolUses.map((b) => executeTool(run, b, ctx)));
-      record.messages.push({ role: "user", content: results });
-    }
-
-    record.status = "completed";
-    record.output = finalText;
-    record.finishedAt = now();
-    emit(run, {
-      type: "run.completed",
-      output: finalText,
-      iterations: record.iterations,
-      usage: record.usage,
-      ...(record.childUsage ? { childUsage: record.childUsage } : {}),
-    });
-    audit({
-      type: "run.completed",
-      actor: "agent",
-      agentId: agent.id,
-      runId: record.id,
-      summary: `Execução concluída em ${record.iterations} iterações`,
-      tokens: record.usage,
-      durationMs: Date.now() - new Date(record.startedAt).getTime(),
-      data: { output: clip(finalText, 2000) },
-    });
-
-    if (agent.memory.autoEpisode && finalText) {
-      const memory = createMemory({
-        content: summarizeEpisode(record.input, record.iterations, record.events, finalText),
-        kind: "episode",
-        tags: ["episódio", agent.name],
-        importance: 2,
-        agentId: agent.id,
-        source: "auto",
-        runId: record.id,
-      });
-      emit(run, { type: "memory.created", memory });
-    }
+    completeRun(run, await iterate(run, prepareTools(run)));
   } catch (err) {
-    record.finishedAt = now();
-    if (run.abort.signal.aborted) {
-      record.status = "cancelled";
-      emit(run, { type: "run.cancelled" });
-      audit({ type: "run.cancelled", actor: "user", agentId: agent.id, runId: record.id, summary: "Execução cancelada pelo usuário" });
-    } else {
-      const message = friendlyLlmError(err) ?? errorMessage(err);
-      record.status = "failed";
-      record.error = message;
-      emit(run, { type: "run.failed", error: message });
-      audit({ type: "run.failed", actor: "system", agentId: agent.id, runId: record.id, summary: `Falhou: ${message}` });
-    }
+    endRun(run, err);
   } finally {
     run.busy = false;
     persist();
   }
-}
-
-/**
- * Texto do turno. Blocos de texto consecutivos (divididos por citações) são unidos diretamente;
- * blocos separados por chamadas de ferramenta de servidor viram parágrafos.
- */
-export function turnText(content: { type: string; text?: string }[]): string {
-  let out = "";
-  let prev: string | null = null;
-  for (const b of content) {
-    if (b.type === "thinking" || b.type === "redacted_thinking") continue;
-    if (b.type === "text") out += (out && prev !== "text" ? "\n\n" : "") + (b.text ?? "");
-    prev = b.type;
-  }
-  return out;
-}
-
-/**
- * Resposta final: quando o turno usou ferramentas de servidor, o texto anterior a elas é preâmbulo
- * ("vou buscar…") e fica só na linha do tempo; a resposta é o texto depois do último resultado.
- */
-export function answerText(content: { type: string; text?: string }[], fallback: string): string {
-  const visible = content.filter((b) => b.type !== "thinking" && b.type !== "redacted_thinking");
-  const lastTool = visible.map((b) => b.type).lastIndexOf(visible.filter((b) => b.type !== "text").at(-1)?.type ?? "");
-  if (lastTool < 0) return fallback;
-  const after = turnText(visible.slice(lastTool + 1));
-  return after.trim() ? after : fallback;
 }
 
 function llmFor(agent: AgentConfig, overrideId?: string): LlmConfig {

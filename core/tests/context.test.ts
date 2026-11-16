@@ -10,11 +10,36 @@ afterEach(() => vi.unstubAllGlobals());
 
 describe("regras da janela de contexto", () => {
   it("dispara o resumo só quando habilitado, acima do limite e com histórico suficiente", () => {
-    const base = { enabled: true, thresholdPct: 60, tokens: 700, window: 1000, messageCount: 5 };
+    const base = {
+      enabled: true,
+      thresholdPct: 60,
+      tokens: 700,
+      window: 1000,
+      messageCount: 5,
+      historyShare: 0.8,
+      lastMessageFromUser: true,
+      iterationsSinceCompaction: null,
+    };
     expect(shouldCompact(base)).toBe(true);
     expect(shouldCompact({ ...base, enabled: false })).toBe(false);
     expect(shouldCompact({ ...base, tokens: 500 })).toBe(false);
     expect(shouldCompact({ ...base, messageCount: 1 })).toBe(false);
+  });
+
+  it("não resume no meio de uma rodada de ferramentas nem logo depois de outro resumo", () => {
+    const base = {
+      enabled: true,
+      thresholdPct: 60,
+      tokens: 700,
+      window: 1000,
+      messageCount: 5,
+      historyShare: 0.8,
+      lastMessageFromUser: true,
+      iterationsSinceCompaction: null,
+    };
+    expect(shouldCompact({ ...base, lastMessageFromUser: false })).toBe(false);
+    expect(shouldCompact({ ...base, iterationsSinceCompaction: 1 })).toBe(false);
+    expect(shouldCompact({ ...base, iterationsSinceCompaction: 2 })).toBe(true);
   });
 
   it("extrai o resumo das tags e resolve a janela pelo catálogo, pela LLM ou pelo padrão do provedor", () => {
@@ -99,8 +124,17 @@ describe("medição e resumo automático no loop", () => {
   });
 
   it("não resume quando o contexto é dominado por prompt e ferramentas", () => {
-    expect(shouldCompact({ enabled: true, thresholdPct: 10, tokens: 900, window: 1000, messageCount: 5, historyShare: 0.2 })).toBe(false);
-    expect(shouldCompact({ enabled: true, thresholdPct: 10, tokens: 900, window: 1000, messageCount: 5, historyShare: 0.6 })).toBe(true);
+    const share = {
+      enabled: true,
+      thresholdPct: 10,
+      tokens: 900,
+      window: 1000,
+      messageCount: 5,
+      lastMessageFromUser: true,
+      iterationsSinceCompaction: null,
+    };
+    expect(shouldCompact({ ...share, historyShare: 0.2 })).toBe(false);
+    expect(shouldCompact({ ...share, historyShare: 0.6 })).toBe(true);
   });
 });
 

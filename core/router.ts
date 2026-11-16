@@ -1,5 +1,6 @@
 import { z } from "zod";
-import { cancelRun, continueRun, resolveApproval, startRun, turnText } from "./agent/runner.js";
+import { cancelRun, continueRun, resolveApproval, startRun } from "./agent/runner.js";
+import { turnText } from "./agent/turn.js";
 import { audit } from "./audit.js";
 import { exportConfig, importConfig } from "./backup.js";
 import { ANTHROPIC_MODELS, OPENAI_PRESETS, PRICING } from "./llm/catalog.js";

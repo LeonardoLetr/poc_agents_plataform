@@ -39,6 +39,7 @@ export function historyShare(system: string, tools: unknown[], messages: unknown
 
 /** Parcela mínima do contexto que precisa ser histórico para o resumo compensar. */
 export const MIN_HISTORY_SHARE = 0.4;
+export const MIN_ITERATIONS_BETWEEN_COMPACTIONS = 2;
 
 /**
  * Deve compactar antes da próxima chamada? Além do limite da janela, o histórico precisa ser uma parte relevante
@@ -50,10 +51,16 @@ export function shouldCompact(opts: {
   tokens: number;
   window: number;
   messageCount: number;
-  historyShare?: number;
+  historyShare: number;
+  /** O resumo só substitui um histórico com a rodada anterior respondida (última mensagem do usuário). */
+  lastMessageFromUser: boolean;
+  /** Iterações desde o último resumo desta execução; `null` se ainda não houve. */
+  iterationsSinceCompaction: number | null;
 }): boolean {
-  if (!opts.enabled || opts.window <= 0 || opts.messageCount < 3) return false;
-  if (opts.historyShare !== undefined && opts.historyShare < MIN_HISTORY_SHARE) return false;
+  if (!opts.enabled || opts.window <= 0 || opts.messageCount < 3 || !opts.lastMessageFromUser) return false;
+  // Com um limite muito baixo, o resumo não pode virar um loop de custo.
+  if (opts.iterationsSinceCompaction !== null && opts.iterationsSinceCompaction < MIN_ITERATIONS_BETWEEN_COMPACTIONS) return false;
+  if (opts.historyShare < MIN_HISTORY_SHARE) return false;
   return (opts.tokens / opts.window) * 100 >= opts.thresholdPct;
 }
 

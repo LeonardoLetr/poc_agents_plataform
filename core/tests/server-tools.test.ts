@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { callAnthropic } from "../llm/anthropic.js";
 import type { LlmCall } from "../llm/types.js";
-import { answerText, turnText } from "../agent/runner.js";
+import { answerText, turnText } from "../agent/turn.js";
 import { collectCitations, describeServerResult, serverToolDefinitions } from "../tools/server.js";
 import type { LlmConfig, RunEvent } from "../types.js";
 import { bootCore, collectRun } from "./helpers.js";
