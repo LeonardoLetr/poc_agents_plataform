@@ -29,6 +29,8 @@ OpenAI Chat Completions (OpenAI, OpenRouter, Groq, Ollama) e um modelo simulado 
   <img src="docs/screenshots/auditoria.jpg" width="49%" alt="Auditoria" />
 </p>
 
+<p><img src="docs/screenshots/playground-escuro.jpg" alt="Playground no tema escuro" /></p>
+
 ## Versão online
 
 A interface é publicada no GitHub Pages pelo workflow [`deploy-pages.yml`](.github/workflows/deploy-pages.yml):
@@ -149,9 +151,11 @@ para novos servidores e também pode ser executado como processo stdio (`mcp-ser
 
 ## Design
 
-O sistema visual está especificado em [`.claude/skills/agent-lab-ui`](.claude/skills/agent-lab-ui/SKILL.md). As
-referências consultadas estão em [`docs/pesquisa-visual.md`](docs/pesquisa-visual.md) e os estudos de layout em
-[`docs/design-concepts`](docs/design-concepts/README.md).
+A interface tem tema claro (tom papel) e escuro (grafite), alternáveis pelo botão na barra superior; sem escolha
+salva, segue a preferência do sistema. A especificação completa, reutilizável em outros projetos, está em
+[`docs/style-guides/painel-saas-claro.md`](docs/style-guides/painel-saas-claro.md), e o mapeamento para o código em
+[`.claude/skills/agent-lab-ui`](.claude/skills/agent-lab-ui/SKILL.md). As referências consultadas estão em
+[`docs/pesquisa-visual.md`](docs/pesquisa-visual.md) e os estudos de layout em [`docs/design-concepts`](docs/design-concepts/README.md).
 
 **Stack:** Node.js, Express, TypeScript, `@anthropic-ai/sdk`, `@modelcontextprotocol/sdk` · React 19, Vite,
 Tailwind CSS 4, Motion, React Flow.

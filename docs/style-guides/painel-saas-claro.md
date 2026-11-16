@@ -1,4 +1,4 @@
-# Guia de estilo: Painel SaaS claro e denso
+# Guia de estilo: Painel SaaS denso (temas claro e escuro)
 
 Especificação visual reutilizável para dashboards e ferramentas internas. Pode ser entregue integralmente a um
 agente de código como instrução de estilo. Os valores de cor e medida são aproximações calibradas a partir de uma
@@ -8,17 +8,19 @@ referência visual e podem ser ajustados por produto.
 
 ## Prompt de aplicação
 
-> Aplique o estilo descrito neste documento à interface. Trata-se de um painel SaaS claro, neutro e denso:
-> fundo branco, bordas finas em cinza claro em vez de sombras, tipografia sans-serif pequena com hierarquia por
-> peso, um único azul como cor de ação e cores semânticas usadas apenas em etiquetas de status, ícones e barras de
-> progresso. Siga os tokens, a anatomia dos componentes e o checklist ao final. Não introduza gradientes, sombras
-> fortes, fontes serifadas ou cores fora da paleta.
+> Aplique o estilo descrito neste documento à interface. Trata-se de um painel SaaS neutro e denso, com dois
+> temas: claro (fundo em tom papel bege, cartões brancos) e escuro (grafite quente). Use bordas finas em vez de
+> sombras, tipografia sans-serif pequena com hierarquia por peso, um único azul como cor de ação e cores
+> semânticas apenas em etiquetas de status, ícones e barras de progresso. Implemente as cores como variáveis de
+> CSS, com alternância de tema pelo usuário e respeito à preferência do sistema. Siga os tokens, a anatomia dos
+> componentes e o checklist ao final. Não introduza gradientes, sombras fortes, fontes serifadas ou cores fora da
+> paleta.
 
 ---
 
 ## 1. Princípios
 
-1. **Neutro primeiro.** Quase tudo é branco e cinza; a cor aparece só onde carrega significado (status, categoria, ação).
+1. **Neutro primeiro.** Quase tudo usa os tons neutros do tema; a cor aparece só onde carrega significado (status, categoria, ação).
 2. **Bordas, não sombras.** Superfícies são separadas por linhas de 1px. Sombras, quando existem, são quase imperceptíveis.
 3. **Densidade controlada.** Texto base de 13px, controles de 32px de altura, espaçamento em múltiplos de 4px.
 4. **Hierarquia por peso e cor**, não por tamanho. Títulos são pequenos (15–18px) e semibold; números de destaque são o único texto grande.
@@ -41,46 +43,68 @@ referência visual e podem ser ajustados por produto.
 └─────────────┴──────────────────────────────────────────────────────────┘
 ```
 
-- Fundo da área de conteúdo: branco. Sidebar: branco ou cinza levíssimo, separada por borda de 1px.
+- Fundo da área de conteúdo: `bg` do tema. Sidebar: `bg-subtle`, separada por borda de 1px. Cartões: `surface`.
 - Barra superior com 48–52px de altura, borda inferior de 1px.
 - Conteúdo com padding horizontal de 20–24px e largura máxima de ~1440px.
 
 ## 3. Cores
 
-### Neutros (escala zinc/slate)
+As cores são definidas como variáveis de CSS e trocadas por tema. A estrutura e os componentes são idênticos nos
+dois temas; só os valores mudam.
 
-| Token | Hex | Uso |
-|---|---|---|
-| `bg` | `#FFFFFF` | Fundo do conteúdo, cartões |
-| `bg-subtle` | `#FAFAFA` | Sidebar, fundo de colunas do quadro |
-| `bg-muted` | `#F4F4F5` | Item ativo da navegação, aba ativa, hover |
-| `border` | `#E4E4E7` | Bordas de cartões, inputs, divisores |
-| `border-strong` | `#D4D4D8` | Bordas em hover, botões secundários |
-| `text-muted` | `#A1A1AA` | Placeholders, metadados terciários |
-| `text-secondary` | `#71717A` | Rótulos, legendas, subtítulos |
-| `text` | `#3F3F46` | Texto de corpo |
-| `text-strong` | `#18181B` | Títulos, valores, itens ativos |
+### Neutros por tema
+
+| Token | Claro (papel) | Escuro (grafite) | Uso |
+|---|---|---|---|
+| `bg` | `#F7F5EF` | `#262624` | Fundo da área de conteúdo e da barra superior |
+| `bg-subtle` | `#F1EEE6` | `#1F1E1D` | Sidebar, fundo de colunas do quadro, blocos de código |
+| `bg-muted` | `#EBE7DC` | `#393937` | Item ativo da navegação, aba ativa, hover |
+| `surface` | `#FFFFFF` | `#30302E` | Cartões, campos, menus e modais |
+| `border` | `#E2DDD1` | `#41403C` | Bordas de cartões, inputs, divisores |
+| `border-strong` | `#D2CBBD` | `#55534E` | Bordas em hover, botões secundários |
+| `text-muted` | `#A39C8E` | `#8A877F` | Placeholders, metadados terciários |
+| `text-secondary` | `#716B60` | `#A7A49B` | Rótulos, legendas, subtítulos |
+| `text` | `#3D3A34` | `#DFDCD3` | Texto de corpo |
+| `text-strong` | `#1F1E1C` | `#F5F4EF` | Títulos, valores, itens ativos |
+
+No tema claro, os cartões brancos se destacam sobre o fundo bege. No escuro, os cartões ficam um tom acima do fundo
+e a sidebar um tom abaixo.
 
 ### Ação
 
-| Token | Hex | Uso |
-|---|---|---|
-| `primary` | `#2563EB` | Botão principal, links, foco |
-| `primary-hover` | `#1D4ED8` | Hover do botão principal |
-| `primary-soft` | `#EFF6FF` | Fundo de seleção |
-
-### Semânticas (sempre em versão "texto forte + fundo suave")
-
-| Estado | Texto | Fundo | Exemplos de etiqueta |
+| Token | Claro | Escuro | Uso |
 |---|---|---|---|
-| Sucesso | `#15803D` | `#F0FDF4` | Pago, Concluído, Depositado |
-| Atenção | `#B45309` | `#FFFBEB` | Pendente, Em andamento |
-| Erro | `#B91C1C` | `#FEF2F2` | Atrasado, Falhou |
-| Destaque | `#6D28D9` | `#F5F3FF` | No prazo, Em análise |
-| Laranja | `#C2410C` | `#FFF7ED` | Prioridade, Investimentos |
+| `primary` | `#2563EB` | `#4B8BF5` | Botão principal, links, foco |
+| `primary-hover` | `#1D4ED8` | `#1D4ED8` | Hover do botão principal |
+| `primary-soft` | `primary` a 10–20% | `primary` a 20% | Fundo de seleção, anel de foco |
+
+### Semânticas
+
+Cada estado tem uma cor por tema. A etiqueta usa o texto na cor sólida e o fundo na mesma cor com 10–12% de opacidade,
+o que funciona sobre qualquer superfície.
+
+| Estado | Claro | Escuro | Exemplos de etiqueta |
+|---|---|---|---|
+| Sucesso | `#16A34A` | `#4ADE80` | Pago, Concluído, Pronta |
+| Atenção | `#D97706` | `#FBBF24` | Pendente, Em andamento, Sem chave |
+| Erro | `#DC2626` | `#F87171` | Atrasado, Falhou |
+| Destaque | `#7C3AED` | `#A78BFA` | No prazo, Em análise |
+| Laranja | `#EA580C` | `#FB923C` | Prioridade, Integrações |
+| Informação | `#0284C7` | `#38BDF8` | Entrada do usuário |
 
 Barras de progresso e gráficos usam a cor sólida correspondente (`#22C55E`, `#F97316`, `#8B5CF6`, `#3B82F6`).
 Ícones de categoria podem usar quadrados coloridos sólidos (preto, azul, laranja, verde) com ícone branco.
+
+### Implementação dos temas
+
+- Declare os tokens do tema claro como padrão (`:root`) e sobrescreva-os em `:root[data-theme="escuro"]`, incluindo
+  `color-scheme: dark` para que controles nativos (selects, barras de rolagem) acompanhem.
+- Nenhum componente deve usar cor fixa (`#fff`, `white`, `black` com opacidade): sempre os tokens acima.
+- Tema inicial: a escolha salva pelo usuário; sem escolha, a preferência do sistema (`prefers-color-scheme`).
+- Botão de alternância na barra superior (ícone de lua no claro, de sol no escuro), com rótulo acessível.
+- Salve a escolha localmente e aplique o tema antes da primeira renderização, para evitar piscar.
+- Atualize a meta tag `theme-color` com o `bg` do tema ativo.
+- Sobreposição de modais: preto a 50% nos dois temas.
 
 ## 4. Tipografia
 
@@ -115,20 +139,22 @@ Barras de progresso e gráficos usam a cor sólida correspondente (`#22C55E`, `#
 - Rodapé: links de ajuda e configurações, e um cartão do usuário (avatar, nome, e-mail) com borda.
 
 ### Barra superior
+- Fundo `bg`, borda inferior `border`.
 - Breadcrumb com ícones pequenos: níveis anteriores em `text-secondary`, nível atual em `text-strong` 500.
 - Campo de busca de ~260px com ícone de lupa e atalho `⌘K` em etiqueta de teclado (borda, 11px).
 - Ações secundárias como botões de texto com ícone (Exportar, Compartilhar).
+- Botão de ícone para alternar o tema (32px, borda `border`).
 - Um único botão principal sólido em `primary`, à direita.
 
 ### Botões
 - **Principal:** fundo `primary`, texto branco 13px 500, altura 32px, raio 8px, padding horizontal 12px.
-- **Secundário:** fundo branco, borda `border`, texto `text`, ícone à esquerda.
+- **Secundário:** fundo `surface`, borda `border`, texto `text`, ícone à esquerda.
 - **Fantasma:** sem borda, texto `text-secondary`, fundo `bg-muted` no hover.
 - **Ícone:** quadrado de 28–32px, raio 8px, borda opcional.
 - **Adicionar (fim de lista):** largura total, borda tracejada `border`, texto 12px `text-secondary`, "+ Adicionar item".
 
 ### Campos
-- Altura 32px, borda `border`, fundo branco, texto 13px; foco com borda `primary` e anel de 3px em `primary-soft`.
+- Altura 32px, borda `border`, fundo `surface`, texto 13px; foco com borda `primary` e anel de 3px em `primary-soft`.
 
 ### Cartão de KPI
 - Borda `border`, raio 12px, padding 16px.
@@ -156,13 +182,13 @@ Barras de progresso e gráficos usam a cor sólida correspondente (`#22C55E`, `#
 │ 📅 23 out 2026        meta curta │  rodapé 11px text-secondary
 └──────────────────────────────────┘
 ```
-- Fundo branco, borda `border`, raio 8–10px, padding 12px.
+- Fundo `surface`, borda `border`, raio 8–10px, padding 12px.
 
 ### Etiquetas de status
 - Fundo suave + texto forte da mesma família semântica, 10–11px 500, raio 4–6px, padding 2px 6px. Sem borda ou com borda tênue da mesma cor.
 
 ### Avatares
-- Círculos de 20–24px sobrepostos (−6px), borda branca de 2px, e um contador `+2` em círculo neutro.
+- Círculos de 20–24px sobrepostos (−6px), borda de 2px na cor `surface`, e um contador `+2` em círculo neutro.
 
 ### Gráficos
 - Minimalistas, sem eixos nem grades: barras finas (2–3px) em azul, histograma de pontos em laranja, barras de progresso em verde.
@@ -196,7 +222,9 @@ Barras de progresso e gráficos usam a cor sólida correspondente (`#22C55E`, `#
 ## 11. Checklist de aplicação
 
 - [ ] Fonte única sans-serif (Inter) com números tabulares.
-- [ ] Fundo branco, sidebar `#FAFAFA`, bordas `#E4E4E7`, sem gradientes.
+- [ ] Cores como variáveis de CSS, com tema claro (papel) e escuro (grafite); nenhuma cor fixa nos componentes.
+- [ ] Alternância de tema na barra superior, escolha salva e respeito à preferência do sistema.
+- [ ] Tema claro: fundo `#F7F5EF`, sidebar `#F1EEE6`, cartões brancos, bordas `#E2DDD1`; sem gradientes.
 - [ ] Barra superior com breadcrumb, busca com `⌘K` e um único botão principal azul.
 - [ ] Navegação com item ativo em `bg-muted`, grupos com rótulo e contadores.
 - [ ] Cabeçalho de página com título de 16–18px e subtítulo de 12px.
@@ -204,4 +232,5 @@ Barras de progresso e gráficos usam a cor sólida correspondente (`#22C55E`, `#
 - [ ] Status como etiquetas suaves (fundo claro + texto forte), 10–11px.
 - [ ] Listas em cartões com o mesmo esqueleto: categoria, título, valor, rodapé.
 - [ ] Controles com 32px de altura e raio de 8px; foco visível.
+- [ ] Contraste conferido nos dois temas (texto secundário legível sobre `bg` e `surface`).
 - [ ] Nenhuma página com rolagem horizontal em telas de 320px.
