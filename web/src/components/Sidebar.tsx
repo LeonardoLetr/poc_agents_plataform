@@ -1,10 +1,11 @@
 import { motion } from "motion/react";
-import { BookOpen, Bot, Brain, ChevronDown, Columns3, Cpu, FileText, Globe, LayoutDashboard, Play, Plug, ShieldCheck, Trash2 } from "lucide-react";
+import { BookOpen, Bot, Brain, ChevronDown, Columns3, Cpu, FileText, Download, Globe, LayoutDashboard, Play, Plug, ShieldCheck, Trash2, Upload } from "lucide-react";
 import { useState } from "react";
 import { NavLink, useLocation } from "react-router-dom";
 import type { Health, Stats } from "../lib/api";
 import { useInterval, useResource } from "../lib/hooks";
 import { resetBrowserData } from "../lib/runtime";
+import { downloadExport, ImportDialog } from "./BackupDialog";
 
 type Item = { to: string; label: string; icon: typeof Bot; count?: (s: Stats) => number | string; dot?: (s: Stats) => boolean };
 
@@ -38,6 +39,7 @@ export function Sidebar({ health }: { health: Health | null }) {
   const stats = useResource<Stats>("/api/stats");
   useInterval(stats.reload, 10_000);
   const [closed, setClosed] = useState<Record<string, boolean>>({});
+  const [importing, setImporting] = useState(false);
   const isActive = (to: string) => (to === "/" ? pathname === "/" : pathname.startsWith(to));
 
   const link = ({ to, label, icon: Icon, count, dot }: Item) => (
@@ -88,14 +90,21 @@ export function Sidebar({ health }: { health: Health | null }) {
             <div className="truncate text-[11px] text-ink-400">{health ? `${health.llmsReady}/${health.llmsTotal} LLMs prontas` : "Conectando…"}</div>
           </div>
         </div>
-        {(
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 px-1 pt-1 text-[11px] text-ink-400">
+          <button onClick={() => void downloadExport()} className="flex items-center gap-1 transition hover:text-ink-100" title="Baixa agentes, LLMs (sem chaves), prompts, servidores MCP e memórias em JSON">
+            <Download size={11} /> Exportar
+          </button>
+          <button onClick={() => setImporting(true)} className="flex items-center gap-1 transition hover:text-ink-100">
+            <Upload size={11} /> Importar
+          </button>
           <button
             onClick={() => confirm("Apagar todos os dados salvos neste navegador (agentes, LLMs, chaves, memórias)?") && resetBrowserData()}
-            className="flex items-center gap-1 px-1 pt-1 text-[11px] text-ink-400 transition hover:text-bad"
+            className="flex items-center gap-1 transition hover:text-bad"
           >
-            <Trash2 size={11} /> Apagar dados locais
+            <Trash2 size={11} /> Apagar dados
           </button>
-        )}
+        </div>
+        <ImportDialog open={importing} onClose={() => setImporting(false)} />
       </div>
     </aside>
   );
