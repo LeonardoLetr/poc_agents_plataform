@@ -1,5 +1,5 @@
 import { motion } from "motion/react";
-import { Bot, Cloud, Copy, FileText, Pencil, Play, Plus, Trash2 } from "lucide-react";
+import { Bot, Cloud, Copy, FileText, Pencil, Play, Plus, Trash2, Users } from "lucide-react";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { SpotlightCard } from "../components/effects";
@@ -70,6 +70,10 @@ export default function Agents() {
               <div className="mt-3 flex flex-wrap gap-1">
                 {a.tools.slice(0, 6).map((t) => {
                   const { label, server } = toolLabel(t);
+                  if (t.startsWith("agent__")) {
+                    const target = agents.data?.find((x) => `agent__${x.id}` === t);
+                    return <Badge key={t} color="memory">→ {target?.name ?? "agente removido"}</Badge>;
+                  }
                   return <Badge key={t} color={server ? "mcp" : "ink"}>{server ? `${server}:${label}` : label}</Badge>;
                 })}
                 {a.tools.length > 6 && <Badge>+{a.tools.length - 6}</Badge>}
@@ -134,6 +138,7 @@ function AgentEditor({ initial, id, onClose, onSaved }: { initial: AgentInput; i
 
   const builtin = tools.data?.filter((t) => t.source === "builtin") ?? [];
   const serverTools = tools.data?.filter((t) => t.source === "server") ?? [];
+  const delegates = tools.data?.filter((t) => t.source === "agent" && t.agentId !== id) ?? [];
   const selectedLlm = llms.data?.find((l) => l.id === form.llmId);
   const serverToolsUnsupported = Boolean(selectedLlm && selectedLlm.provider !== "anthropic" && serverTools.some((t) => form.tools.includes(t.name)));
   const mcpServers = [...new Set(tools.data?.filter((t) => t.source === "mcp").map((t) => t.server!) ?? [])];
@@ -259,6 +264,25 @@ function AgentEditor({ initial, id, onClose, onSaved }: { initial: AgentInput; i
               {serverToolsUnsupported && (
                 <p className="mt-1.5 text-[11.5px] text-warn">A LLM selecionada não é da Anthropic: as ferramentas de servidor serão ignoradas nas execuções.</p>
               )}
+            </div>
+          )}
+          {delegates.length > 0 && (
+            <div className="mt-3">
+              <div className="mb-1.5 flex flex-wrap items-center gap-x-2 text-[12px] text-ink-400">
+                <Users size={12} /> Delegar para agentes <span className="text-ink-500">· cada um roda o próprio loop e devolve a resposta · até 2 níveis</span>
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {delegates.map((t) => (
+                  <button
+                    key={t.name}
+                    type="button"
+                    onClick={() => toggleTool(t.name)}
+                    className={`rounded-full border px-2.5 py-1 text-[12px] transition ${form.tools.includes(t.name) ? "border-memory/50 bg-memory/10 text-memory" : "border-ink-700 text-ink-300 hover:bg-ink-950"}`}
+                  >
+                    {t.label}
+                  </button>
+                ))}
+              </div>
             </div>
           )}
           {mcpServers.length > 0 && (

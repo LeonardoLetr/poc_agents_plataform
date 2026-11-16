@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from "motion/react";
-import { ArrowUp, Coins, History, Layers, Loader2, Repeat, Send, Square, Timer } from "lucide-react";
+import { ArrowUp, Coins, History, Layers, Loader2, Repeat, Send, Square, Timer, Users } from "lucide-react";
 import { useEffect, useMemo, useReducer, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { AgentGraph } from "../components/AgentGraph";
@@ -44,6 +44,7 @@ export default function Playground() {
   const [error, setError] = useState<string | null>(null);
   const [view, dispatch] = useReducer(reducer, emptyRun);
   const [runAgentId, setRunAgentId] = useState<string | null>(null);
+  const [parentRunId, setParentRunId] = useState<string | null>(null);
   const [inspect, setInspect] = useState<"system" | "messages" | "scratchpad" | null>(null);
   const [detail, setDetail] = useState<RunDetail | null>(null);
   const timelineRef = useRef<HTMLDivElement>(null);
@@ -55,6 +56,7 @@ export default function Playground() {
 
   useEffect(() => {
     if (!runId) dispatch({ type: "reset" });
+    setParentRunId(null);
   }, [runId]);
 
   useEventStream<RunEvent | { type: "snapshot"; run: RunSummary; events: RunEvent[] }>(runId ? `/api/runs/${runId}/stream` : null, (msg) => {
@@ -62,6 +64,7 @@ export default function Playground() {
       const m = msg as { run: RunSummary; events: RunEvent[] };
       setRunAgentId(m.run.agentId);
       setAgentId(m.run.agentId);
+      setParentRunId(m.run.parentRunId ?? null);
       dispatch({ type: "snapshot", events: m.events });
     } else {
       dispatch({ type: "event", event: msg as RunEvent });
@@ -186,6 +189,12 @@ export default function Playground() {
         </div>
       )}
       <ErrorNote message={error} />
+      {runId && parentRunId && (
+        <div className="mb-4 flex flex-wrap items-center gap-2 rounded-xl border border-memory/25 bg-memory/[0.06] px-3.5 py-2.5 text-[13px] text-ink-300">
+          <Users size={14} className="text-memory" /> Esta execução foi delegada por outro agente.
+          <Link to={`/playground/${parentRunId}`} className="text-info underline">Abrir execução pai</Link>
+        </div>
+      )}
 
       <div className="grid gap-6 xl:grid-cols-12">
         {/* Grafo + métricas */}
@@ -205,8 +214,8 @@ export default function Playground() {
 
           <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
             <Metric icon={<Repeat size={11} />} label="Iterações" value={view.iteration} />
-            <Metric icon={<ArrowUp size={11} />} label="Tokens entrada" value={view.tokens.input} />
-            <Metric icon={<Coins size={11} />} label="Tokens saída" value={view.tokens.output} />
+            <Metric icon={<ArrowUp size={11} />} label="Tokens entrada" value={view.tokens.input} hint={view.childTokens.input ? `+${fmtNumber(view.childTokens.input)} delegados` : undefined} />
+            <Metric icon={<Coins size={11} />} label="Tokens saída" value={view.tokens.output} hint={view.childTokens.output ? `+${fmtNumber(view.childTokens.output)} delegados` : undefined} />
             <Metric icon={<Timer size={11} />} label="Ferramentas" value={Object.values(view.callCounts).reduce((a, b) => a + b, 0)} />
           </div>
 
@@ -326,7 +335,7 @@ export default function Playground() {
   );
 }
 
-function Metric({ icon, label, value }: { icon: React.ReactNode; label: string; value: number }) {
+function Metric({ icon, label, value, hint }: { icon: React.ReactNode; label: string; value: number; hint?: string }) {
   return (
     <Card className="p-4">
       <div className="flex items-center gap-2 text-[12px] text-ink-400">
@@ -337,6 +346,7 @@ function Metric({ icon, label, value }: { icon: React.ReactNode; label: string; 
           {fmtNumber(value)}
         </motion.div>
       </AnimatePresence>
+      {hint && <div className="mt-1.5 text-[11px] text-ink-400">{hint}</div>}
     </Card>
   );
 }
@@ -357,7 +367,7 @@ function RecentRuns({ runs, current }: { runs: RunSummary[]; current?: string })
               <Link key={r.id} to={`/playground/${r.id}`} onClick={() => setOpen(false)} className={`block rounded-xl px-3 py-2 transition hover:bg-ink-850 ${r.id === current ? "bg-ink-850" : ""}`}>
                 <div className="truncate text-[13px] text-ink-100">{r.input}</div>
                 <div className="mt-0.5 flex items-center gap-2 font-mono text-[10.5px] text-ink-500">
-                  <span className={color[r.status]}>●</span> {r.agentName} · {timeAgo(r.startedAt)} · {r.iterations} it.
+                  <span className={color[r.status]}>●</span> {r.parentRunId ? "↳ " : ""}{r.agentName}{r.parentRunId ? " (delegada)" : ""} · {timeAgo(r.startedAt)} · {r.iterations} it.
                 </div>
               </Link>
             ))}

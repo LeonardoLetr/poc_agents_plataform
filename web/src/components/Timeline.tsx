@@ -1,9 +1,11 @@
 import { AnimatePresence, motion } from "motion/react";
-import { AlertTriangle, Brain, CheckCircle2, ChevronDown, CircleDashed, Cloud, Hand, Link2, Loader2, MessageSquare, Plug, User, Wrench, XCircle } from "lucide-react";
-import { useState } from "react";
+import { AlertTriangle, Brain, CheckCircle2, ChevronDown, ArrowUpRight, Bot, CircleDashed, Cloud, Hand, Link2, Loader2, MessageSquare, Plug, User, Wrench, XCircle } from "lucide-react";
+import { useReducer, useState } from "react";
+import { Link } from "react-router-dom";
 import { fmtMs, fmtNumber, kindLabel, toolLabel } from "../lib/format";
-import type { Citation } from "../lib/api";
-import type { Step, ToolStep } from "../lib/runState";
+import type { Citation, RunEvent } from "../lib/api";
+import { useEventStream } from "../lib/hooks";
+import { emptyRun, reduceRun, type Step, type ToolStep } from "../lib/runState";
 import { JsonView } from "./JsonView";
 import { Markdown } from "./Markdown";
 import { Badge } from "./ui";
@@ -26,7 +28,9 @@ function Rail({ icon, color, children, last }: { icon: React.ReactNode; color: s
 
 function ToolCard({ tool }: { tool: ToolStep }) {
   const [open, setOpen] = useState(false);
-  const { label, server } = toolLabel(tool.name);
+  const { label: rawLabel, server } = toolLabel(tool.name);
+  const isAgent = tool.source === "agent";
+  const label = isAgent ? (tool.child?.agentName ?? "agente") : rawLabel;
   const status = {
     running: { icon: <Loader2 size={11} className="animate-spin" />, badge: "warn" as const, text: "Executando" },
     awaiting_approval: { icon: <Hand size={11} />, badge: "warn" as const, text: "Aguardando aprovação" },
@@ -39,8 +43,8 @@ function ToolCard({ tool }: { tool: ToolStep }) {
       {/* Cartão de item: categoria em caixa alta + status, nome, rodapé com duração */}
       <button onClick={() => setOpen(!open)} className="block w-full p-3 text-left">
         <div className="flex items-center gap-1.5 text-[10.5px] font-medium uppercase tracking-[0.04em] text-ink-400">
-          {server ? <Plug size={11} /> : tool.source === "server" ? <Cloud size={11} /> : <Wrench size={11} />}
-          {server ? `MCP · ${server}` : tool.source === "server" ? "Servidor Anthropic" : "Ferramenta nativa"}
+          {server ? <Plug size={11} /> : tool.source === "server" ? <Cloud size={11} /> : isAgent ? <Bot size={11} /> : <Wrench size={11} />}
+          {server ? `MCP · ${server}` : tool.source === "server" ? "Servidor Anthropic" : isAgent ? "Delegação a agente" : "Ferramenta nativa"}
           <span className="ml-auto normal-case tracking-normal">
             <Badge color={status.badge}>
               {status.icon} {status.text}
@@ -53,6 +57,7 @@ function ToolCard({ tool }: { tool: ToolStep }) {
           <ChevronDown size={13} className={`ml-auto text-ink-400 transition ${open ? "rotate-180" : ""}`} />
         </div>
       </button>
+      {tool.child && <ChildRun child={tool.child} />}
       <AnimatePresence initial={false}>
         {open && (
           <motion.div initial={{ height: 0 }} animate={{ height: "auto" }} exit={{ height: 0 }} className="overflow-hidden">
@@ -71,6 +76,49 @@ function ToolCard({ tool }: { tool: ToolStep }) {
         )}
       </AnimatePresence>
     </motion.div>
+  );
+}
+
+const CHILD_STATUS: Record<string, { text: string; badge: "warn" | "ok" | "bad" }> = {
+  running: { text: "Executando", badge: "warn" },
+  awaiting_approval: { text: "Aguardando aprovação", badge: "warn" },
+  completed: { text: "Concluída", badge: "ok" },
+  failed: { text: "Falhou", badge: "bad" },
+  cancelled: { text: "Cancelada", badge: "bad" },
+};
+
+/** Execução filha acompanhada ao vivo dentro do cartão da delegação. */
+function ChildRun({ child }: { child: NonNullable<ToolStep["child"]> }) {
+  const [view, dispatch] = useReducer(
+    (s: typeof emptyRun, e: RunEvent | { type: "snapshot"; events: RunEvent[] }) => (e.type === "snapshot" ? (e as { events: RunEvent[] }).events.reduce(reduceRun, emptyRun) : reduceRun(s, e as RunEvent)),
+    emptyRun,
+  );
+  useEventStream<RunEvent | { type: "snapshot"; events: RunEvent[] }>(`/api/runs/${child.runId}/stream`, dispatch);
+  const status = CHILD_STATUS[view.status === "idle" ? (child.status ?? "running") : view.status] ?? CHILD_STATUS.running;
+  const tools = view.steps.flatMap((s) => (s.kind === "iteration" ? s.tools : []));
+  const tokens = view.tokens.input + view.tokens.output + view.childTokens.input + view.childTokens.output;
+  return (
+    <div className="border-t border-ink-850 bg-ink-950/60 px-3 py-2.5">
+      <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[11.5px] text-ink-400">
+        <span className="font-medium text-ink-200">Execução filha</span>
+        <Badge color={status.badge}>
+          {status.badge === "warn" && <Loader2 size={10} className="animate-spin" />} {status.text}
+        </Badge>
+        <span className="tabular-nums">{view.iteration} it. · {fmtNumber(tokens)} tokens</span>
+        <Link to={`/playground/${child.runId}`} className="ml-auto inline-flex items-center gap-1 text-info hover:underline">
+          abrir <ArrowUpRight size={11} />
+        </Link>
+      </div>
+      {tools.length > 0 && (
+        <div className="mt-1.5 flex flex-wrap gap-1">
+          {tools.map((t) => (
+            <span key={t.id} className={`rounded-full border px-1.5 py-px font-mono text-[10.5px] ${t.status === "running" || t.status === "awaiting_approval" ? "border-warn/40 text-warn" : t.status === "error" || t.status === "denied" ? "border-bad/40 text-bad" : "border-ink-700 text-ink-400"}`}>
+              {t.source === "agent" ? (t.child?.agentName ?? "agente") : toolLabel(t.name).label}
+            </span>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
 

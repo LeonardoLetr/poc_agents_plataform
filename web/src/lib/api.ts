@@ -67,9 +67,12 @@ export interface ToolInfo {
   name: string;
   description: string;
   inputSchema: { properties?: Record<string, { type?: string; description?: string; enum?: string[] }>; required?: string[] };
-  source: "builtin" | "mcp" | "server";
+  source: "builtin" | "mcp" | "server" | "agent";
   server?: string;
   category: string;
+  /** Multiagente: agente representado pela ferramenta e seu rótulo (emoji + nome). */
+  agentId?: string;
+  label?: string;
 }
 
 export interface McpServer {
@@ -129,6 +132,10 @@ export interface RunSummary {
   startedAt: string;
   finishedAt: string | null;
   eventCount?: number;
+  parentRunId?: string;
+  depth?: number;
+  childRunIds?: string[];
+  childUsage?: { input: number; output: number };
 }
 export interface RunDetail extends RunSummary {
   events: RunEvent[];
@@ -151,14 +158,16 @@ export type RunEvent = { ts: string } & (
   | { type: "thinking.delta"; text: string }
   | { type: "text.delta"; text: string }
   | { type: "llm.response"; iteration: number; stopReason: string | null; usage: { input: number; output: number; cacheRead?: number }; durationMs: number; model: string }
-  | { type: "tool.call"; id: string; name: string; input: unknown; source: "builtin" | "mcp" | "server"; server?: string }
+  | { type: "tool.call"; id: string; name: string; input: unknown; source: "builtin" | "mcp" | "server" | "agent"; server?: string }
   | { type: "tool.approval_requested"; id: string; name: string; input: unknown }
   | { type: "tool.approval_resolved"; id: string; approved: boolean }
   | { type: "tool.result"; id: string; name: string; output: string; isError: boolean; durationMs: number }
   | { type: "citations"; items: Citation[] }
+  | { type: "delegation.started"; toolUseId: string; childRunId: string; agentId: string; agentName: string; task: string }
+  | { type: "delegation.finished"; toolUseId: string; childRunId: string; status: RunStatus; iterations: number; usage: { input: number; output: number } }
   | { type: "memory.created"; memory: Memory }
   | { type: "user.message"; text: string }
-  | { type: "run.completed"; output: string; iterations: number; usage: { input: number; output: number } }
+  | { type: "run.completed"; output: string; iterations: number; usage: { input: number; output: number }; childUsage?: { input: number; output: number } }
   | { type: "run.failed"; error: string }
   | { type: "run.cancelled" }
 );

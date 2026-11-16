@@ -9,8 +9,10 @@ export interface ToolStep {
   id: string;
   name: string;
   input: unknown;
-  source: "builtin" | "mcp" | "server";
+  source: "builtin" | "mcp" | "server" | "agent";
   server?: string;
+  /** Multiagente: execução filha iniciada por esta chamada. */
+  child?: { runId: string; agentName: string; status?: RunStatus; iterations?: number; usage?: { input: number; output: number } };
   status: "running" | "awaiting_approval" | "done" | "error" | "denied";
   output?: string;
   durationMs?: number;
@@ -45,6 +47,8 @@ export interface RunView {
   active: string | null;
   callCounts: Record<string, number>;
   tokens: { input: number; output: number };
+  /** Tokens das execuções delegadas (filhas e netas). */
+  childTokens: { input: number; output: number };
   iteration: number;
   model?: string;
   provider?: string;
@@ -57,6 +61,7 @@ export const emptyRun: RunView = {
   active: null,
   callCounts: {},
   tokens: { input: 0, output: 0 },
+  childTokens: { input: 0, output: 0 },
   iteration: 0,
   pendingApprovals: [],
 };
@@ -147,6 +152,15 @@ export function reduceRun(state: RunView, ev: RunEvent): RunView {
         tools: it.tools.map((t) => (t.id === ev.id ? { ...t, status: t.status === "denied" ? "denied" : ev.isError ? "error" : "done", output: ev.output, durationMs: ev.durationMs } : t)),
       }));
       return { ...state, steps };
+    case "delegation.started":
+      updateIter((it) => ({ ...it, tools: it.tools.map((t) => (t.id === ev.toolUseId ? { ...t, child: { runId: ev.childRunId, agentName: ev.agentName, status: "running" } } : t)) }));
+      return { ...state, steps };
+    case "delegation.finished":
+      updateIter((it) => ({
+        ...it,
+        tools: it.tools.map((t) => (t.id === ev.toolUseId && t.child ? { ...t, child: { ...t.child, status: ev.status, iterations: ev.iterations, usage: ev.usage } } : t)),
+      }));
+      return { ...state, steps, childTokens: { input: state.childTokens.input + ev.usage.input, output: state.childTokens.output + ev.usage.output } };
     case "citations":
       updateIter((it) => ({ ...it, citations: [...(it.citations ?? []), ...ev.items] }));
       return { ...state, steps };

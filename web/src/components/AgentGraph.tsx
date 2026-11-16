@@ -1,6 +1,6 @@
 import { Background, BackgroundVariant, BaseEdge, Handle, Position, ReactFlow, getBezierPath, useEdgesState, useNodesState, type Edge, type EdgeProps, type Node, type NodeProps } from "@xyflow/react";
 import { motion } from "motion/react";
-import { Brain, Calculator, Clock, Globe, NotebookPen, Plug, User, Wrench } from "lucide-react";
+import { Bot, Brain, Calculator, Clock, Globe, NotebookPen, Plug, User, Wrench } from "lucide-react";
 import { useEffect, useMemo } from "react";
 import type { Agent, ToolInfo } from "../lib/api";
 import { graphTarget, SERVER_TOOL_NAMES, type RunView } from "../lib/runState";
@@ -172,7 +172,9 @@ function GraphInner({ agent, tools, view, llmLabel }: { agent: Agent; tools: Too
 
     const toolNodes: { id: string; label: string; sub?: string; icon: typeof Wrench; color: string; dim?: boolean }[] = [
       ...builtin.map((t) =>
-        SERVER_TOOL_NAMES.includes(t)
+        t.startsWith("agent__")
+          ? { id: `tool:${t}`, label: tools.find((x) => x.name === t)?.label ?? "agente", sub: "agente · delegação", icon: Bot, color: "#7c3aed", dim: !tools.some((x) => x.name === t) }
+          : SERVER_TOOL_NAMES.includes(t)
           ? { id: `tool:${t}`, label: t, sub: "servidor Anthropic", icon: ICONS[t] ?? Globe, color: "#0891b2" }
           : { id: `tool:${t}`, label: t, sub: "ferramenta nativa", icon: ICONS[t] ?? Wrench, color: "#d97706" },
       ),
