@@ -3,6 +3,7 @@ import { ArrowUp, Coins, History, Layers, Loader2, Repeat, Send, Square, Timer, 
 import { useEffect, useMemo, useReducer, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { ContextMeter } from "../components/ContextMeter";
+import { ReplayBar, replayOff, type ReplayState } from "../components/ReplayBar";
 import { AgentGraph } from "../components/AgentGraph";
 import { LiveDot } from "../components/effects";
 import { JsonView } from "../components/JsonView";
@@ -11,6 +12,7 @@ import { Badge, Button, Card, ErrorNote, Modal, Textarea } from "../components/u
 import { api, type Agent, type Llm, type RunDetail, type RunEvent, type RunSummary, type ToolInfo } from "../lib/api";
 import { fmtNumber, timeAgo, toolLabel } from "../lib/format";
 import { useEventStream, useResource } from "../lib/hooks";
+import { viewAt } from "../lib/replay";
 import { emptyRun, reduceRun, type RunView } from "../lib/runState";
 
 type Action = { type: "reset" } | { type: "snapshot"; events: RunEvent[] } | { type: "event"; event: RunEvent };
@@ -19,6 +21,15 @@ function reducer(state: RunView, action: Action): RunView {
   if (action.type === "reset") return emptyRun;
   if (action.type === "snapshot") return action.events.reduce(reduceRun, emptyRun);
   return reduceRun(state, action.event);
+}
+
+/** Deltas de texto/pensamento seguidos são agrupados, como no histórico salvo pelo núcleo. */
+function mergeDelta(list: RunEvent[], ev: RunEvent): RunEvent[] {
+  const last = list[list.length - 1];
+  if (last && last.type === ev.type && (ev.type === "text.delta" || ev.type === "thinking.delta")) {
+    return [...list.slice(0, -1), { ...last, text: (last as { text: string }).text + ev.text } as RunEvent];
+  }
+  return [...list, ev];
 }
 
 const EXAMPLES: Record<string, string[]> = {
@@ -48,7 +59,10 @@ export default function Playground() {
   const [input, setInput] = useState("");
   const [followUp, setFollowUp] = useState("");
   const [error, setError] = useState<string | null>(null);
-  const [view, dispatch] = useReducer(reducer, emptyRun);
+  const [liveView, dispatch] = useReducer(reducer, emptyRun);
+  // Eventos da execução aberta, guardados para o replay.
+  const [events, setEvents] = useState<RunEvent[]>([]);
+  const [replay, setReplay] = useState<ReplayState>(replayOff);
   const [runAgentId, setRunAgentId] = useState<string | null>(null);
   const [parentRunId, setParentRunId] = useState<string | null>(null);
   const [inspect, setInspect] = useState<"system" | "messages" | "scratchpad" | null>(null);
@@ -62,6 +76,8 @@ export default function Playground() {
 
   useEffect(() => {
     if (!runId) dispatch({ type: "reset" });
+    setEvents([]);
+    setReplay(replayOff);
     setParentRunId(null);
   }, [runId]);
 
@@ -72,8 +88,11 @@ export default function Playground() {
       setAgentId(m.run.agentId);
       setParentRunId(m.run.parentRunId ?? null);
       dispatch({ type: "snapshot", events: m.events });
+      setEvents(m.events);
     } else {
       dispatch({ type: "event", event: msg as RunEvent });
+      if (msg.type !== "text.delta" && msg.type !== "thinking.delta") setEvents((list) => [...list, msg as RunEvent]);
+      else setEvents((list) => mergeDelta(list, msg as RunEvent));
       if (msg.type === "run.completed" || msg.type === "run.failed" || msg.type === "run.cancelled") void runs.reload();
     }
   });
@@ -81,12 +100,17 @@ export default function Playground() {
   // Ferramentas MCP aparecem/somem conforme os servidores conectam.
   useEventStream("/api/mcp/events", () => void tools.reload());
 
+  const agent = useMemo(() => agents.data?.find((a) => a.id === (runId ? runAgentId ?? agentId : agentId)) ?? null, [agents.data, agentId, runAgentId, runId]);
+  // Em replay, toda a tela (grafo, linha do tempo, métricas) mostra o estado na posição escolhida.
+  const replaying = replay.position !== null;
+  const replayView = useMemo(() => (replay.position === null ? null : viewAt(events, replay.position)), [events, replay.position]);
+  const view = replayView ?? liveView;
+  const live = !replaying && (view.status === "running" || view.status === "awaiting_approval");
+  const canReplay = Boolean(runId) && !(liveView.status === "running" || liveView.status === "awaiting_approval") && events.length > 1;
+
   useEffect(() => {
     timelineRef.current?.scrollTo({ top: timelineRef.current.scrollHeight, behavior: "smooth" });
   }, [view.steps]);
-
-  const agent = useMemo(() => agents.data?.find((a) => a.id === (runId ? runAgentId ?? agentId : agentId)) ?? null, [agents.data, agentId, runAgentId, runId]);
-  const live = view.status === "running" || view.status === "awaiting_approval";
   const agentLlm = llmOf(agent);
   const delegates = agent?.tools.some((t) => t.startsWith("agent__")) ?? false;
   const examples = agentLlm?.provider === "demo" ? EXAMPLES.demo : delegates ? EXAMPLES.team : EXAMPLES.default;
@@ -109,6 +133,7 @@ export default function Playground() {
   async function sendFollowUp() {
     if (!runId || !followUp.trim()) return;
     try {
+      setReplay(replayOff);
       await api.post(`/api/runs/${runId}/messages`, { text: followUp.trim() });
       setFollowUp("");
     } catch (e) {
@@ -122,7 +147,8 @@ export default function Playground() {
     setInspect(tab);
   }
 
-  const approval = view.pendingApprovals[0];
+  // Aprovações são sempre do estado ao vivo: no replay, pedidos antigos não devem reaparecer.
+  const approval = liveView.pendingApprovals[0];
 
   return (
     <div>
@@ -203,13 +229,15 @@ export default function Playground() {
         </div>
       )}
 
+      {canReplay && <ReplayBar events={events} state={replay} onChange={setReplay} />}
+
       <div className="grid gap-6 xl:grid-cols-12">
         {/* Grafo + métricas */}
         <div className="space-y-4 xl:col-span-7">
           <Card className="relative h-[460px] overflow-hidden">
             <div className="absolute left-4 top-3 z-10 flex items-center gap-2 text-[12px] text-ink-300">
               <LiveDot color={live ? "bg-ok" : "bg-ink-500"} active={live} />
-              {live ? "execução ao vivo" : view.status === "idle" ? "mapa do agente" : `execução ${view.status === "completed" ? "concluída" : view.status === "failed" ? "falhou" : "cancelada"}`}
+              {replaying ? "replay" : live ? "execução ao vivo" : view.status === "idle" ? "mapa do agente" : `execução ${view.status === "completed" ? "concluída" : view.status === "failed" ? "falhou" : "cancelada"}`}
             </div>
             {live && (
               <Button size="sm" variant="danger" className="absolute right-3 top-3 z-10" onClick={() => api.post(`/api/runs/${runId}/cancel`)}>
