@@ -57,7 +57,7 @@ describe("migração para a versão 3 (multiagente)", () => {
     const db = migrate(structuredClone(data), "browser");
     const coordinator = db.agents.find((a) => a.name === "Coordenador (offline)");
     expect(coordinator?.tools).toContain(`agent__${demo.id}`);
-    expect(db.version).toBe(7);
+    expect(db.version).toBe(8);
   });
 
   it("não duplica o coordenador nem o cria sem o agente demo", () => {
@@ -131,5 +131,16 @@ describe("migração para a versão 7 (assistente de e-mail para qualquer servid
     data.agents = data.agents.map((a) => (a.name === "Assistente de E-mail" ? { ...a, systemPrompt: "Minhas próprias instruções" } : a));
     const db = migrate(structuredClone(data), "browser");
     expect(db.agents.find((a) => a.name === "Assistente de E-mail")!.systemPrompt).toBe("Minhas próprias instruções");
+  });
+});
+
+describe("migração para a versão 8 (referências a servidores MCP apagados)", () => {
+  it("remove dos agentes ferramentas de servidores que não existem mais", () => {
+    const fresh = seedDb("browser");
+    const data = { ...fresh, version: 7, agents: fresh.agents.map((a) => (a.name === "Assistente de E-mail" ? { ...a, tools: ["mcp__resend__*", "mcp__zapier__*", "current_time"] } : a)) };
+    data.mcpServers = [...data.mcpServers, { id: "mcp_z", name: "zapier", transport: "http" as const, url: "https://mcp.zapier.com/api/v1/connect", via: "anthropic" as const, enabled: true, createdAt: "" }];
+    const db = migrate(structuredClone(data), "browser");
+    expect(db.agents.find((a) => a.name === "Assistente de E-mail")!.tools).toEqual(["mcp__zapier__*", "current_time"]);
+    expect(db.agents.find((a) => a.name === "Explorador MCP")!.tools).toContain("mcp__laboratorio__*");
   });
 });

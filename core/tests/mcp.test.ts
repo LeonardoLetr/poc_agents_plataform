@@ -104,3 +104,15 @@ describe("MCP: edição e diagnóstico de conexão", () => {
     }
   });
 });
+
+describe("MCP: exclusão", () => {
+  it("apagar um servidor remove as ferramentas dele dos agentes", async () => {
+    const created = await ctx.api("POST", "/api/mcp", { name: "para_apagar", transport: "http", url: "https://exemplo.dev/mcp", enabled: false });
+    const agent = await ctx.api("POST", "/api/agents", {
+      name: "Usa apagado", llmId: "llm_demo", systemPrompt: "x", tools: ["mcp__para_apagar__*", "mcp__para_apagar__enviar", "calculator"], maxIterations: 3, requireApproval: false,
+      memory: { autoRecall: false, autoEpisode: false, recallLimit: 3 },
+    });
+    await ctx.api("DELETE", `/api/mcp/${created.body.id}`);
+    expect(ctx.db.agents.find((a) => a.id === agent.body.id)!.tools).toEqual(["calculator"]);
+  });
+});

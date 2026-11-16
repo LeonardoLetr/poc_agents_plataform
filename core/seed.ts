@@ -274,7 +274,7 @@ export function seedPrompts(): PromptTemplate[] {
 
 export function seedDb(runtime: "server" | "browser"): DB {
   return {
-    version: 7,
+    version: 8,
     llms: seedLlms(),
     agents: seedAgents(),
     memories: seedMemories(),
@@ -291,7 +291,7 @@ export function migrate(raw: Record<string, unknown>, runtime: "server" | "brows
   // Dados salvos, mas sem nenhum agente nem LLM (armazenamento vazio ou corrompido): começa do conjunto inicial.
   if (!data.agents?.length && !data.llms?.length) return seedDb(runtime);
   const out: DB = {
-    version: 7,
+    version: 8,
     llms: data.llms ?? [],
     agents: data.agents ?? [],
     memories: data.memories ?? [],
@@ -350,6 +350,11 @@ export function migrate(raw: Record<string, unknown>, runtime: "server" | "brows
       a.systemPrompt = EMAIL_PROMPT;
       if (a.description.includes("do Resend")) a.description = emailAgent().description;
     }
+  }
+  if ((data.version ?? 1) < 8) {
+    // Versão 8: remove referências a servidores MCP que já foram apagados (antes a exclusão não limpava os agentes).
+    const names = new Set(out.mcpServers.map((s) => s.name));
+    for (const a of out.agents) a.tools = a.tools.filter((t) => !t.startsWith("mcp__") || names.has(t.slice(5).split("__")[0]));
   }
   return out;
 }

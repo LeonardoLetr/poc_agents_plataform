@@ -376,6 +376,9 @@ route("POST", "/api/mcp/:id/disconnect", async ({ id }) => {
 route("DELETE", "/api/mcp/:id", async ({ id }) => {
   const server = findServer(id);
   db.mcpServers.splice(db.mcpServers.indexOf(server), 1);
+  // As ferramentas do servidor removido saem dos agentes (senão ficam como referência órfã no grafo).
+  const prefix = `mcp__${server.name}__`;
+  for (const a of db.agents) a.tools = a.tools.filter((t) => !t.startsWith(prefix));
   await disconnect(server.id, false);
   forget(server.id);
   persist();
