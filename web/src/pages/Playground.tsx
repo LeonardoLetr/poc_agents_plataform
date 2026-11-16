@@ -29,6 +29,11 @@ const EXAMPLES: Record<string, string[]> = {
     "O que você lembra sobre mim?",
     "Converta 42 km para milhas e role 3d6 usando o servidor MCP",
   ],
+  // Agentes que delegam (com outros agentes como ferramentas) ganham exemplos de tarefa em equipe.
+  team: [
+    "Pesquise o preço médio atual do litro da gasolina no Brasil e calcule quanto custa rodar 1.200 km com um carro que faz 11 km/l",
+    "Compare a população das 3 maiores capitais do Brasil e calcule a diferença percentual entre a maior e a menor, citando as fontes",
+  ],
 };
 
 export default function Playground() {
@@ -83,7 +88,8 @@ export default function Playground() {
   const agent = useMemo(() => agents.data?.find((a) => a.id === (runId ? runAgentId ?? agentId : agentId)) ?? null, [agents.data, agentId, runAgentId, runId]);
   const live = view.status === "running" || view.status === "awaiting_approval";
   const agentLlm = llmOf(agent);
-  const examples = agentLlm?.provider === "demo" ? EXAMPLES.demo : EXAMPLES.default;
+  const delegates = agent?.tools.some((t) => t.startsWith("agent__")) ?? false;
+  const examples = agentLlm?.provider === "demo" ? EXAMPLES.demo : delegates ? EXAMPLES.team : EXAMPLES.default;
 
   async function start(text = input) {
     if (!agent || !text.trim()) return;

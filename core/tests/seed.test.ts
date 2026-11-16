@@ -57,7 +57,7 @@ describe("migração para a versão 3 (multiagente)", () => {
     const db = migrate(structuredClone(data), "browser");
     const coordinator = db.agents.find((a) => a.name === "Coordenador (offline)");
     expect(coordinator?.tools).toContain(`agent__${demo.id}`);
-    expect(db.version).toBe(4);
+    expect(db.version).toBe(5);
   });
 
   it("não duplica o coordenador nem o cria sem o agente demo", () => {
@@ -66,5 +66,25 @@ describe("migração para a versão 3 (multiagente)", () => {
     const noDemo = v2();
     noDemo.agents = noDemo.agents.filter((a) => a.name !== "Agente Demo (offline)");
     expect(migrate(structuredClone(noDemo), "browser").agents.some((a) => a.name === "Coordenador (offline)")).toBe(false);
+  });
+});
+
+describe("migração para a versão 5 (supervisor)", () => {
+  it("adiciona o supervisor com Claude delegando ao Pesquisador e ao Analista", () => {
+    const fresh = seedDb("browser");
+    const data = { ...fresh, version: 4, agents: fresh.agents.filter((a) => a.name !== "Supervisor") };
+    const db = migrate(structuredClone(data), "browser");
+    const supervisor = db.agents.find((a) => a.name === "Supervisor")!;
+    const ids = Object.fromEntries(db.agents.map((a) => [a.name, a.id]));
+    expect(supervisor.llmId).toBe(SEED_LLM.opus);
+    expect(supervisor.tools).toEqual(expect.arrayContaining([`agent__${ids["Pesquisador"]}`, `agent__${ids["Analista de Dados"]}`]));
+    expect(migrate(structuredClone(db) as never, "browser").agents.filter((a) => a.name === "Supervisor")).toHaveLength(1);
+  });
+
+  it("os dados iniciais já trazem o supervisor", () => {
+    const db = seedDb("server");
+    const supervisor = db.agents.find((a) => a.name === "Supervisor")!;
+    const targets = supervisor.tools.filter((t) => t.startsWith("agent__")).map((t) => db.agents.find((a) => `agent__${a.id}` === t)?.name);
+    expect(targets).toEqual(["Pesquisador", "Analista de Dados"]);
   });
 });
