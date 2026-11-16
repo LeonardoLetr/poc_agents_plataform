@@ -11,7 +11,7 @@ const KIND_COLOR: Record<MemoryKind, string> = { fact: "#0284c7", preference: "#
 interface Scored {
   memory: Memory;
   score: number;
-  breakdown: { overlap: number; importance: number; recency: number };
+  breakdown: { relevance: number; importance: number; recency: number };
 }
 
 export default function MemoryPage() {
@@ -149,7 +149,7 @@ export default function MemoryPage() {
           <div className="mb-1 flex items-center gap-2 text-[13px] font-medium">
             <Search size={14} className="text-ink-400" /> Laboratório de recuperação
           </div>
-          <p className="mb-3 text-[12px] text-ink-400">Simule o que o agente recupera para uma tarefa. Pontuação = 70% termos em comum + 20% importância + 10% recência.</p>
+          <p className="mb-3 text-[12px] text-ink-400">Simule o que o agente recupera para uma tarefa. Pontuação = 70% relevância (BM25, com variações da mesma palavra) + 20% importância + 10% recência.</p>
           <div className="flex gap-2">
             <Input value={query} onChange={(e) => setQuery(e.target.value)} onKeyDown={(e) => e.key === "Enter" && search()} placeholder="ex.: preferências do usuário" />
             <Button onClick={search}>
@@ -165,7 +165,7 @@ export default function MemoryPage() {
                   <span className="ml-2 font-mono text-info">{r.score.toFixed(2)}</span>
                 </div>
                 <div className="mt-1.5 flex h-1.5 overflow-hidden rounded-full bg-ink-850">
-                  <motion.div initial={{ width: 0 }} animate={{ width: `${r.breakdown.overlap * 70}%` }} className="bg-info" title="termos" />
+                  <motion.div initial={{ width: 0 }} animate={{ width: `${r.breakdown.relevance * 70}%` }} className="bg-info" title="relevância (BM25)" />
                   <motion.div initial={{ width: 0 }} animate={{ width: `${r.breakdown.importance * 20}%` }} className="bg-mcp" title="importância" />
                   <motion.div initial={{ width: 0 }} animate={{ width: `${r.breakdown.recency * 10}%` }} className="bg-ok" title="recência" />
                 </div>

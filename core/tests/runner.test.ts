@@ -60,6 +60,30 @@ describe("loop agêntico com a LLM demo", () => {
     expect(episode && "memory" in episode && episode.memory.kind).toBe("episode");
   });
 
+  it("gera episódios curtos e não os usa no recall automático por padrão", async () => {
+    const id = await agent({ tools: ["calculator"], memory: { autoRecall: true, autoEpisode: true, recallLimit: 5 } });
+    const first = await run(id, "Quanto é 12 * 12 no orçamento?");
+    const episode = first.events.find((e) => e.type === "memory.created");
+    const content = episode && "memory" in episode ? episode.memory.content : "";
+    expect(content.length).toBeLessThanOrEqual(220);
+    expect(content).toMatch(/^Tarefa "Quanto é 12 \* 12 no orçamento\?" · 2 iterações · ferramentas: calculator\./);
+    expect(content).not.toMatch(/Episódio:/);
+
+    // Mesma pergunta: o episódio anterior não deve ser injetado no contexto.
+    const second = await run(id, "Quanto é 12 * 12 no orçamento?");
+    const recalled = second.events.find((e) => e.type === "memory.recalled");
+    const kinds = recalled && "memories" in recalled ? recalled.memories.map((m) => m.kind) : [];
+    expect(kinds).not.toContain("episode");
+  });
+
+  it("inclui episódios no recall quando o agente pede", async () => {
+    const id = await agent({ tools: ["calculator"], memory: { autoRecall: true, autoEpisode: true, recallLimit: 5, recallEpisodes: true } });
+    await run(id, "Quanto é 15 * 3 no estoque?");
+    const { events } = await run(id, "Quanto é 15 * 3 no estoque?");
+    const recalled = events.find((e) => e.type === "memory.recalled");
+    expect(recalled && "memories" in recalled && recalled.memories.some((m) => m.kind === "episode")).toBe(true);
+  });
+
   it("pede aprovação humana e respeita a negação", async () => {
     const id = await agent({ tools: ["calculator"], requireApproval: true });
     const res = await ctx.api("POST", "/api/runs", { agentId: id, input: "quanto é 1 + 1?" });

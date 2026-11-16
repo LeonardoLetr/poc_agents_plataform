@@ -250,14 +250,8 @@ async function loop(run: LiveRun) {
     });
 
     if (agent.memory.autoEpisode && finalText) {
-      // Resumo curto e sem markdown: episódios longos poluiriam buscas futuras.
-      const usedTools = [...new Set(record.events.flatMap((e) => (e.type === "tool.call" ? [e.name] : [])))];
-      const plain = finalText.replace(/[*_`>#\-]/g, "").replace(/\s+/g, " ").trim();
       const memory = createMemory({
-        content:
-          `Episódio: tarefa "${record.input.slice(0, 120)}" concluída em ${record.iterations} iterações` +
-          (usedTools.length ? ` usando ${usedTools.join(", ")}` : "") +
-          `. Início da resposta: ${plain.slice(0, 140)}${plain.length > 140 ? "…" : ""}`,
+        content: summarizeEpisode(record.input, record.iterations, record.events, finalText),
         kind: "episode",
         tags: ["episódio", agent.name],
         importance: 2,
@@ -292,9 +286,32 @@ function llmFor(agent: AgentConfig): LlmConfig {
   return structuredClone(llm);
 }
 
+/**
+ * Resumo episódico curto e autocontido: tarefa, ferramentas, iterações e a primeira frase da resposta.
+ * Nunca inclui trechos de outras memórias (o que faria os episódios crescerem a cada execução).
+ */
+export function summarizeEpisode(input: string, iterations: number, events: RunRecord["events"], finalText: string): string {
+  // Remove marcação de markdown apenas da resposta do modelo.
+  const clean = (t: string) => t.replace(/[*_`>#]/g, "").replace(/\s+/g, " ").trim();
+  const tools = [...new Set(events.flatMap((e) => (e.type === "tool.call" ? [e.name.replace(/^mcp__(.+?)__/, "$1/")] : [])))];
+  const firstLine = clean(finalText.split("\n").find((l) => l.trim() && !/epis[óo]dio/i.test(l)) ?? "");
+  const firstSentence = firstLine.split(/(?<=[.!?:])\s/)[0] ?? "";
+  const task = input.replace(/\s+/g, " ").trim(); // a tarefa é preservada como o usuário escreveu
+  const parts = [
+    `Tarefa "${task.length > 80 ? `${task.slice(0, 79)}…` : task}"`,
+    `${iterations} ${iterations === 1 ? "iteração" : "iterações"}`,
+    tools.length ? `ferramentas: ${tools.slice(0, 4).join(", ")}${tools.length > 4 ? "…" : ""}` : "sem ferramentas",
+  ];
+  const result = firstSentence ? ` Resultado: ${firstSentence.length > 70 ? `${firstSentence.slice(0, 69)}…` : firstSentence}` : "";
+  return `${parts.join(" · ")}.${result}`.slice(0, 220);
+}
+
 export function startRun(agent: AgentConfig, input: string): RunRecord {
   const llm = llmFor(agent);
-  const recalled = agent.memory.autoRecall ? searchMemories(input, { agentId: agent.id, limit: agent.memory.recallLimit, touch: true }) : [];
+  // Episódios ficam fora do recall automático por padrão: são registros do passado, não conhecimento.
+  const recalled = agent.memory.autoRecall
+    ? searchMemories(input, { agentId: agent.id, limit: agent.memory.recallLimit, touch: true, excludeKinds: agent.memory.recallEpisodes ? [] : ["episode"] })
+    : [];
   const record: RunRecord = {
     id: uid("run"),
     agentId: agent.id,

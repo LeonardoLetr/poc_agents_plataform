@@ -15,6 +15,21 @@ describe("tokenização", () => {
   });
 });
 
+describe("radicais e similaridade", () => {
+  it("reduz flexões comuns ao mesmo radical", () => {
+    expect(mem.stem("agentes")).toBe(mem.stem("agente"));
+    expect(mem.stem("ferramentas")).toBe(mem.stem("ferramenta"));
+    expect(mem.stem("calculando")).toBe("calcul");
+    expect(mem.stem("mcp")).toBe("mcp"); // palavras curtas ficam intactas
+  });
+
+  it("dá similaridade parcial a radicais com prefixo comum", () => {
+    expect(mem.termSimilarity("prefir", "prefer")).toBeCloseTo(4 / 6);
+    expect(mem.termSimilarity("agent", "agent")).toBe(1);
+    expect(mem.termSimilarity("cafe", "casa")).toBe(0);
+  });
+});
+
 describe("memória de longo prazo", () => {
   it("cria, recupera por relevância e detalha a pontuação", async () => {
     const created = await ctx.api("POST", "/api/memories", { content: "O deploy usa GitHub Actions e Pages", kind: "fact", importance: 5, tags: ["deploy"] });
@@ -22,7 +37,7 @@ describe("memória de longo prazo", () => {
 
     const results = mem.searchMemories("como funciona o deploy no github");
     expect(results[0].memory.id).toBe(created.body.id);
-    expect(results[0].breakdown.overlap).toBeGreaterThan(0);
+    expect(results[0].breakdown.relevance).toBe(1); // o mais relevante é a referência da normalização
     expect(results[0].score).toBeGreaterThan(0);
   });
 
@@ -50,5 +65,26 @@ describe("memória de longo prazo", () => {
     expect((await ctx.api("DELETE", `/api/memories/${body.id}`)).status).toBe(404);
     const types = ctx.db.audit.map((a) => a.type);
     expect(types).toEqual(expect.arrayContaining(["memory.created", "memory.updated", "memory.deleted"]));
+  });
+});
+
+describe("ranking BM25", () => {
+  it("encontra variações da mesma palavra (prefiro × prefere, plural × singular)", () => {
+    mem.createMemory({ content: "O usuário prefere relatórios curtos", kind: "preference", source: "user" });
+    const hits = mem.searchMemories("eu prefiro relatório").map((r) => r.memory.content);
+    expect(hits[0]).toBe("O usuário prefere relatórios curtos");
+  });
+
+  it("valoriza termos raros acima de termos comuns", () => {
+    for (let i = 0; i < 4; i++) mem.createMemory({ content: `Nota genérica ${i} sobre projeto`, source: "user", importance: 3 });
+    mem.createMemory({ content: "Projeto usa banco Postgres", source: "user", importance: 3 });
+    const [top] = mem.searchMemories("projeto postgres");
+    expect(top.memory.content).toBe("Projeto usa banco Postgres");
+  });
+
+  it("permite excluir tipos de memória da busca", () => {
+    mem.createMemory({ content: "Episódio sobre orçamento trimestral", kind: "episode", source: "auto" });
+    expect(mem.searchMemories("orçamento trimestral").some((r) => r.memory.kind === "episode")).toBe(true);
+    expect(mem.searchMemories("orçamento trimestral", { excludeKinds: ["episode"] })).toHaveLength(0);
   });
 });

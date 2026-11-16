@@ -178,7 +178,7 @@ const AgentInput = z.object({
   maxIterations: z.number().int().min(1).max(50).default(10),
   requireApproval: z.boolean().default(false),
   memory: z
-    .object({ autoRecall: z.boolean(), autoEpisode: z.boolean(), recallLimit: z.number().int().min(0).max(20) })
+    .object({ autoRecall: z.boolean(), autoEpisode: z.boolean(), recallLimit: z.number().int().min(0).max(20), recallEpisodes: z.boolean().optional() })
     .default({ autoRecall: true, autoEpisode: true, recallLimit: 5 }),
 });
 const checkLlm = (llmId: string) => db.llms.some((l) => l.id === llmId) || notFound("LLM");

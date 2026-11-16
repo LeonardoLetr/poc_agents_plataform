@@ -45,6 +45,8 @@ export interface AgentConfig {
     /** Salva um resumo (memória episódica) ao fim de cada execução. */
     autoEpisode: boolean;
     recallLimit: number;
+    /** Inclui memórias episódicas no recall automático (padrão: não). */
+    recallEpisodes?: boolean;
   };
   createdAt: string;
   updatedAt: string;

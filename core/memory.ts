@@ -4,9 +4,11 @@ import type { Memory, MemoryKind } from "./types.js";
 import { now, uid } from "./util.js";
 
 /**
- * Memória de longo prazo com busca lexical (sobreposição de termos + peso por
- * importância e recência). A implementação é intencionalmente simples para que o
- * ranking seja transparente; em produção, recomenda-se busca vetorial com embeddings.
+ * Memória de longo prazo com busca lexical BM25 (relevância) combinada com importância e recência.
+ * A implementação é intencionalmente simples para que o ranking seja transparente; em produção,
+ * recomenda-se complementar com busca vetorial (embeddings).
+ *
+ * Pontuação final = 70% relevância (BM25 normalizado) + 20% importância + 10% recência.
  */
 
 const STOP = new Set(
@@ -17,31 +19,84 @@ export function tokenize(text: string): string[] {
   return text
     .toLowerCase()
     .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "")
+    .replace(/[\u0300-\u036f]/g, "")
     .split(/[^a-z0-9]+/)
     .filter((t) => t.length > 1 && !STOP.has(t));
 }
 
+/** Sufixos removidos pelo radicalizador, do mais longo ao mais curto (aplicado uma única vez por palavra). */
+const SUFFIXES = [
+  "amentos", "imentos", "amento", "imento", "mente", "acoes", "icoes", "idades", "idade", "acao", "icao",
+  "ismos", "ismo", "istas", "ista", "aveis", "iveis", "avel", "ivel", "ando", "endo", "indo",
+  "adas", "idas", "ados", "idos", "ada", "ida", "ado", "ido", "aram", "eram", "iram", "ava", "ia",
+  "ar", "er", "ir", "es", "as", "os", "is", "a", "e", "o", "s",
+];
+
+/** Radical simplificado em português: reduz flexões comuns (plural, gênero, conjugações). */
+export function stem(token: string): string {
+  if (token.length <= 4 || /^\d+$/.test(token)) return token;
+  for (const suf of SUFFIXES) {
+    if (token.endsWith(suf) && token.length - suf.length >= 4) return token.slice(0, -suf.length);
+  }
+  return token;
+}
+
+/**
+ * Similaridade entre radicais: 1 se iguais; parcial quando compartilham um prefixo de 4+ letras
+ * (ex.: "prefir" × "prefer" → 0,67); 0 caso contrário.
+ */
+export function termSimilarity(a: string, b: string): number {
+  if (a === b) return 1;
+  let i = 0;
+  while (i < a.length && i < b.length && a[i] === b[i]) i++;
+  return i >= 4 ? i / Math.max(a.length, b.length) : 0;
+}
+
+const K1 = 1.2;
+const B = 0.75;
+
 export interface ScoredMemory {
   memory: Memory;
   score: number;
-  breakdown: { overlap: number; importance: number; recency: number };
+  /** relevance: BM25 normalizado (0–1) · importance: 0–1 · recency: 0–1 */
+  breakdown: { relevance: number; importance: number; recency: number };
 }
 
-export function searchMemories(query: string, opts: { agentId?: string | null; limit?: number; touch?: boolean } = {}): ScoredMemory[] {
-  const q = new Set(tokenize(query));
-  const pool = db.memories.filter((m) => opts.agentId === undefined || m.agentId === null || m.agentId === opts.agentId);
-  const scored = pool
-    .map((memory) => {
-      const terms = new Set([...tokenize(memory.content), ...memory.tags.flatMap(tokenize)]);
-      let hits = 0;
-      for (const t of q) if (terms.has(t) || [...terms].some((x) => x.startsWith(t) || t.startsWith(x))) hits++;
-      const overlap = q.size ? hits / q.size : 0;
-      const importance = memory.importance / 5;
-      const ageDays = (Date.now() - new Date(memory.lastAccessedAt ?? memory.createdAt).getTime()) / 86_400_000;
+export function searchMemories(
+  query: string,
+  opts: { agentId?: string | null; limit?: number; touch?: boolean; excludeKinds?: MemoryKind[] } = {},
+): ScoredMemory[] {
+  const queryTerms = [...new Set(tokenize(query).map(stem))];
+  const pool = db.memories.filter(
+    (m) => (opts.agentId === undefined || m.agentId === null || m.agentId === opts.agentId) && !opts.excludeKinds?.includes(m.kind),
+  );
+  if (!queryTerms.length || !pool.length) return [];
+
+  const docs = pool.map((memory) => ({ memory, terms: [...tokenize(memory.content), ...memory.tags.flatMap(tokenize)].map(stem) }));
+  const avgLen = docs.reduce((n, d) => n + d.terms.length, 0) / docs.length || 1;
+
+  // Frequência (parcial) de cada termo da consulta em cada documento, e em quantos documentos ele aparece.
+  const freq = docs.map((d) => queryTerms.map((q) => d.terms.reduce((sum, t) => sum + termSimilarity(q, t), 0)));
+  const docCount = queryTerms.map((_, qi) => freq.filter((f) => f[qi] > 0).length);
+  const idf = docCount.map((n) => Math.log(1 + (docs.length - n + 0.5) / (n + 0.5)));
+
+  const bm25 = docs.map((d, di) =>
+    queryTerms.reduce((sum, _, qi) => {
+      const f = freq[di][qi];
+      if (!f) return sum;
+      return sum + idf[qi] * ((f * (K1 + 1)) / (f + K1 * (1 - B + (B * d.terms.length) / avgLen)));
+    }, 0),
+  );
+  const best = Math.max(...bm25);
+
+  const scored = docs
+    .map((d, di) => {
+      const relevance = best > 0 ? bm25[di] / best : 0;
+      const importance = d.memory.importance / 5;
+      const ageDays = (Date.now() - new Date(d.memory.lastAccessedAt ?? d.memory.createdAt).getTime()) / 86_400_000;
       const recency = Math.exp(-ageDays / 30);
-      const score = overlap * 0.7 + importance * 0.2 + recency * 0.1;
-      return { memory, score: overlap === 0 ? 0 : score, breakdown: { overlap, importance, recency } };
+      const score = relevance > 0 ? relevance * 0.7 + importance * 0.2 + recency * 0.1 : 0;
+      return { memory: d.memory, score, breakdown: { relevance, importance, recency } };
     })
     .filter((s) => s.score > 0)
     .sort((a, b) => b.score - a.score)

@@ -15,7 +15,7 @@ export interface Agent {
   tools: string[];
   maxIterations: number;
   requireApproval: boolean;
-  memory: { autoRecall: boolean; autoEpisode: boolean; recallLimit: number };
+  memory: { autoRecall: boolean; autoEpisode: boolean; recallLimit: number; recallEpisodes?: boolean };
   createdAt: string;
   updatedAt: string;
 }

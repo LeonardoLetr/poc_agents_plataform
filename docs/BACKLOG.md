@@ -11,8 +11,8 @@ Melhorias e novas funcionalidades planejadas, priorizadas por impacto e esforço
 | ID | Item | Tipo | Prioridade | Esforço | Status |
 |---|---|---|---|---|---|
 | AL-01 | Testes automatizados do núcleo | Qualidade | P0 | M | concluído |
-| AL-02 | Ranking de memória mais robusto | Correção | P1 | P | a fazer |
-| AL-03 | Episódios de memória sem acúmulo de conteúdo | Correção | P1 | P | a fazer |
+| AL-02 | Ranking de memória mais robusto | Correção | P1 | P | concluído |
+| AL-03 | Episódios de memória sem acúmulo de conteúdo | Correção | P1 | P | concluído |
 | AL-04 | Comparação de LLMs e agentes lado a lado | Funcionalidade | P1 | M | a fazer |
 | AL-05 | Multiagente: agente como ferramenta e supervisor | Funcionalidade | P1 | G | a fazer |
 | AL-06 | Ferramentas de servidor do Claude (web search e web fetch) | Funcionalidade | P1 | P | a fazer |
@@ -50,6 +50,8 @@ Sequência sugerida: AL-01 → AL-02/AL-03 → AL-04 → AL-06 → AL-05 → AL-
 - **Proposta:** normalização por radical (stemming simples para português) e pontuação BM25, mantendo o detalhamento
   da pontuação exibido no laboratório de recuperação.
 - **Critérios de aceite:** consultas com flexões verbais e plural/singular recuperam a memória esperada; testes cobrindo os casos.
+- **Resultado:** radicalizador leve para português, similaridade parcial por prefixo comum e BM25 normalizado como
+  componente de relevância (`core/memory.ts`). O laboratório de recuperação exibe a relevância BM25.
 
 ### AL-03 · Episódios de memória sem acúmulo de conteúdo
 - **Problema:** o resumo episódico inclui o início da resposta final, que pode conter trechos de episódios anteriores
@@ -57,6 +59,8 @@ Sequência sugerida: AL-01 → AL-02/AL-03 → AL-04 → AL-06 → AL-05 → AL-
 - **Proposta:** registrar apenas tarefa, ferramentas usadas, número de iterações e resultado em uma frase; excluir
   episódios da recuperação automática por padrão (configurável por agente).
 - **Critérios de aceite:** episódios com no máximo ~200 caracteres e sem conteúdo de outros episódios; teste de regressão.
+- **Resultado:** episódios limitados a 220 caracteres (tarefa, iterações, ferramentas e primeira frase da resposta) e
+  excluídos do recall automático, com a opção "Episódios no recall" por agente.
 
 ---
 

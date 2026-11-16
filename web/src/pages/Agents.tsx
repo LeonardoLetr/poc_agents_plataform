@@ -268,6 +268,12 @@ function AgentEditor({ initial, id, onClose, onSaved }: { initial: AgentInput; i
             <div className="px-2 pt-1 text-[12px] font-medium text-ink-400">Memória</div>
             <Toggle checked={form.memory.autoRecall} onChange={(v) => set("memory", { ...form.memory, autoRecall: v })} label="Recall automático" description="Busca memórias relevantes e injeta no prompt de sistema antes de rodar." />
             <Toggle checked={form.memory.autoEpisode} onChange={(v) => set("memory", { ...form.memory, autoEpisode: v })} label="Memória episódica" description="Salva um resumo de cada execução concluída." />
+            <Toggle
+              checked={Boolean(form.memory.recallEpisodes)}
+              onChange={(v) => set("memory", { ...form.memory, recallEpisodes: v })}
+              label="Episódios no recall"
+              description="Inclui resumos de execuções anteriores entre as memórias injetadas automaticamente."
+            />
           </div>
           <div className="rounded-xl border border-ink-700 p-2">
             <div className="px-2 pt-1 text-[12px] font-medium text-ink-400">Controle e segurança</div>
