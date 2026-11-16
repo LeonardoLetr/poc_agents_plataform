@@ -7,6 +7,7 @@ import type { Health } from "./lib/api";
 import { useResource } from "./lib/hooks";
 import Agents from "./pages/Agents";
 import Audit from "./pages/Audit";
+import Compare from "./pages/Compare";
 import Dashboard from "./pages/Dashboard";
 import Learn from "./pages/Learn";
 import Mcp from "./pages/Mcp";
@@ -37,6 +38,8 @@ export default function App() {
               <Route path="/" element={<Dashboard health={health.data} />} />
               <Route path="/playground" element={<Playground />} />
               <Route path="/playground/:runId" element={<Playground />} />
+              <Route path="/compare" element={<Compare />} />
+              <Route path="/compare/:compareId" element={<Compare />} />
               <Route path="/agents" element={<Agents />} />
               <Route path="/mcp" element={<Mcp />} />
               <Route path="/memory" element={<MemoryPage />} />

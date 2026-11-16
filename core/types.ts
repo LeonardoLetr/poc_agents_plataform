@@ -164,4 +164,8 @@ export interface RunRecord {
   messages: unknown[];
   systemPrompt: string;
   scratchpad: string[];
+  /** LLM usada nesta execução (pode diferir da LLM configurada no agente, ex.: em comparações). */
+  llmId?: string;
+  /** Agrupa execuções disparadas juntas pela tela de comparação. */
+  comparisonId?: string;
 }

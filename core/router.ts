@@ -9,7 +9,7 @@ import { createMemory, deleteMemory, searchMemories } from "./memory.js";
 import { newLlm } from "./seed.js";
 import { db, persist } from "./store.js";
 import { builtinTools } from "./tools/builtin.js";
-import type { AgentConfig, AuditEntry, McpServerConfig, PromptTemplate } from "./types.js";
+import type { AgentConfig, AuditEntry, McpServerConfig, PromptTemplate, RunRecord } from "./types.js";
 import { bus, errorMessage, now, uid } from "./util.js";
 
 /**
@@ -363,6 +363,70 @@ route("POST", "/api/runs/:id/cancel", ({ id }) => ({ ok: cancelRun(id) }));
 route("POST", "/api/runs/:id/approve", ({ id }, req) => {
   const { toolUseId, approved } = z.object({ toolUseId: z.string(), approved: z.boolean() }).parse(req.body);
   return { ok: resolveApproval(id, toolUseId, approved) };
+});
+
+// ───────────────────────── Comparação lado a lado ─────────────────────────
+/** Métricas de uma execução, usadas na comparação. Custo só é estimado para modelos com preço conhecido. */
+function runMetrics(r: RunRecord) {
+  const started = r.events.find((e) => e.type === "run.started") as { model?: string; llmName?: string; provider?: string } | undefined;
+  const model = started?.model ?? "";
+  const price = PRICING[model];
+  const toolCalls = r.events.filter((e) => e.type === "tool.call").map((e) => (e as { name: string }).name);
+  return {
+    runId: r.id,
+    agentId: r.agentId,
+    agentName: r.agentName,
+    llmId: r.llmId,
+    llmName: started?.llmName ?? "",
+    provider: started?.provider ?? "",
+    model,
+    status: r.status,
+    error: r.error,
+    output: r.output,
+    iterations: r.iterations,
+    tokens: { input: r.usage.input, output: r.usage.output, total: r.usage.input + r.usage.output },
+    costUsd: price ? +((r.usage.input * price.input + r.usage.output * price.output) / 1e6).toFixed(6) : null,
+    durationMs: r.finishedAt ? new Date(r.finishedAt).getTime() - new Date(r.startedAt).getTime() : null,
+    toolCalls: toolCalls.length,
+    tools: [...new Set(toolCalls)],
+  };
+}
+
+const CompareInput = z.object({
+  input: z.string().min(1),
+  entries: z.array(z.object({ agentId: z.string(), llmId: z.string().optional() })).min(2, "Escolha ao menos 2 combinações").max(4, "No máximo 4 combinações"),
+});
+
+route("POST", "/api/compare", (_p, req) => {
+  const body = CompareInput.parse(req.body);
+  const plan = body.entries.map((e) => {
+    const agent = db.agents.find((a) => a.id === e.agentId) ?? notFound("Agente");
+    if (e.llmId) checkLlm(e.llmId);
+    return { agent, llmId: e.llmId };
+  });
+  const comparisonId = uid("cmp");
+  const runIds = plan.map(({ agent, llmId }) => {
+    try {
+      return startRun(agent, body.input, { llmId, comparisonId }).id;
+    } catch (err) {
+      throw new HttpError(400, errorMessage(err));
+    }
+  });
+  audit({ type: "config.changed", actor: "user", summary: `Comparação iniciada com ${runIds.length} combinações`, data: { comparisonId, input: body.input, entries: body.entries } });
+  return { id: comparisonId, runIds };
+});
+route("GET", "/api/compare", () => {
+  const groups = new Map<string, RunRecord[]>();
+  for (const r of db.runs) if (r.comparisonId) groups.set(r.comparisonId, [...(groups.get(r.comparisonId) ?? []), r]);
+  return [...groups.entries()]
+    .map(([id, runs]) => ({ id, input: runs[0].input, startedAt: runs[0].startedAt, count: runs.length, done: runs.every((r) => r.finishedAt) }))
+    .sort((a, b) => b.startedAt.localeCompare(a.startedAt))
+    .slice(0, 20);
+});
+route("GET", "/api/compare/:id", ({ id }) => {
+  const runs = db.runs.filter((r) => r.comparisonId === id);
+  if (!runs.length) notFound("Comparação");
+  return { id, input: runs[0].input, startedAt: runs[0].startedAt, done: runs.every((r) => r.finishedAt), results: runs.map(runMetrics) };
 });
 
 // ───────────────────────── Auditoria ─────────────────────────

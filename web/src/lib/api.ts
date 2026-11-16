@@ -255,3 +255,36 @@ export const api = {
   put: <T>(url: string, body: unknown) => request<T>("PUT", url, body),
   del: <T>(url: string) => request<T>("DELETE", url),
 };
+
+export interface CompareResult {
+  runId: string;
+  agentId: string;
+  agentName: string;
+  llmId?: string;
+  llmName: string;
+  provider: string;
+  model: string;
+  status: RunStatus;
+  error: string | null;
+  output: string | null;
+  iterations: number;
+  tokens: { input: number; output: number; total: number };
+  costUsd: number | null;
+  durationMs: number | null;
+  toolCalls: number;
+  tools: string[];
+}
+export interface Comparison {
+  id: string;
+  input: string;
+  startedAt: string;
+  done: boolean;
+  results: CompareResult[];
+}
+export interface ComparisonSummary {
+  id: string;
+  input: string;
+  startedAt: string;
+  count: number;
+  done: boolean;
+}

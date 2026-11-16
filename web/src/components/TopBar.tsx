@@ -6,6 +6,7 @@ import { useTheme } from "../lib/theme";
 const PAGES = [
   { to: "/", label: "Visão geral" },
   { to: "/playground", label: "Playground" },
+  { to: "/compare", label: "Comparar" },
   { to: "/agents", label: "Agentes" },
   { to: "/llms", label: "LLMs" },
   { to: "/mcp", label: "Servidores MCP" },

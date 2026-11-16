@@ -13,7 +13,7 @@ Melhorias e novas funcionalidades planejadas, priorizadas por impacto e esforço
 | AL-01 | Testes automatizados do núcleo | Qualidade | P0 | M | concluído |
 | AL-02 | Ranking de memória mais robusto | Correção | P1 | P | concluído |
 | AL-03 | Episódios de memória sem acúmulo de conteúdo | Correção | P1 | P | concluído |
-| AL-04 | Comparação de LLMs e agentes lado a lado | Funcionalidade | P1 | M | a fazer |
+| AL-04 | Comparação de LLMs e agentes lado a lado | Funcionalidade | P1 | M | concluído |
 | AL-05 | Multiagente: agente como ferramenta e supervisor | Funcionalidade | P1 | G | a fazer |
 | AL-06 | Ferramentas de servidor do Claude (web search e web fetch) | Funcionalidade | P1 | P | a fazer |
 | AL-07 | Gestão da janela de contexto (medidor e resumo) | Funcionalidade | P1 | M | a fazer |
@@ -73,6 +73,8 @@ Sequência sugerida: AL-01 → AL-02/AL-03 → AL-04 → AL-06 → AL-05 → AL-
   execução completa de cada uma.
 - **Critérios de aceite:** execuções paralelas independentes; resultado comparativo exportável em JSON; funciona no modo
   servidor e no navegador.
+- **Resultado:** rotas `/api/compare` (iniciar, consultar e listar), troca de LLM por execução sem alterar o agente e
+  tela "Comparar" com progresso ao vivo, tabela de métricas com destaque do menor valor e exportação em JSON.
 
 ### AL-05 · Multiagente
 - **Problema:** a plataforma não demonstra delegação entre agentes, conceito central de frameworks como LangGraph e Strands.

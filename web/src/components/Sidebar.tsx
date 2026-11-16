@@ -1,5 +1,5 @@
 import { motion } from "motion/react";
-import { BookOpen, Bot, Brain, ChevronDown, Cpu, FileText, Globe, LayoutDashboard, Play, Plug, Server, ShieldCheck, Trash2 } from "lucide-react";
+import { BookOpen, Bot, Brain, ChevronDown, Columns3, Cpu, FileText, Globe, LayoutDashboard, Play, Plug, Server, ShieldCheck, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { NavLink, useLocation } from "react-router-dom";
 import type { Health, Stats } from "../lib/api";
@@ -12,6 +12,7 @@ type Item = { to: string; label: string; icon: typeof Bot; count?: (s: Stats) =>
 const MAIN: Item[] = [
   { to: "/", label: "Visão geral", icon: LayoutDashboard },
   { to: "/playground", label: "Playground", icon: Play },
+  { to: "/compare", label: "Comparar", icon: Columns3 },
 ];
 const GROUPS: { title: string; items: Item[] }[] = [
   {

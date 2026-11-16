@@ -280,9 +280,10 @@ async function loop(run: LiveRun) {
   }
 }
 
-function llmFor(agent: AgentConfig): LlmConfig {
-  const llm = db.llms.find((l) => l.id === agent.llmId);
-  if (!llm) throw new Error(`O agente "${agent.name}" não tem uma LLM válida. Escolha uma no editor do agente.`);
+function llmFor(agent: AgentConfig, overrideId?: string): LlmConfig {
+  const id = overrideId ?? agent.llmId;
+  const llm = db.llms.find((l) => l.id === id);
+  if (!llm) throw new Error(overrideId ? "A LLM escolhida para esta execução não existe mais." : `O agente "${agent.name}" não tem uma LLM válida. Escolha uma no editor do agente.`);
   return structuredClone(llm);
 }
 
@@ -306,8 +307,12 @@ export function summarizeEpisode(input: string, iterations: number, events: RunR
   return `${parts.join(" · ")}.${result}`.slice(0, 220);
 }
 
-export function startRun(agent: AgentConfig, input: string): RunRecord {
-  const llm = llmFor(agent);
+/**
+ * Inicia uma execução. `llmId` troca a LLM só nesta execução (sem alterar o agente);
+ * `comparisonId` agrupa execuções disparadas juntas pela comparação lado a lado.
+ */
+export function startRun(agent: AgentConfig, input: string, opts: { llmId?: string; comparisonId?: string } = {}): RunRecord {
+  const llm = llmFor(agent, opts.llmId);
   // Episódios ficam fora do recall automático por padrão: são registros do passado, não conhecimento.
   const recalled = agent.memory.autoRecall
     ? searchMemories(input, { agentId: agent.id, limit: agent.memory.recallLimit, touch: true, excludeKinds: agent.memory.recallEpisodes ? [] : ["episode"] })
@@ -328,6 +333,8 @@ export function startRun(agent: AgentConfig, input: string): RunRecord {
     messages: [{ role: "user", content: input }],
     systemPrompt: buildSystemPrompt(agent, recalled.map((r) => r.memory)),
     scratchpad: [],
+    llmId: llm.id,
+    ...(opts.comparisonId ? { comparisonId: opts.comparisonId } : {}),
   };
   db.runs.push(record);
   const run: LiveRun = { record, agent: structuredClone(agent), llm, abort: new AbortController(), approvals: new Map(), busy: false };
@@ -368,8 +375,8 @@ export function continueRun(id: string, text: string): RunRecord {
   if (run?.busy) throw new Error("A execução ainda está em andamento.");
   const agent = db.agents.find((a) => a.id === record.agentId);
   if (!agent) throw new Error("Agente desta execução foi removido.");
-  // A conversa continua com a configuração atual do agente, inclusive se a LLM tiver sido trocada.
-  const llm = llmFor(agent);
+  // A conversa continua com a configuração atual do agente. Execuções com LLM própria (comparações) a mantêm.
+  const llm = llmFor(agent, record.comparisonId ? record.llmId : undefined);
   if (!run) {
     run = { record, agent: structuredClone(agent), llm, abort: new AbortController(), approvals: new Map(), busy: false };
     live.set(id, run);

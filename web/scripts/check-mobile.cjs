@@ -12,7 +12,7 @@ const { chromium, devices } = require("playwright");
 
 (async () => {
 const BASE = process.argv[2] ?? "http://localhost:4173/poc_agents_plataform";
-const PAGES = ["/", "/playground", "/agents", "/llms", "/mcp", "/memory", "/prompts", "/audit", "/learn"];
+const PAGES = ["/", "/playground", "/compare", "/agents", "/llms", "/mcp", "/memory", "/prompts", "/audit", "/learn"];
 const DEVICES = ["iPhone SE", "iPhone 13", "Pixel 7"];
 
 const browser = await chromium.launch();
