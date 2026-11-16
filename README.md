@@ -13,7 +13,7 @@ OpenAI Chat Completions (OpenAI, OpenRouter, Groq, Ollama) e um modelo simulado 
 
 | Tela | Descrição |
 |---|---|
-| **Playground** | Execução de tarefas com visualização do loop agêntico em tempo real: grafo de interação (modelo, ferramentas e memória), linha do tempo com raciocínio, chamadas `tool_use`/`tool_result` e consumo de tokens por iteração. Inclui inspeção da janela de contexto, continuação da conversa e aprovação manual de ferramentas (*human-in-the-loop*). |
+| **Playground** | Execução de tarefas com visualização do loop agêntico em tempo real: grafo de interação (modelo, ferramentas e memória), linha do tempo com raciocínio, chamadas `tool_use`/`tool_result` e consumo de tokens por iteração. Inclui inspeção da janela de contexto, continuação da conversa, aprovação manual de ferramentas (*human-in-the-loop*) e replay passo a passo de execuções concluídas. |
 | **Janela de contexto** | Medidor por iteração (tokens de entrada, percentual da janela do modelo, cache e composição do contexto) e resumo automático do histórico ao passar de um limite configurável por agente, registrado na linha do tempo e na auditoria. |
 | **Multiagente** | Agentes podem delegar subtarefas a outros agentes, usados como ferramentas. Cada delegação é uma execução filha acompanhada ao vivo dentro da execução pai, com tokens agregados, limite de profundidade e bloqueio de delegação circular. |
 | **Comparar** | Execução da mesma tarefa em paralelo em até quatro combinações de agente e LLM, com progresso ao vivo e tabela de tokens, custo, duração, iterações e ferramentas, exportável em JSON. |

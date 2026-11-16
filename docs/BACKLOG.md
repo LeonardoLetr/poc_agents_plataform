@@ -17,7 +17,7 @@ Melhorias e novas funcionalidades planejadas, priorizadas por impacto e esforço
 | AL-05 | Multiagente: agente como ferramenta e supervisor | Funcionalidade | P1 | G | concluído |
 | AL-06 | Ferramentas de servidor do Claude (web search e web fetch) | Funcionalidade | P1 | P | concluído |
 | AL-07 | Gestão da janela de contexto (medidor e resumo) | Funcionalidade | P1 | M | concluído |
-| AL-08 | Replay passo a passo de execuções | Funcionalidade | P2 | M | a fazer |
+| AL-08 | Replay passo a passo de execuções | Funcionalidade | P2 | M | concluído |
 | AL-09 | Exportar e importar configuração | Funcionalidade | P2 | P | a fazer |
 | AL-10 | Prompts de tarefa com variáveis no Playground | Funcionalidade | P2 | P | a fazer |
 | AL-11 | Aprovação humana por ferramenta | Melhoria | P2 | P | a fazer |
@@ -119,6 +119,10 @@ Sequência sugerida: AL-01 → AL-02/AL-03 → AL-04 → AL-06 → AL-05 → AL-
 - **Problema:** execuções concluídas só podem ser vistas no estado final.
 - **Proposta:** barra de tempo para avançar e retroceder pelos eventos salvos, atualizando grafo, linha do tempo e métricas.
 - **Critérios de aceite:** navegação por evento e por iteração; reprodução automática com velocidade ajustável.
+- **Resultado:** barra de replay no Playground para execuções concluídas (`web/src/lib/replay.ts`): reprodução no ritmo
+  real dos eventos (0,5× a 4×, com pausas longas limitadas a 1,5 s), avanço e retrocesso por evento e por iteração,
+  controle deslizante com marcas de iteração e atalhos de teclado (espaço, setas e Shift + setas). Grafo, linha do
+  tempo, métricas e medidor de contexto acompanham a posição; pedidos de aprovação antigos não reaparecem.
 
 ### AL-09 · Exportar e importar configuração
 - **Problema:** no modo navegador os dados existem apenas no `localStorage`; limpar o navegador apaga tudo.
