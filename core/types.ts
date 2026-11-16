@@ -90,6 +90,11 @@ export interface McpServerConfig {
   headers?: Record<string, string>;
   /** HTTP: quem abre a conexão. "anthropic" = a API do Claude conecta durante a execução (sem CORS). */
   via?: "client" | "anthropic";
+  /**
+   * Servidores conectados pela Anthropic: ferramentas conhecidas pela plataforma, descobertas sob demanda
+   * ("discovered") ou registradas quando um agente as usou ("used").
+   */
+  knownTools?: { name: string; description?: string; source: "discovered" | "used" }[];
   enabled: boolean;
   createdAt: string;
 }

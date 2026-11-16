@@ -3,7 +3,7 @@ import { audit } from "../audit.js";
 import { callLlm, friendlyLlmError, llmHasCredentials, type Msg } from "../llm/index.js";
 import { createMemory, searchMemories } from "../memory.js";
 import { allMcpTools, callMcpTool, resolveMcpTool } from "../mcp/manager.js";
-import { remoteMcpFor } from "../mcp/remote.js";
+import { rememberUsedTool, remoteMcpFor } from "../mcp/remote.js";
 import { db, persist } from "../store.js";
 import { builtinTools, type ToolContext } from "../tools/builtin.js";
 import { contextWindowFor } from "../llm/catalog.js";
@@ -296,6 +296,9 @@ async function loop(run: LiveRun) {
     if (ev.type === "tool.call" && ev.source === "mcp") {
       // Só chegam por aqui as chamadas MCP feitas pela Anthropic; as locais são registradas em executeTool.
       remoteCalls.add(ev.id);
+      // Ferramenta usada fica registrada no servidor: a lista na tela cresce com o uso, sem custo.
+      const remoteServer = db.mcpServers.find((s) => s.name === ev.server);
+      if (remoteServer && ev.server && rememberUsedTool(remoteServer, ev.name.slice(`mcp__${ev.server}__`.length))) persist();
       audit({ type: "tool.call", actor: "agent", agentId: agent.id, runId: record.id, summary: `Chamou ${ev.name} (MCP via Anthropic)`, data: { toolUseId: ev.id, input: ev.input, server: ev.server, executedBy: "anthropic" } });
     } else if (ev.type === "tool.result" && remoteCalls.has(ev.id)) {
       audit({

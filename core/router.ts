@@ -1,18 +1,18 @@
 import { z } from "zod";
-import { cancelRun, continueRun, resolveApproval, startRun } from "./agent/runner.js";
+import { cancelRun, continueRun, resolveApproval, startRun, turnText } from "./agent/runner.js";
 import { audit } from "./audit.js";
 import { ANTHROPIC_MODELS, OPENAI_PRESETS, PRICING } from "./llm/catalog.js";
-import { llmHasCredentials, publicLlm } from "./llm/index.js";
+import { callLlm, friendlyLlmError, llmHasCredentials, publicLlm } from "./llm/index.js";
 import { BUILTIN_MCP_SERVERS, allMcpTools, callMcpTool, connect, disconnect, forget, publicState } from "./mcp/manager.js";
 import { createMemory, deleteMemory, searchMemories } from "./memory.js";
 import { newLlm } from "./seed.js";
 import { db, persist } from "./store.js";
 import { builtinTools } from "./tools/builtin.js";
 import { SERVER_TOOLS } from "./tools/server.js";
-import { isRemoteMcp } from "./mcp/remote.js";
+import { DISCOVERY_PROMPT, isRemoteMcp, mergeKnownTools, parseDiscoveredTools, serverDefinition } from "./mcp/remote.js";
 import { agentToolDefinition, agentToolName } from "./agent/delegation.js";
 import type { AgentConfig, AuditEntry, McpServerConfig, PromptTemplate, RunRecord } from "./types.js";
-import { bus, errorMessage, now, uid } from "./util.js";
+import { bus, clip, errorMessage, now, uid } from "./util.js";
 
 /**
  * A API inteira da plataforma, independente de framework. O servidor Express
@@ -174,15 +174,27 @@ route("GET", "/api/tools", () => {
     category: t.category,
   }));
   // Servidores MCP conectados pela Anthropic: as ferramentas só são conhecidas durante a execução.
-  const remoteMcp = db.mcpServers.filter(isRemoteMcp).map((s) => ({
-    name: `mcp__${s.name}__*`,
-    description: "Ferramentas descobertas e executadas pela API da Anthropic durante a execução (apenas LLMs Anthropic).",
-    inputSchema: {},
-    source: "mcp" as const,
-    server: s.name,
-    category: "mcp",
-    viaAnthropic: true,
-  }));
+  const remoteMcp = db.mcpServers.filter(isRemoteMcp).flatMap((s) => [
+    {
+      name: `mcp__${s.name}__*`,
+      description: "Ferramentas descobertas e executadas pela API da Anthropic durante a execução (apenas LLMs Anthropic).",
+      inputSchema: {},
+      source: "mcp" as const,
+      server: s.name,
+      category: "mcp",
+      viaAnthropic: true,
+    },
+    // Ferramentas já conhecidas (descobertas ou usadas) podem ser habilitadas uma a uma.
+    ...(s.knownTools ?? []).map((t) => ({
+      name: `mcp__${s.name}__${t.name}`,
+      description: t.description ?? "",
+      inputSchema: {},
+      source: "mcp" as const,
+      server: s.name,
+      category: "mcp",
+      viaAnthropic: true,
+    })),
+  ]);
   // Outros agentes como ferramentas (multiagente). O editor oculta o próprio agente.
   const agents = db.agents.map((a) => {
     const def = agentToolDefinition(a);
@@ -354,6 +366,46 @@ route("PUT", "/api/mcp/:id", async ({ id }, req) => {
   if (server.enabled) await connect(server);
   return mcpView(server);
 });
+/**
+ * Servidor conectado pela Anthropic: pede ao Claude a lista de ferramentas que a API disponibilizou para ele.
+ * Usa uma LLM Anthropic com chave (a indicada ou a primeira pronta), com esforço baixo.
+ */
+route("POST", "/api/mcp/:id/discover", async ({ id }, req) => {
+  const server = findServer(id);
+  if (!isRemoteMcp(server)) throw new HttpError(400, "Só servidores conectados pela API da Anthropic precisam de descoberta; os demais listam as ferramentas ao conectar.");
+  const wanted = (req.body as { llmId?: string })?.llmId;
+  const llm = db.llms.find((l) => l.provider === "anthropic" && llmHasCredentials(l) && (!wanted || l.id === wanted));
+  if (!llm) throw new HttpError(400, "Para descobrir as ferramentas é preciso uma LLM Anthropic com chave. Cadastre a chave em “LLMs”.");
+  const started = Date.now();
+  const turn = await callLlm({
+    llm: { ...structuredClone(llm), effort: "low", maxTokens: 4000 },
+    agent: {} as AgentConfig,
+    run: {} as RunRecord,
+    system: "Você descreve as ferramentas disponíveis, sem executá-las.",
+    messages: [{ role: "user", content: DISCOVERY_PROMPT }],
+    tools: [],
+    serverTools: [{ type: "mcp_toolset", mcp_server_name: server.name }],
+    mcpServers: [serverDefinition(server)],
+    signal: AbortSignal.timeout(90_000),
+    emit: () => undefined,
+  }).catch((err: unknown) => {
+    throw new HttpError(502, friendlyLlmError(err) ?? (err as Error).message);
+  });
+  const text = turnText(turn.content as { type: string; text?: string }[]);
+  const discovered = parseDiscoveredTools(text);
+  if (!discovered.length) throw new HttpError(502, `O modelo não devolveu uma lista de ferramentas. Resposta: ${clip(text || "(vazia)", 300)}`);
+  server.knownTools = mergeKnownTools(server.knownTools, discovered);
+  persist();
+  audit({
+    type: "config.changed",
+    actor: "user",
+    summary: `Ferramentas do servidor MCP "${server.name}" descobertas pela API da Anthropic: ${discovered.length}`,
+    durationMs: Date.now() - started,
+    tokens: turn.usage,
+    data: { server: server.name, llm: llm.name, tools: discovered.map((t) => t.name) },
+  });
+  return mcpView(server);
+});
 route("POST", "/api/mcp/:id/connect", async ({ id }) => {
   const server = findServer(id);
   server.enabled = true;
@@ -519,7 +571,7 @@ export async function handle(req: ApiRequest): Promise<ApiResponse> {
     const params = Object.fromEntries(r.keys.map((k, i) => [k, decodeURIComponent(m[i + 1])]));
     try {
       const body = await r.handler(params, req);
-      return { status: req.method === "POST" && !req.path.match(/\/(connect|disconnect|cancel|approve|messages|call)$/) ? 201 : 200, body };
+      return { status: req.method === "POST" && !req.path.match(/\/(connect|disconnect|cancel|approve|messages|call|discover)$/) ? 201 : 200, body };
     } catch (err) {
       if (err instanceof z.ZodError) return { status: 400, body: { error: "Dados inválidos", issues: err.issues } };
       if (err instanceof HttpError) return { status: err.status, body: { error: err.message } };

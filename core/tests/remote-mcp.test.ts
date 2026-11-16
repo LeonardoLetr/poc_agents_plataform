@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { authorizationToken, remoteMcpFor } from "../mcp/remote.js";
+import { authorizationToken, mergeKnownTools, parseDiscoveredTools, remoteMcpFor } from "../mcp/remote.js";
 import type { AgentConfig, LlmConfig, McpServerConfig } from "../types.js";
 import { bootCore, collectRun, waitFor } from "./helpers.js";
 
@@ -85,5 +85,64 @@ describe("MCP conectado pela Anthropic: execução", () => {
     expect(events.find((e) => e.type === "tool.result")).toMatchObject({ id: "mcptoolu_1", output: "Email sent: 4f2a", isError: false });
     const audits = db.audit.filter((a) => a.runId === run.body.id).map((a) => a.summary);
     expect(audits.some((s) => s.includes("MCP via Anthropic"))).toBe(true);
+    // A ferramenta usada fica registrada no servidor.
+    expect(db.mcpServers.find((s) => s.name === "resend")!.knownTools).toEqual([{ name: "send_email", source: "used" }]);
+  });
+});
+
+describe("MCP conectado pela Anthropic: descoberta de ferramentas", () => {
+  const sse = (events: Record<string, unknown>[]) =>
+    new Response(events.map((e) => `event: ${String(e.type)}\ndata: ${JSON.stringify(e)}\n\n`).join(""), { status: 200, headers: { "content-type": "text/event-stream" } });
+
+  it("lê a lista do modelo e junta com as ferramentas já usadas", () => {
+    expect(parseDiscoveredTools('<tools>[{"name":"gmail_send_email","description":"Envia"},{"name":"bad name"},"gmail_find_email"]</tools>')).toEqual([
+      { name: "gmail_send_email", description: "Envia" },
+      { name: "gmail_find_email" },
+    ]);
+    expect(parseDiscoveredTools("sem lista")).toEqual([]);
+    expect(mergeKnownTools([{ name: "a", source: "used" }, { name: "old", source: "used" }], [{ name: "a" }, { name: "b" }])).toEqual([
+      { name: "a", source: "used" },
+      { name: "b", source: "discovered" },
+      { name: "old", source: "used" },
+    ]);
+  });
+
+  it("pede a lista ao Claude com o servidor anexado e a expõe para os agentes", async () => {
+    const { api, db } = await bootCore();
+    const bodies: { mcp_servers?: unknown[]; tools?: unknown[]; output_config?: { effort?: string } }[] = [];
+    vi.stubGlobal("fetch", vi.fn(async (_url: string, init: RequestInit) => {
+      bodies.push(JSON.parse(init.body as string));
+      const text = '<tools>[{"name":"gmail_send_email","description":"Envia um e-mail pelo Gmail"},{"name":"gmail_create_draft","description":"Cria um rascunho"}]</tools>';
+      return sse([
+        { type: "message_start", message: { id: "m", type: "message", role: "assistant", model: "claude-opus-5-5", content: [], stop_reason: null, stop_sequence: null, usage: { input_tokens: 900, output_tokens: 1 } } },
+        { type: "content_block_start", index: 0, content_block: { type: "text", text: "" } },
+        { type: "content_block_delta", index: 0, delta: { type: "text_delta", text } },
+        { type: "content_block_stop", index: 0 },
+        { type: "message_delta", delta: { stop_reason: "end_turn", stop_sequence: null }, usage: { output_tokens: 60 } },
+        { type: "message_stop" },
+      ]);
+    }));
+    await api("PUT", "/api/llms/llm_claude_opus", { ...db.llms.find((l) => l.id === "llm_claude_opus")!, apiKey: "sk-ant-teste-descoberta" });
+    const created = await api("POST", "/api/mcp", { name: "zapier", transport: "http", url: "https://mcp.zapier.com/api/v1/connect", headers: { Authorization: "Bearer tok" }, via: "anthropic" });
+
+    const res = await api("POST", `/api/mcp/${created.body.id}/discover`, {});
+    expect(res.status).toBe(200);
+    expect(bodies[0].mcp_servers).toEqual([{ type: "url", name: "zapier", url: "https://mcp.zapier.com/api/v1/connect", authorization_token: "tok" }]);
+    expect(bodies[0].tools).toContainEqual({ type: "mcp_toolset", mcp_server_name: "zapier" });
+    expect(bodies[0].output_config?.effort).toBe("low");
+    expect(res.body.knownTools.map((t: { name: string }) => t.name)).toEqual(["gmail_send_email", "gmail_create_draft"]);
+
+    const tools = await api<{ name: string }[]>("GET", "/api/tools");
+    expect(tools.body.map((t) => t.name)).toEqual(expect.arrayContaining(["mcp__zapier__*", "mcp__zapier__gmail_send_email", "mcp__zapier__gmail_create_draft"]));
+  });
+
+  it("explica quando não há LLM Anthropic com chave", async () => {
+    const { api, db } = await bootCore();
+    // O núcleo é compartilhado entre os testes do arquivo: remove as chaves cadastradas antes.
+    for (const l of db.llms.filter((x) => x.provider === "anthropic")) await api("PUT", `/api/llms/${l.id}`, { ...l, apiKey: "" });
+    const created = await api("POST", "/api/mcp", { name: "sem_chave", transport: "http", url: "https://exemplo.dev/mcp", via: "anthropic" });
+    const res = await api("POST", `/api/mcp/${created.body.id}/discover`, {});
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/LLM Anthropic com chave/);
   });
 });
