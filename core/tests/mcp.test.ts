@@ -68,3 +68,39 @@ describe("MCP: transporte stdio sem hospedeiro Node", () => {
     expect((await ctx.api("POST", "/api/mcp", { name: "nome com espaço", transport: "http", url: "https://x" })).status).toBe(400);
   });
 });
+
+describe("MCP: edição e diagnóstico de conexão", () => {
+  it("editar mantém valores ocultos e renomear atualiza as ferramentas dos agentes", async () => {
+    const created = await ctx.api("POST", "/api/mcp", {
+      name: "remoto_teste", transport: "http", url: "https://exemplo.dev/mcp", headers: { Authorization: "Bearer re_secreta" }, enabled: false,
+    });
+    expect(created.body.headers).toEqual({ Authorization: "••••" });
+    const agent = await ctx.api("POST", "/api/agents", {
+      name: "Usa remoto", llmId: "llm_demo", systemPrompt: "x", tools: ["mcp__remoto_teste__*", "calculator"], maxIterations: 3, requireApproval: false,
+      memory: { autoRecall: false, autoEpisode: false, recallLimit: 3 },
+    });
+
+    const updated = await ctx.api("PUT", `/api/mcp/${created.body.id}`, {
+      name: "resend", transport: "http", url: "https://mcp.resend.com/mcp", headers: { Authorization: "••••", "X-Extra": "1" }, enabled: false,
+    });
+    expect(updated.status).toBe(200);
+    const stored = ctx.db.mcpServers.find((s) => s.id === created.body.id)!;
+    expect(stored.headers).toEqual({ Authorization: "Bearer re_secreta", "X-Extra": "1" });
+    expect(stored.url).toBe("https://mcp.resend.com/mcp");
+    expect(ctx.db.agents.find((a) => a.id === agent.body.id)!.tools).toEqual(["mcp__resend__*", "calculator"]);
+  });
+
+  it("explica bloqueio de CORS no navegador e cabeçalho de autenticação sem o tipo", async () => {
+    const { explainConnectError } = await import("../mcp/manager.js");
+    const { hostEnv } = await import("../env.js");
+    const previous = hostEnv.runtime;
+    hostEnv.runtime = "browser";
+    try {
+      expect(explainConnectError("SSE error: Failed to fetch", { transport: "http", headers: {} })).toMatch(/CORS/);
+      expect(explainConnectError("HTTP 401 Unauthorized", { transport: "http", headers: { Authorization: "re_123" } })).toMatch(/Bearer <chave>/);
+      expect(explainConnectError("timeout", { transport: "http", headers: { Authorization: "Bearer re_123" } })).toBe("timeout");
+    } finally {
+      hostEnv.runtime = previous;
+    }
+  });
+});

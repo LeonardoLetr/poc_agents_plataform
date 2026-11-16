@@ -1,3 +1,4 @@
+import { hostEnv } from "../env.js";
 import type Anthropic from "@anthropic-ai/sdk";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { SSEClientTransport } from "@modelcontextprotocol/sdk/client/sse.js";
@@ -106,6 +107,26 @@ async function buildTransport(cfg: McpServerConfig): Promise<Transport> {
   return new StreamableHTTPClientTransport(new URL(cfg.url), { requestInit: { headers: cfg.headers ?? {} } });
 }
 
+/**
+ * Mensagem de erro de conexão com um diagnóstico em linguagem simples.
+ * Os erros mais comuns: bloqueio de CORS no modo navegador e autenticação recusada.
+ */
+export function explainConnectError(message: string, cfg: Pick<McpServerConfig, "transport" | "headers">): string {
+  const hints: string[] = [];
+  if (cfg.transport === "http" && hostEnv.runtime === "browser" && /failed to fetch|fetch failed|networkerror|load failed/i.test(message)) {
+    hints.push(
+      "No modo navegador a conexão sai direto desta página, e o servidor precisa permitir requisições vindas deste site (CORS). " +
+        "Se ele não permitir, conecte pelo modo servidor (npm run dev).",
+    );
+  }
+  if (/\b40[13]\b|unauthori[sz]ed|forbidden|invalid[^.]*(key|token)/i.test(message)) {
+    hints.push("Autenticação recusada: confira a chave e o cabeçalho, em geral \"Authorization: Bearer <chave>\".");
+  }
+  const auth = Object.entries(cfg.headers ?? {}).find(([k]) => k.toLowerCase() === "authorization")?.[1]?.trim();
+  if (auth && !/\s/.test(auth)) hints.push("O cabeçalho Authorization está sem o tipo antes da chave; a maioria dos servidores espera \"Bearer <chave>\".");
+  return hints.length ? `${message}\n\n${hints.join("\n")}` : message;
+}
+
 /** `silent`: não registra a conexão bem-sucedida na auditoria (reconexão automática ao iniciar). */
 export async function connect(cfg: McpServerConfig, opts: { silent?: boolean } = {}): Promise<void> {
   await disconnect(cfg.id, false);
@@ -124,10 +145,17 @@ export async function connect(cfg: McpServerConfig, opts: { silent?: boolean } =
     } catch (err) {
       // Servidores HTTP antigos só falam SSE: tenta o transporte legado.
       if (cfg.transport !== "http") throw err;
-      log(cfg.id, "Streamable HTTP falhou, tentando SSE legado…");
+      const first = errorMessage(err);
+      log(cfg.id, `Streamable HTTP falhou (${first}); tentando SSE legado…`);
       client = new Client({ name: "agent-lab", version: "0.1.0" });
       transport = new SSEClientTransport(new URL(cfg.url!), { requestInit: { headers: cfg.headers ?? {} } });
-      await client.connect(transport);
+      try {
+        await client.connect(transport);
+      } catch (sseErr) {
+        // Os dois erros importam: o do Streamable HTTP costuma ser a causa real (ex.: 401), o do SSE só o confirma.
+        const second = errorMessage(sseErr);
+        throw new Error(first === second ? first : `Streamable HTTP: ${first} · SSE: ${second}`);
+      }
     }
 
     const { tools } = await client.listTools();
@@ -164,7 +192,7 @@ export async function connect(cfg: McpServerConfig, opts: { silent?: boolean } =
     });
   } catch (err) {
     c.status = "error";
-    c.error = errorMessage(err);
+    c.error = explainConnectError(errorMessage(err), cfg);
     log(cfg.id, `Erro: ${c.error}`);
     audit({ type: "mcp.error", actor: "system", summary: `Falha ao conectar MCP "${cfg.name}": ${c.error}`, data: { server: cfg.name } });
   }
