@@ -1,12 +1,13 @@
 import { AnimatePresence, motion } from "motion/react";
-import { Brain, Calendar, MessagesSquare, NotebookPen, Pencil, Plus, Search, Trash2, History } from "lucide-react";
+import { Brain, Calendar, History, MessagesSquare, NotebookPen, Pencil, Plus, Search, Sparkles, Trash2 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Badge, Button, Card, ErrorNote, Field, Input, Modal, PageHeader, Select, Textarea } from "../components/ui";
 import { api, type Agent, type Memory, type MemoryKind } from "../lib/api";
 import { kindLabel, timeAgo } from "../lib/format";
 import { useResource } from "../lib/hooks";
 
-const KIND_COLOR: Record<MemoryKind, string> = { fact: "#0284c7", preference: "#ea580c", procedure: "#d97706", episode: "#7c3aed" };
+// Cores bem distintas entre si: as quatro aparecem juntas na constelação.
+const KIND_COLOR: Record<MemoryKind, string> = { fact: "#0284c7", preference: "#ea580c", procedure: "#16a34a", episode: "#7c3aed" };
 
 interface Scored {
   memory: Memory;
@@ -31,7 +32,7 @@ export default function MemoryPage() {
     for (const m of memories.data ?? []) c[m.kind]++;
     return c;
   }, [memories.data]);
-  const agentName = (id: string | null) => (id ? agents.data?.find((a) => a.id === id)?.name ?? "agente removido" : "compartilhada");
+  const agentName = (id: string | null) => (id ? agents.data?.find((a) => a.id === id)?.name ?? "agente removido" : "global");
 
   async function search() {
     if (!query.trim()) return setResults(null);
@@ -81,7 +82,9 @@ export default function MemoryPage() {
                 <span className="text-[12px] font-semibold capitalize text-ink-100">{kindLabel[kind]}</span>
                 <span className="rounded-[5px] bg-ink-850 px-1.5 text-[11px] font-medium text-ink-400">{items.length}</span>
               </div>
-              <div className="flex flex-col gap-1.5">
+              {/* Cada coluna rola de forma independente; o botão de adicionar fica sempre visível. */}
+              <div className="scroll-thin -mr-1 flex max-h-[420px] flex-col gap-1.5 overflow-y-auto pr-1" aria-label={`Memórias do tipo ${kindLabel[kind]}`}>
+                {items.length === 0 && <p className="px-1.5 py-3 text-center text-[11.5px] text-ink-500">Nenhuma memória deste tipo.</p>}
                 <AnimatePresence initial={false}>
                   {items.map((m) => (
                     <motion.div
@@ -120,29 +123,40 @@ export default function MemoryPage() {
                     </motion.div>
                   ))}
                 </AnimatePresence>
-                <button
-                  onClick={() => setEditing({ kind, importance: 3, tags: [], agentId: null, content: "" })}
-                  className="flex h-8 items-center justify-center gap-1 rounded-[10px] border border-dashed border-ink-600 text-[12px] text-ink-400 transition-colors hover:border-ink-500 hover:text-ink-200"
-                >
-                  <Plus size={12} /> Adicionar {kindLabel[kind]}
-                </button>
               </div>
+              <button
+                onClick={() => setEditing({ kind, importance: 3, tags: [], agentId: agentFilter || null, content: "" })}
+                className="mt-1.5 flex h-8 shrink-0 items-center justify-center gap-1 rounded-[10px] border border-dashed border-ink-600 text-[12px] text-ink-400 transition-colors hover:border-ink-500 hover:text-ink-200"
+              >
+                <Plus size={12} /> Adicionar {kindLabel[kind]}
+              </button>
             </div>
           );
         })}
       </div>
 
       <div className="mb-6 grid gap-6 lg:grid-cols-5">
-        <Card className="relative h-[380px] overflow-hidden lg:col-span-3">
-          <div className="absolute left-4 top-3 z-10 text-[12px] text-ink-300">Constelação de memórias</div>
-          <div className="absolute right-4 top-3 z-10 flex gap-2">
-            {(Object.keys(KIND_COLOR) as MemoryKind[]).map((k) => (
-              <span key={k} className="flex items-center gap-1 text-[10.5px] text-ink-400">
-                <span className="h-2 w-2 rounded-full" style={{ background: KIND_COLOR[k] }} /> {kindLabel[k]}
-              </span>
-            ))}
+        <Card className="flex flex-col p-4 lg:col-span-3">
+          <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-2">
+            <div className="min-w-0">
+              <div className="flex items-center gap-2 text-[13px] font-medium">
+                <Sparkles size={14} className="text-memory" /> Constelação de memórias
+              </div>
+              <p className="mt-1 max-w-xl text-[12px] leading-snug text-ink-400">
+                Mapa do que {agentFilter ? <b className="font-medium text-ink-200">{agentName(agentFilter)}</b> : "os agentes"} pode{agentFilter ? "" : "m"} recuperar
+                {agentFilter ? " (memórias próprias e globais)" : ""}. Cada ponto é uma memória: o anel indica o tipo, o tamanho indica a importância e a
+                intensidade indica quantas vezes ela já foi usada. Clique em um ponto para ver os detalhes; uma busca no laboratório ao lado destaca o que seria recuperado.
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-x-3 gap-y-1">
+              {(Object.keys(KIND_COLOR) as MemoryKind[]).map((k) => (
+                <span key={k} className="flex items-center gap-1 text-[11px] text-ink-400">
+                  <span className="h-2 w-2 rounded-full" style={{ background: KIND_COLOR[k] }} /> {kindLabel[k]}
+                </span>
+              ))}
+            </div>
           </div>
-          <Constellation memories={memories.data ?? []} highlighted={results ? highlighted : null} />
+          <Constellation memories={list} highlighted={results ? highlighted : null} agentName={agentName} onEdit={setEditing} />
         </Card>
 
         <Card className="flex flex-col p-4 lg:col-span-2">
@@ -207,52 +221,127 @@ function LayerCard({ icon, color, title, value, text }: { icon: React.ReactNode;
   );
 }
 
-/** Visualização: cada memória é uma "estrela" (tamanho = importância, brilho = acessos). */
-function Constellation({ memories, highlighted }: { memories: Memory[]; highlighted: Set<string> | null }) {
-  const [hover, setHover] = useState<Memory | null>(null);
+/** Anel de cada tipo, do centro para a borda. */
+const RINGS: Record<MemoryKind, number> = { preference: 0.32, fact: 0.56, procedure: 0.76, episode: 0.94 };
+
+/**
+ * Visualização: cada memória é um ponto em um anel por tipo (tamanho = importância, intensidade = acessos).
+ * A seleção é por clique e os detalhes aparecem em um painel fixo, sem depender de passar o mouse.
+ */
+function Constellation({
+  memories,
+  highlighted,
+  agentName,
+  onEdit,
+}: {
+  memories: Memory[];
+  highlighted: Set<string> | null;
+  agentName: (id: string | null) => string;
+  onEdit: (m: Memory) => void;
+}) {
+  const [hover, setHover] = useState<string | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const selected = memories.find((m) => m.id === selectedId) ?? null;
+  const maxAccess = Math.max(1, ...memories.map((m) => m.accessCount));
   const points = useMemo(
     () =>
       memories.map((m, i) => {
-        // posição determinística a partir do id
+        // Posição determinística a partir do id, para o mapa não mudar a cada visita.
         let h = 0;
         for (const c of m.id) h = (h * 31 + c.charCodeAt(0)) >>> 0;
-        const ring = { fact: 0.55, preference: 0.3, procedure: 0.75, episode: 0.9 }[m.kind];
-        const angle = ((h % 360) * Math.PI) / 180 + i * 0.3;
-        return { m, x: 50 + Math.cos(angle) * ring * 44, y: 52 + Math.sin(angle) * ring * 40, r: 6 + m.importance * 3.5, delay: (h % 50) / 10 };
+        const angle = ((h % 360) * Math.PI) / 180 + i * 0.37;
+        const ring = RINGS[m.kind];
+        return { m, x: 50 + Math.cos(angle) * ring * 46, y: 50 + Math.sin(angle) * ring * 44, r: 8 + m.importance * 3, delay: (h % 50) / 10 };
       }),
     [memories],
   );
+  const hovered = points.find((p) => p.m.id === hover && p.m.id !== selectedId);
+
   return (
-    <div className="absolute inset-0">
-      <svg className="absolute inset-0 h-full w-full" preserveAspectRatio="none">
-        {[0.3, 0.55, 0.75, 0.9].map((r) => (
-          <ellipse key={r} cx="50%" cy="52%" rx={`${r * 44}%`} ry={`${r * 40}%`} fill="none" stroke="var(--color-ink-700)" strokeDasharray="3 6" />
-        ))}
-      </svg>
-      <div className="absolute left-1/2 top-[52%] -translate-x-1/2 -translate-y-1/2 text-[12px] font-medium text-ink-400">agente</div>
-      {points.map(({ m, x, y, r, delay }) => {
-        const dim = highlighted && !highlighted.has(m.id);
-        const lit = highlighted?.has(m.id);
-        return (
-          <motion.button
-            key={m.id}
-            onMouseEnter={() => setHover(m)}
-            onMouseLeave={() => setHover(null)}
-            className="absolute rounded-full"
-            style={{ left: `${x}%`, top: `${y}%`, width: r, height: r, marginLeft: -r / 2, marginTop: -r / 2, background: KIND_COLOR[m.kind], boxShadow: lit ? `0 0 0 4px color-mix(in oklab, ${KIND_COLOR[m.kind]} 25%, transparent)` : "none" }}
-            initial={{ scale: 0 }}
-            animate={{ scale: lit ? 1.6 : 1, opacity: dim ? 0.18 : 1, y: [0, -5, 0] }}
-            transition={{ y: { repeat: Infinity, duration: 4 + delay, ease: "easeInOut" }, scale: { type: "spring" } }}
-          />
-        );
-      })}
-      <AnimatePresence>
-        {hover && (
-          <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="absolute bottom-3 left-3 right-3 rounded-xl border border-ink-700 bg-surface p-3 text-[12.5px] text-ink-200 backdrop-blur">
-            <Badge>{kindLabel[hover.kind]}</Badge> {hover.content}
-          </motion.div>
+    <div className="mt-3 grid min-h-0 flex-1 gap-3 md:grid-cols-[1fr_220px]">
+      <div className="relative h-[320px] overflow-hidden rounded-xl bg-ink-950" onClick={() => setSelectedId(null)}>
+        <svg className="absolute inset-0 h-full w-full" preserveAspectRatio="none" aria-hidden>
+          {(Object.keys(RINGS) as MemoryKind[]).map((k) => (
+            <ellipse key={k} cx="50%" cy="50%" rx={`${RINGS[k] * 46}%`} ry={`${RINGS[k] * 44}%`} fill="none" stroke="var(--color-ink-700)" strokeDasharray="3 6" />
+          ))}
+        </svg>
+        <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full border border-ink-700 bg-surface px-2.5 py-1 text-[11px] font-medium text-ink-400">agente</div>
+        {memories.length === 0 && <p className="absolute inset-x-0 bottom-4 text-center text-[12px] text-ink-500">Nenhuma memória para mostrar.</p>}
+        {points.map(({ m, x, y, r, delay }) => {
+          const dim = highlighted && !highlighted.has(m.id);
+          const lit = highlighted?.has(m.id) || m.id === selectedId;
+          return (
+            <motion.button
+              key={m.id}
+              aria-label={`${kindLabel[m.kind]}: ${m.content}`}
+              onMouseEnter={() => setHover(m.id)}
+              onMouseLeave={() => setHover(null)}
+              onFocus={() => setHover(m.id)}
+              onBlur={() => setHover(null)}
+              onClick={(e) => {
+                e.stopPropagation();
+                setSelectedId(m.id === selectedId ? null : m.id);
+              }}
+              className="absolute rounded-full outline-none focus-visible:ring-2 focus-visible:ring-accent"
+              style={{
+                left: `${x}%`,
+                top: `${y}%`,
+                width: r,
+                height: r,
+                marginLeft: -r / 2,
+                marginTop: -r / 2,
+                background: KIND_COLOR[m.kind],
+                boxShadow: lit ? `0 0 0 4px color-mix(in oklab, ${KIND_COLOR[m.kind]} 30%, transparent)` : "none",
+              }}
+              initial={{ scale: 0 }}
+              animate={{ scale: lit ? 1.5 : 1, opacity: dim ? 0.15 : 0.45 + 0.55 * (m.accessCount / maxAccess), y: [0, -4, 0] }}
+              transition={{ y: { repeat: Infinity, duration: 4 + delay, ease: "easeInOut" }, scale: { type: "spring" } }}
+            />
+          );
+        })}
+        {/* Rótulo rápido: abre para o lado e para cima ou para baixo conforme a posição, sem sair da área. */}
+        {hovered && (
+          <div
+            className="pointer-events-none absolute z-10 w-max max-w-[240px] rounded-lg border border-ink-700 bg-surface px-2.5 py-1.5 text-[11.5px] leading-snug text-ink-200 shadow-[0_6px_18px_rgb(0_0_0/0.12)]"
+            style={{
+              left: `${hovered.x}%`,
+              top: `${hovered.y}%`,
+              transform: `translate(${hovered.x > 60 ? "calc(-100% - 10px)" : "10px"}, ${hovered.y > 55 ? "calc(-100% - 6px)" : "6px"})`,
+            }}
+          >
+            <span className="line-clamp-3">{hovered.m.content}</span>
+          </div>
         )}
-      </AnimatePresence>
+      </div>
+
+      {/* Painel de detalhes da memória selecionada */}
+      <div className="flex min-h-[140px] flex-col rounded-xl border border-ink-700 bg-surface p-3">
+        {!selected ? (
+          <div className="m-auto text-center text-[12px] leading-snug text-ink-500">
+            Clique em um ponto
+            <br />
+            para ver a memória.
+          </div>
+        ) : (
+          <>
+            <div className="flex items-center gap-1.5">
+              <span className="h-2 w-2 rounded-full" style={{ background: KIND_COLOR[selected.kind] }} />
+              <span className="text-[12px] font-medium text-ink-100">{kindLabel[selected.kind]}</span>
+              <Badge color={selected.importance >= 4 ? "bad" : selected.importance === 3 ? "warn" : "ok"}>importância {selected.importance}</Badge>
+            </div>
+            <p className="scroll-thin mt-2 max-h-40 overflow-y-auto text-[12.5px] leading-snug text-ink-200">{selected.content}</p>
+            {selected.tags.length > 0 && <div className="mt-2 flex flex-wrap gap-1">{selected.tags.slice(0, 4).map((t) => <Badge key={t}>#{t}</Badge>)}</div>}
+            <dl className="mt-auto space-y-0.5 pt-3 text-[11px] text-ink-400">
+              <div className="flex justify-between gap-2"><dt>Dono</dt><dd className="truncate text-ink-300">{agentName(selected.agentId)}</dd></div>
+              <div className="flex justify-between gap-2"><dt>Criada</dt><dd className="text-ink-300">{timeAgo(selected.createdAt)}</dd></div>
+              <div className="flex justify-between gap-2"><dt>Usada</dt><dd className="text-ink-300">{selected.accessCount}×</dd></div>
+            </dl>
+            <Button size="sm" className="mt-2" onClick={() => onEdit(selected)}>
+              <Pencil size={12} /> Editar
+            </Button>
+          </>
+        )}
+      </div>
     </div>
   );
 }
