@@ -137,6 +137,20 @@ export async function connect(cfg: McpServerConfig, opts: { silent?: boolean } =
   emitStatus(cfg.id);
 
   const started = Date.now();
+  // Conexão pela API do Claude: nada a abrir daqui; o servidor vai na requisição de cada execução.
+  if (cfg.transport === "http" && cfg.via === "anthropic") {
+    if (!cfg.url?.startsWith("https://")) {
+      c.status = "error";
+      c.error = "A conexão pela Anthropic exige uma URL pública com https://.";
+    } else {
+      c.status = "connected";
+      c.tools = [];
+      c.connectedAt = now();
+      log(cfg.id, "Conexão delegada à API da Anthropic: o servidor é enviado junto a cada requisição de agentes com LLM Anthropic.");
+    }
+    emitStatus(cfg.id);
+    return;
+  }
   try {
     let client = new Client({ name: "agent-lab", version: "0.1.0" });
     let transport = await buildTransport(cfg);

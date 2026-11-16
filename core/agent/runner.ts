@@ -3,6 +3,7 @@ import { audit } from "../audit.js";
 import { callLlm, friendlyLlmError, llmHasCredentials, type Msg } from "../llm/index.js";
 import { createMemory, searchMemories } from "../memory.js";
 import { allMcpTools, callMcpTool, resolveMcpTool } from "../mcp/manager.js";
+import { remoteMcpFor } from "../mcp/remote.js";
 import { db, persist } from "../store.js";
 import { builtinTools, type ToolContext } from "../tools/builtin.js";
 import { contextWindowFor } from "../llm/catalog.js";
@@ -217,7 +218,14 @@ async function delegate(parent: LiveRun, toolUseId: string, agentId: string, tas
  * Substitui o histórico por um resumo gerado pelo próprio modelo (compactação simples).
  * Só roda no início de uma iteração, com a rodada de ferramentas anterior já respondida.
  */
-async function compactHistory(run: LiveRun, tools: Anthropic.Tool[], serverTools: Anthropic.Beta.BetaToolUnion[], iteration: number, window: number) {
+async function compactHistory(
+  run: LiveRun,
+  tools: Anthropic.Tool[],
+  serverTools: Anthropic.Beta.BetaToolUnion[],
+  mcpServers: Anthropic.Beta.BetaRequestMCPServerURLDefinition[],
+  iteration: number,
+  window: number,
+) {
   const { record, llm, agent } = run;
   const messages = record.messages as Msg[];
   const tokensBefore = record.context?.tokens ?? 0;
@@ -236,6 +244,7 @@ async function compactHistory(run: LiveRun, tools: Anthropic.Tool[], serverTools
     // As mesmas ferramentas da conversa: trocar a lista invalidaria o raciocínio já registrado.
     tools,
     serverTools,
+    mcpServers,
     signal: run.abort.signal,
     emit: () => undefined,
   });
@@ -276,11 +285,29 @@ async function loop(run: LiveRun) {
   };
   const tools = resolveTools(agent);
   const server = resolveServerTools(agent, llm);
-  const toolNames = [...tools.map((t) => t.name), ...agent.tools.filter(isServerTool).filter(() => server.defs.length > 0)];
+  // Servidores MCP conectados pela API do Claude entram como conjuntos de ferramentas de servidor.
+  const remote = remoteMcpFor(agent, llm, db.mcpServers);
+  const providerTools = [...server.defs, ...remote.toolsets];
+  const remoteCalls = new Set<string>();
+  const toolNames = [...tools.map((t) => t.name), ...agent.tools.filter(isServerTool).filter(() => server.defs.length > 0), ...remote.servers.map((s) => `mcp__${s.name}__*`)];
   // Repassa os eventos do provedor; chamadas a ferramentas de servidor também entram na auditoria.
   const forward = (ev: RunEvent) => {
     emit(run, ev);
-    if (ev.type === "tool.call" && ev.source === "server") {
+    if (ev.type === "tool.call" && ev.source === "mcp") {
+      // Só chegam por aqui as chamadas MCP feitas pela Anthropic; as locais são registradas em executeTool.
+      remoteCalls.add(ev.id);
+      audit({ type: "tool.call", actor: "agent", agentId: agent.id, runId: record.id, summary: `Chamou ${ev.name} (MCP via Anthropic)`, data: { toolUseId: ev.id, input: ev.input, server: ev.server, executedBy: "anthropic" } });
+    } else if (ev.type === "tool.result" && remoteCalls.has(ev.id)) {
+      audit({
+        type: "tool.result",
+        actor: "system",
+        agentId: agent.id,
+        runId: record.id,
+        summary: `${ev.name} ${ev.isError ? "falhou" : "respondeu"} em ${ev.durationMs}ms (MCP via Anthropic)`,
+        durationMs: ev.durationMs,
+        data: { toolUseId: ev.id, output: clip(ev.output, 2000), isError: ev.isError },
+      });
+    } else if (ev.type === "tool.call" && ev.source === "server") {
       audit({ type: "tool.call", actor: "agent", agentId: agent.id, runId: record.id, summary: `Chamou ${ev.name} (servidor Anthropic)`, data: { toolUseId: ev.id, input: ev.input, executedBy: "anthropic" } });
     } else if (ev.type === "tool.result" && isServerTool(ev.name)) {
       audit({
@@ -327,10 +354,10 @@ async function loop(run: LiveRun) {
           tokens: record.context.tokens,
           window,
           messageCount: record.messages.length,
-          historyShare: historyShare(record.systemPrompt, [...tools, ...server.defs], record.messages),
+          historyShare: historyShare(record.systemPrompt, [...tools, ...providerTools], record.messages),
         })
       ) {
-        await compactHistory(run, tools, server.defs, iteration, window);
+        await compactHistory(run, tools, providerTools, remote.servers, iteration, window);
       }
       record.iterations = iteration;
       emit(run, { type: "iteration.started", iteration });
@@ -354,6 +381,7 @@ async function loop(run: LiveRun) {
           effort: llm.provider === "anthropic" ? llm.effort : undefined,
           tools: toolNames,
           ...(server.ignored.length ? { serverToolsIgnored: server.ignored, reason: "ferramentas de servidor exigem uma LLM Anthropic" } : {}),
+          ...(remote.ignored.length ? { remoteMcpIgnored: remote.ignored, remoteMcpReason: "servidores MCP conectados pela Anthropic exigem uma LLM Anthropic" } : {}),
         },
       });
 
@@ -365,7 +393,8 @@ async function loop(run: LiveRun) {
         system: record.systemPrompt,
         messages: record.messages as Msg[],
         tools,
-        serverTools: server.defs,
+        serverTools: providerTools,
+        mcpServers: remote.servers,
         signal: run.abort.signal,
         emit: forward,
       });
@@ -383,7 +412,7 @@ async function loop(run: LiveRun) {
         tokens: contextTokens,
         window,
         cacheRead: turn.usage.cacheRead ?? 0,
-        breakdown: contextBreakdown(record.systemPrompt, [...tools, ...server.defs], record.messages),
+        breakdown: contextBreakdown(record.systemPrompt, [...tools, ...providerTools], record.messages),
         messageCount: record.messages.length,
       });
       const toolUses = (turn.content as { type: string; id?: string; name?: string; input?: unknown }[]).filter((b) => b.type === "tool_use");

@@ -10,6 +10,7 @@ import { newLlm } from "./seed.js";
 import { db, persist } from "./store.js";
 import { builtinTools } from "./tools/builtin.js";
 import { SERVER_TOOLS } from "./tools/server.js";
+import { isRemoteMcp } from "./mcp/remote.js";
 import { agentToolDefinition, agentToolName } from "./agent/delegation.js";
 import type { AgentConfig, AuditEntry, McpServerConfig, PromptTemplate, RunRecord } from "./types.js";
 import { bus, errorMessage, now, uid } from "./util.js";
@@ -174,12 +175,22 @@ route("GET", "/api/tools", () => {
     source: "server" as const,
     category: t.category,
   }));
+  // Servidores MCP conectados pela Anthropic: as ferramentas só são conhecidas durante a execução.
+  const remoteMcp = db.mcpServers.filter(isRemoteMcp).map((s) => ({
+    name: `mcp__${s.name}__*`,
+    description: "Ferramentas descobertas e executadas pela API da Anthropic durante a execução (apenas LLMs Anthropic).",
+    inputSchema: {},
+    source: "mcp" as const,
+    server: s.name,
+    category: "mcp",
+    viaAnthropic: true,
+  }));
   // Outros agentes como ferramentas (multiagente). O editor oculta o próprio agente.
   const agents = db.agents.map((a) => {
     const def = agentToolDefinition(a);
     return { name: def.name, description: def.description, inputSchema: def.input_schema, source: "agent" as const, category: "agente", agentId: a.id, label: `${a.emoji} ${a.name}` };
   });
-  return [...builtin, ...server, ...agents, ...mcp];
+  return [...builtin, ...server, ...agents, ...mcp, ...remoteMcp];
 });
 
 // ───────────────────────── Agentes ─────────────────────────
@@ -295,6 +306,7 @@ const McpInput = z.object({
   env: z.record(z.string(), z.string()).default({}),
   url: z.string().optional(),
   headers: z.record(z.string(), z.string()).default({}),
+  via: z.enum(["client", "anthropic"]).optional(),
   enabled: z.boolean().default(true),
 });
 /** Valores de variáveis e cabeçalhos nunca saem da API. */
@@ -334,6 +346,7 @@ route("PUT", "/api/mcp/:id", async ({ id }, req) => {
     env: keepMasked(body.env, server.env),
     url: body.url,
     headers: keepMasked(body.headers, server.headers),
+    via: body.via,
     enabled: body.enabled,
   });
   if (oldName !== server.name) {

@@ -14,6 +14,8 @@ export interface LlmCall {
   tools: Anthropic.Tool[];
   /** Ferramentas de servidor (web_search, web_fetch): só o provedor Anthropic as envia; os demais ignoram. */
   serverTools?: Anthropic.Beta.BetaToolUnion[];
+  /** Servidores MCP conectados pela API do Claude (só o provedor Anthropic envia). */
+  mcpServers?: Anthropic.Beta.BetaRequestMCPServerURLDefinition[];
   signal: AbortSignal;
   emit: (ev: RunEvent) => void;
 }

@@ -88,6 +88,8 @@ export interface McpServerConfig {
   env?: Record<string, string>;
   url?: string;
   headers?: Record<string, string>;
+  /** HTTP: quem abre a conexão. "anthropic" = a API do Claude conecta durante a execução (sem CORS). */
+  via?: "client" | "anthropic";
   enabled: boolean;
   createdAt: string;
 }

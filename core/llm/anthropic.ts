@@ -1,6 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { hostEnv } from "../env.js";
 import type { LlmConfig } from "../types.js";
+import { describeMcpResult, MCP_CONNECTOR_BETA } from "../mcp/remote.js";
 import { describeServerResult, isServerToolResult } from "../tools/server.js";
 import { supportsServerFallback } from "./catalog.js";
 import type { AssistantTurn, Block, LlmCall } from "./types.js";
@@ -30,6 +31,8 @@ export function anthropicHasCredentials(llm: LlmConfig) {
 export async function callAnthropic(call: LlmCall): Promise<AssistantTurn> {
   const { llm, emit } = call;
   const useFallback = llm.refusalFallback && supportsServerFallback(llm.model);
+  const mcp = call.mcpServers ?? [];
+  const betas = [...(useFallback ? ["server-side-fallback-2026-07-01"] : []), ...(mcp.length ? [MCP_CONNECTOR_BETA] : [])];
   const params = {
     model: llm.model,
     max_tokens: llm.maxTokens || 64000,
@@ -41,7 +44,9 @@ export async function callAnthropic(call: LlmCall): Promise<AssistantTurn> {
     output_config: { effort: llm.effort },
     // Cache automático do prefixo: no loop agêntico o histórico cresce e é reenviado a cada iteração.
     cache_control: { type: "ephemeral" as const },
-    ...(useFallback ? { betas: ["server-side-fallback-2026-07-01"], fallbacks: "default" } : {}),
+    ...(useFallback ? { fallbacks: "default" } : {}),
+    ...(mcp.length ? { mcp_servers: mcp } : {}),
+    ...(betas.length ? { betas } : {}),
   };
   const stream = clientFor(llm).beta.messages.stream(params as Parameters<Anthropic["beta"]["messages"]["stream"]>[0], { signal: call.signal });
   // Texto que volta depois de um bloco de ferramenta de servidor começa em novo parágrafo.
@@ -66,7 +71,16 @@ export async function callAnthropic(call: LlmCall): Promise<AssistantTurn> {
   const serverCalls = new Map<string, { name: string; started: number }>();
   stream.on("contentBlock", (block) => {
     const b = block as unknown as { type: string; id?: string; name?: string; input?: unknown; tool_use_id?: string };
-    if (b.type === "server_tool_use" && b.id && b.name) {
+    if (b.type === "mcp_tool_use" && b.id && b.name) {
+      // Ferramenta de um servidor MCP executada pela Anthropic: mesmo nome qualificado das ferramentas MCP locais.
+      const server = (block as unknown as { server_name: string }).server_name;
+      serverCalls.set(b.id, { name: `mcp__${server}__${b.name}`, started: Date.now() });
+      emit({ type: "tool.call", id: b.id, name: `mcp__${server}__${b.name}`, input: b.input ?? {}, source: "mcp", server });
+    } else if (b.type === "mcp_tool_result" && b.tool_use_id) {
+      const info = serverCalls.get(b.tool_use_id);
+      const { output, isError } = describeMcpResult(block as unknown as { content?: unknown; is_error?: boolean });
+      emit({ type: "tool.result", id: b.tool_use_id, name: info?.name ?? "mcp", output, isError, durationMs: info ? Date.now() - info.started : 0 });
+    } else if (b.type === "server_tool_use" && b.id && b.name) {
       serverCalls.set(b.id, { name: b.name, started: Date.now() });
       emit({ type: "tool.call", id: b.id, name: b.name, input: b.input ?? {}, source: "server" });
     } else if (isServerToolResult(b as { type: string; tool_use_id?: unknown })) {
