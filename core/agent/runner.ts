@@ -5,6 +5,7 @@ import { createMemory, searchMemories } from "../memory.js";
 import { allMcpTools, callMcpTool, resolveMcpTool } from "../mcp/manager.js";
 import { db, persist } from "../store.js";
 import { builtinTools, type ToolContext } from "../tools/builtin.js";
+import { agentIdFromTool, agentToolDefinition, delegationBlocked, isAgentTool } from "./delegation.js";
 import { collectCitations, isServerTool, serverToolDefinitions } from "../tools/server.js";
 import type { AgentConfig, LlmConfig, RunEvent, RunRecord } from "../types.js";
 import { bus, clip, errorMessage, now, uid } from "../util.js";
@@ -27,6 +28,8 @@ interface LiveRun {
   abort: AbortController;
   approvals: Map<string, (approved: boolean) => void>;
   busy: boolean;
+  /** Resolve quando o loop atual termina (usado pela delegação para aguardar a filha). */
+  finished?: Promise<void>;
 }
 
 const live = new Map<string, LiveRun>();
@@ -58,6 +61,11 @@ function resolveTools(agent: AgentConfig) {
     const b = builtinTools[name];
     if (b) defs.push(b.definition);
   }
+  for (const name of agent.tools) {
+    if (!isAgentTool(name)) continue;
+    const target = db.agents.find((a) => a.id === agentIdFromTool(name));
+    if (target && target.id !== agent.id) defs.push(agentToolDefinition(target));
+  }
   const mcp = allMcpTools(db.mcpServers).filter((t) => toolEnabled(agent, t.definition.name, t.server.name));
   for (const t of mcp) defs.push(t.definition);
   return defs;
@@ -87,8 +95,9 @@ function buildSystemPrompt(agent: AgentConfig, recalled: { content: string; kind
 
 async function executeTool(run: LiveRun, block: { id: string; name: string; input: unknown }, ctx: ToolContext): Promise<Anthropic.Beta.BetaToolResultBlockParam> {
   const input = (block.input ?? {}) as Record<string, unknown>;
-  const mcp = builtinTools[block.name] ? null : resolveMcpTool(block.name, db.mcpServers);
-  emit(run, { type: "tool.call", id: block.id, name: block.name, input, source: mcp ? "mcp" : "builtin", server: mcp?.server.name });
+  const delegated = isAgentTool(block.name);
+  const mcp = builtinTools[block.name] || delegated ? null : resolveMcpTool(block.name, db.mcpServers);
+  emit(run, { type: "tool.call", id: block.id, name: block.name, input, source: delegated ? "agent" : mcp ? "mcp" : "builtin", server: mcp?.server.name });
   audit({
     type: "tool.call",
     actor: "agent",
@@ -126,7 +135,11 @@ async function executeTool(run: LiveRun, block: { id: string; name: string; inpu
     if (!toolEnabled(run.agent, block.name, mcp?.server.name)) throw new Error(`Ferramenta "${block.name}" não está habilitada para este agente.`);
     const builtin = builtinTools[block.name];
     if (builtin) output = await builtin.run(input, ctx);
-    else if (mcp) {
+    else if (delegated) {
+      const r = await delegate(run, block.id, agentIdFromTool(block.name), String(input.task ?? "").trim());
+      output = r.output;
+      isError = r.isError;
+    } else if (mcp) {
       const r = await callMcpTool(mcp.server.id, mcp.tool.name, input);
       output = r.text;
       isError = r.isError;
@@ -148,6 +161,54 @@ async function executeTool(run: LiveRun, block: { id: string; name: string; inpu
     data: { toolUseId: block.id, output: clip(output, 2000), isError },
   });
   return { type: "tool_result", tool_use_id: block.id, content: output, is_error: isError || undefined };
+}
+
+/** Executa uma subtarefa em outro agente e aguarda a resposta final (execução filha). */
+async function delegate(parent: LiveRun, toolUseId: string, agentId: string, task: string): Promise<{ output: string; isError: boolean }> {
+  const target = db.agents.find((a) => a.id === agentId);
+  const depth = parent.record.depth ?? 0;
+  const chain = parent.record.chain ?? [parent.agent.id];
+  const blocked = delegationBlocked(chain, depth, target);
+  if (blocked) throw new Error(blocked);
+  if (!task) throw new Error("Informe a subtarefa no campo task.");
+
+  const child = startRun(target!, task, { parentRunId: parent.record.id, parentToolUseId: toolUseId, depth: depth + 1, chain: [...chain, target!.id] });
+  (parent.record.childRunIds ??= []).push(child.id);
+  const names = [...chain, target!.id].map((id) => db.agents.find((a) => a.id === id)?.name ?? id);
+  emit(parent, { type: "delegation.started", toolUseId, childRunId: child.id, agentId: target!.id, agentName: target!.name, task });
+  audit({
+    type: "agent.delegated",
+    actor: "agent",
+    agentId: parent.agent.id,
+    runId: parent.record.id,
+    summary: `${names.join(" → ")}: ${clip(task, 100)}`,
+    data: { chain: names, depth: depth + 1, childRunId: child.id, toolUseId },
+  });
+
+  // Cancelar a execução pai cancela a filha.
+  const onAbort = () => cancelRun(child.id);
+  parent.abort.signal.addEventListener("abort", onAbort, { once: true });
+  await live.get(child.id)?.finished;
+  parent.abort.signal.removeEventListener("abort", onAbort);
+
+  const childUsage = { input: child.usage.input + (child.childUsage?.input ?? 0), output: child.usage.output + (child.childUsage?.output ?? 0) };
+  const agg = (parent.record.childUsage ??= { input: 0, output: 0 });
+  agg.input += childUsage.input;
+  agg.output += childUsage.output;
+  emit(parent, { type: "delegation.finished", toolUseId, childRunId: child.id, status: child.status, iterations: child.iterations, usage: childUsage });
+  audit({
+    type: "agent.delegation_finished",
+    actor: "agent",
+    agentId: target!.id,
+    runId: parent.record.id,
+    summary: `${target!.name} ${child.status === "completed" ? "concluiu" : "não concluiu"} a subtarefa em ${child.iterations} iterações`,
+    tokens: childUsage,
+    data: { childRunId: child.id, status: child.status },
+  });
+
+  if (child.status === "completed") return { output: child.output || "(o agente não retornou texto)", isError: false };
+  if (child.status === "cancelled") return { output: "A execução delegada foi cancelada.", isError: true };
+  return { output: `O agente "${target!.name}" falhou: ${child.error ?? "erro desconhecido"}`, isError: true };
 }
 
 async function loop(run: LiveRun) {
@@ -278,7 +339,7 @@ async function loop(run: LiveRun) {
     record.status = "completed";
     record.output = finalText;
     record.finishedAt = now();
-    emit(run, { type: "run.completed", output: finalText, iterations: record.iterations, usage: record.usage });
+    emit(run, { type: "run.completed", output: finalText, iterations: record.iterations, usage: record.usage, ...(record.childUsage ? { childUsage: record.childUsage } : {}) });
     audit({
       type: "run.completed",
       actor: "agent",
@@ -379,7 +440,16 @@ export function summarizeEpisode(input: string, iterations: number, events: RunR
  * Inicia uma execução. `llmId` troca a LLM só nesta execução (sem alterar o agente);
  * `comparisonId` agrupa execuções disparadas juntas pela comparação lado a lado.
  */
-export function startRun(agent: AgentConfig, input: string, opts: { llmId?: string; comparisonId?: string } = {}): RunRecord {
+export interface StartRunOptions {
+  llmId?: string;
+  comparisonId?: string;
+  parentRunId?: string;
+  parentToolUseId?: string;
+  depth?: number;
+  chain?: string[];
+}
+
+export function startRun(agent: AgentConfig, input: string, opts: StartRunOptions = {}): RunRecord {
   const llm = llmFor(agent, opts.llmId);
   // Episódios ficam fora do recall automático por padrão: são registros do passado, não conhecimento.
   const recalled = agent.memory.autoRecall
@@ -403,6 +473,7 @@ export function startRun(agent: AgentConfig, input: string, opts: { llmId?: stri
     scratchpad: [],
     llmId: llm.id,
     ...(opts.comparisonId ? { comparisonId: opts.comparisonId } : {}),
+    ...(opts.parentRunId ? { parentRunId: opts.parentRunId, parentToolUseId: opts.parentToolUseId, depth: opts.depth ?? 1, chain: opts.chain } : {}),
   };
   db.runs.push(record);
   const run: LiveRun = { record, agent: structuredClone(agent), llm, abort: new AbortController(), approvals: new Map(), busy: false };
@@ -411,11 +482,11 @@ export function startRun(agent: AgentConfig, input: string, opts: { llmId?: stri
   emit(run, { type: "run.started", runId: record.id, agentId: agent.id, input, provider: llm.provider, model: llm.model, llmName: llm.name });
   audit({
     type: "run.started",
-    actor: "user",
+    actor: opts.parentRunId ? "agent" : "user",
     agentId: agent.id,
     runId: record.id,
-    summary: `Nova execução de "${agent.name}": ${clip(input, 100)}`,
-    data: { input, llm: llm.name, provider: llm.provider, model: llm.model },
+    summary: `${opts.parentRunId ? "Execução delegada" : "Nova execução"} de "${agent.name}": ${clip(input, 100)}`,
+    data: { input, llm: llm.name, provider: llm.provider, model: llm.model, ...(opts.parentRunId ? { parentRunId: opts.parentRunId, depth: opts.depth } : {}) },
   });
   if (recalled.length) {
     emit(run, {
@@ -431,7 +502,7 @@ export function startRun(agent: AgentConfig, input: string, opts: { llmId?: stri
       data: recalled.map((r) => ({ id: r.memory.id, score: r.score })),
     });
   }
-  void loop(run);
+  run.finished = loop(run);
   return record;
 }
 
@@ -459,7 +530,7 @@ export function continueRun(id: string, text: string): RunRecord {
   record.finishedAt = null;
   emit(run, { type: "user.message", text });
   audit({ type: "run.started", actor: "user", agentId: agent.id, runId: id, summary: `Nova mensagem na execução: ${clip(text, 100)}` });
-  void loop(run);
+  run.finished = loop(run);
   return record;
 }
 

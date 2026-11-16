@@ -10,6 +10,7 @@ import { newLlm } from "./seed.js";
 import { db, persist } from "./store.js";
 import { builtinTools } from "./tools/builtin.js";
 import { SERVER_TOOLS } from "./tools/server.js";
+import { agentToolDefinition, agentToolName } from "./agent/delegation.js";
 import type { AgentConfig, AuditEntry, McpServerConfig, PromptTemplate, RunRecord } from "./types.js";
 import { bus, errorMessage, now, uid } from "./util.js";
 
@@ -171,7 +172,12 @@ route("GET", "/api/tools", () => {
     source: "server" as const,
     category: t.category,
   }));
-  return [...builtin, ...server, ...mcp];
+  // Outros agentes como ferramentas (multiagente). O editor oculta o próprio agente.
+  const agents = db.agents.map((a) => {
+    const def = agentToolDefinition(a);
+    return { name: def.name, description: def.description, inputSchema: def.input_schema, source: "agent" as const, category: "agente", agentId: a.id, label: `${a.emoji} ${a.name}` };
+  });
+  return [...builtin, ...server, ...agents, ...mcp];
 });
 
 // ───────────────────────── Agentes ─────────────────────────
@@ -206,6 +212,7 @@ route("PUT", "/api/agents/:id", ({ id }, req) => {
   const agent = db.agents.find((a) => a.id === id) ?? notFound("Agente");
   const body = AgentInput.parse(req.body);
   checkLlm(body.llmId);
+  body.tools = body.tools.filter((t) => t !== agentToolName(agent.id)); // um agente não delega a si mesmo
   const before = structuredClone(agent);
   Object.assign(agent, body, { updatedAt: now() });
   persist();
@@ -217,6 +224,8 @@ route("DELETE", "/api/agents/:id", ({ id }) => {
   const idx = db.agents.findIndex((a) => a.id === id);
   if (idx < 0) notFound("Agente");
   const [removed] = db.agents.splice(idx, 1);
+  // Remove a delegação para o agente excluído dos demais.
+  for (const a of db.agents) a.tools = a.tools.filter((t) => t !== agentToolName(removed.id));
   persist();
   audit({ type: "config.changed", actor: "user", agentId: removed.id, summary: `Agente "${removed.name}" removido` });
   return { ok: true };
