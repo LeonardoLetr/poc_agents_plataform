@@ -23,6 +23,7 @@ OpenAI Chat Completions (OpenAI, OpenRouter, Groq, Ollama) e um modelo simulado 
 | **Memória** | Quatro camadas (curto prazo, trabalho, longo prazo e episódica), visualização das memórias e simulação de recuperação com pontuação detalhada. |
 | **Prompts** | Biblioteca de prompts de sistema e de tarefa, com suporte a variáveis `{{nome}}`. |
 | **Auditoria** | Registro de todas as ações (autor, horário, tokens e duração), com filtros, atualização em tempo real e exportação em JSON. |
+| **Exportar e importar** | Rodapé da barra lateral: salva a configuração (agentes, LLMs sem chaves, prompts, servidores MCP e memórias) em JSON e importa de volta, mesclando ou substituindo, com relatório de conflitos. |
 | **Aprender** | Material de apoio sobre o loop agêntico, o protocolo de ferramentas e os principais conceitos, com exercícios práticos. |
 
 <p>
