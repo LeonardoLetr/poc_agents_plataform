@@ -204,7 +204,7 @@ export function seedMemories(): Memory[] {
   ];
 }
 
-export function seedMcpServers(runtime: "server" | "browser"): McpServerConfig[] {
+export function seedMcpServers(): McpServerConfig[] {
   const servers: McpServerConfig[] = [
     {
       // Servidor de exemplo embutido (core/mcp/lab-server.ts) — roda em memória, até no navegador.
@@ -213,23 +213,10 @@ export function seedMcpServers(runtime: "server" | "browser"): McpServerConfig[]
       transport: "builtin",
       command: "laboratorio",
       args: [],
-      env: {},
       enabled: true,
       createdAt: now(),
     },
   ];
-  if (runtime === "server") {
-    servers.push({
-      id: uid("mcp"),
-      name: "everything",
-      transport: "stdio",
-      command: "npx",
-      args: ["-y", "@modelcontextprotocol/server-everything"],
-      env: {},
-      enabled: false,
-      createdAt: now(),
-    });
-  }
   return servers;
 }
 
@@ -272,13 +259,13 @@ export function seedPrompts(): PromptTemplate[] {
   ];
 }
 
-export function seedDb(runtime: "server" | "browser"): DB {
+export function seedDb(): DB {
   return {
-    version: 8,
+    version: 9,
     llms: seedLlms(),
     agents: seedAgents(),
     memories: seedMemories(),
-    mcpServers: seedMcpServers(runtime),
+    mcpServers: seedMcpServers(),
     prompts: seedPrompts(),
     audit: [],
     runs: [],
@@ -286,12 +273,12 @@ export function seedDb(runtime: "server" | "browser"): DB {
 }
 
 /** Converte dados da versão 1 (provedor/modelo dentro do agente) para LLMs separadas. */
-export function migrate(raw: Record<string, unknown>, runtime: "server" | "browser"): DB {
+export function migrate(raw: Record<string, unknown>): DB {
   const data = raw as Partial<DB> & { settings?: { anthropicApiKey?: string }; version?: number };
   // Dados salvos, mas sem nenhum agente nem LLM (armazenamento vazio ou corrompido): começa do conjunto inicial.
-  if (!data.agents?.length && !data.llms?.length) return seedDb(runtime);
+  if (!data.agents?.length && !data.llms?.length) return seedDb();
   const out: DB = {
-    version: 8,
+    version: 9,
     llms: data.llms ?? [],
     agents: data.agents ?? [],
     memories: data.memories ?? [],
@@ -319,7 +306,7 @@ export function migrate(raw: Record<string, unknown>, runtime: "server" | "brows
       delete agent.effort;
     }
     // O laboratorio agora é embutido (funciona sem processo externo).
-    for (const s of out.mcpServers) if (s.name === "laboratorio" && s.transport === "stdio") Object.assign(s, { transport: "builtin", command: "laboratorio", args: [] });
+    for (const s of out.mcpServers) if (s.name === "laboratorio" && (s.transport as string) === "stdio") Object.assign(s, { transport: "builtin", command: "laboratorio", args: [] });
   }
   if ((data.version ?? 1) < 3) {
     // Versão 3: multiagente. Adiciona o coordenador de exemplo quando o agente demo ainda existe.
@@ -355,6 +342,14 @@ export function migrate(raw: Record<string, unknown>, runtime: "server" | "brows
     // Versão 8: remove referências a servidores MCP que já foram apagados (antes a exclusão não limpava os agentes).
     const names = new Set(out.mcpServers.map((s) => s.name));
     for (const a of out.agents) a.tools = a.tools.filter((t) => !t.startsWith("mcp__") || names.has(t.slice(5).split("__")[0]));
+  }
+  if ((data.version ?? 1) < 9) {
+    // Versão 9: sem servidor local, não há mais transporte stdio. Servidores stdio e suas ferramentas saem dos dados.
+    const legacy = out.mcpServers as unknown as { name: string; transport: string }[];
+    const removed = new Set(legacy.filter((s) => s.transport === "stdio").map((s) => s.name));
+    out.mcpServers = out.mcpServers.filter((s) => !removed.has(s.name));
+    for (const s of out.mcpServers as (McpServerConfig & { env?: unknown })[]) delete s.env;
+    for (const a of out.agents) a.tools = a.tools.filter((t) => !t.startsWith("mcp__") || !removed.has(t.slice(5).split("__")[0]));
   }
   return out;
 }

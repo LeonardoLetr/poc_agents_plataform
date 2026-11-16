@@ -1,14 +1,12 @@
 import type { RunEvent } from "../types.js";
 
 /**
- * Inicializa um núcleo isolado para testes: armazenamento em memória, modo servidor
- * (sem chaves de ambiente) e LLM demo sem atrasos artificiais.
+ * Inicializa um núcleo isolado para testes: armazenamento em memória e LLM demo sem atrasos artificiais.
  */
 export async function bootCore() {
   const core = await import("../index.js");
   const store = await import("../store.js");
   core.initCore({
-    runtime: "server",
     storage: { load: () => null, save: () => undefined },
     demoDelayScale: 0,
   });

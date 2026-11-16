@@ -1,10 +1,9 @@
 import { z } from "zod";
 import { cancelRun, continueRun, resolveApproval, startRun } from "./agent/runner.js";
 import { audit } from "./audit.js";
-import { hostEnv } from "./env.js";
 import { ANTHROPIC_MODELS, OPENAI_PRESETS, PRICING } from "./llm/catalog.js";
 import { llmHasCredentials, publicLlm } from "./llm/index.js";
-import { BUILTIN_MCP_SERVERS, allMcpTools, callMcpTool, connect, disconnect, forget, publicState, supportsStdio } from "./mcp/manager.js";
+import { BUILTIN_MCP_SERVERS, allMcpTools, callMcpTool, connect, disconnect, forget, publicState } from "./mcp/manager.js";
 import { createMemory, deleteMemory, searchMemories } from "./memory.js";
 import { newLlm } from "./seed.js";
 import { db, persist } from "./store.js";
@@ -53,8 +52,7 @@ function route(method: string, path: string, handler: Handler) {
 // ───────────────────────── Sistema ─────────────────────────
 route("GET", "/api/health", () => ({
   ok: true,
-  runtime: hostEnv.runtime,
-  capabilities: { stdio: supportsStdio(), builtinMcp: Object.keys(BUILTIN_MCP_SERVERS) },
+  capabilities: { builtinMcp: Object.keys(BUILTIN_MCP_SERVERS) },
   llmsReady: db.llms.filter(llmHasCredentials).length,
   llmsTotal: db.llms.length,
   catalog: { anthropic: ANTHROPIC_MODELS, openai: OPENAI_PRESETS },
@@ -300,10 +298,9 @@ route("DELETE", "/api/memories/:id", ({ id }) => (deleteMemory(id, "user") ? { o
 // ───────────────────────── MCP ─────────────────────────
 const McpInput = z.object({
   name: z.string().min(1).max(32).regex(/^[a-zA-Z0-9_-]+$/, "Use apenas letras, números, _ e -"),
-  transport: z.enum(["stdio", "http", "builtin"]),
+  transport: z.enum(["http", "builtin"]),
   command: z.string().optional(),
   args: z.array(z.string()).default([]),
-  env: z.record(z.string(), z.string()).default({}),
   url: z.string().optional(),
   headers: z.record(z.string(), z.string()).default({}),
   via: z.enum(["client", "anthropic"]).optional(),
@@ -313,7 +310,6 @@ const McpInput = z.object({
 const MASK = "••••";
 const mcpView = (s: McpServerConfig) => ({
   ...s,
-  env: Object.fromEntries(Object.keys(s.env ?? {}).map((k) => [k, MASK])),
   headers: Object.fromEntries(Object.keys(s.headers ?? {}).map((k) => [k, MASK])),
   state: publicState(s.id),
 });
@@ -326,7 +322,7 @@ route("POST", "/api/mcp", async (_p, req) => {
   const server: McpServerConfig = { id: uid("mcp"), ...body, createdAt: now() };
   db.mcpServers.push(server);
   persist();
-  audit({ type: "config.changed", actor: "user", summary: `Servidor MCP "${server.name}" adicionado`, data: { ...server, env: Object.keys(server.env ?? {}), headers: Object.keys(server.headers ?? {}) } });
+  audit({ type: "config.changed", actor: "user", summary: `Servidor MCP "${server.name}" adicionado`, data: { ...server, headers: Object.keys(server.headers ?? {}) } });
   if (server.enabled) await connect(server);
   return mcpView(server);
 });
@@ -343,7 +339,6 @@ route("PUT", "/api/mcp/:id", async ({ id }, req) => {
     transport: body.transport,
     command: body.command,
     args: body.args,
-    env: keepMasked(body.env, server.env),
     url: body.url,
     headers: keepMasked(body.headers, server.headers),
     via: body.via,
@@ -354,7 +349,7 @@ route("PUT", "/api/mcp/:id", async ({ id }, req) => {
     for (const a of db.agents) a.tools = a.tools.map((t) => (t.startsWith(prefix) ? `mcp__${server.name}__${t.slice(prefix.length)}` : t));
   }
   persist();
-  audit({ type: "config.changed", actor: "user", summary: `Servidor MCP "${server.name}" atualizado`, data: { ...server, env: Object.keys(server.env ?? {}), headers: Object.keys(server.headers ?? {}) } });
+  audit({ type: "config.changed", actor: "user", summary: `Servidor MCP "${server.name}" atualizado`, data: { ...server, headers: Object.keys(server.headers ?? {}) } });
   await disconnect(server.id, false);
   if (server.enabled) await connect(server);
   return mcpView(server);

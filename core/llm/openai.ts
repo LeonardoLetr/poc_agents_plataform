@@ -1,4 +1,3 @@
-import { hostEnv } from "../env.js";
 import type { LlmConfig } from "../types.js";
 import type { AssistantTurn, Block, LlmCall, Msg } from "./types.js";
 
@@ -19,7 +18,7 @@ const DEFAULT_BASE = "https://api.openai.com/v1";
 const isLocal = (url?: string) => Boolean(url && /localhost|127\.0\.0\.1/.test(url));
 
 export function openaiHasCredentials(llm: LlmConfig) {
-  return Boolean(llm.apiKey || isLocal(llm.baseUrl) || (hostEnv.runtime === "server" && hostEnv.OPENAI_API_KEY));
+  return Boolean(llm.apiKey || isLocal(llm.baseUrl));
 }
 
 function toOpenAi(system: string, messages: Msg[]): OaMessage[] {
@@ -50,7 +49,7 @@ function toOpenAi(system: string, messages: Msg[]): OaMessage[] {
 
 export async function callOpenAi(call: LlmCall): Promise<AssistantTurn> {
   const { llm, emit } = call;
-  const key = llm.apiKey || (hostEnv.runtime === "server" ? hostEnv.OPENAI_API_KEY : undefined);
+  const key = llm.apiKey;
   const url = `${(llm.baseUrl || DEFAULT_BASE).replace(/\/$/, "")}/chat/completions`;
   let res: Response;
   try {
@@ -71,7 +70,7 @@ export async function callOpenAi(call: LlmCall): Promise<AssistantTurn> {
     });
   } catch (err) {
     if ((err as Error).name === "AbortError") throw err;
-    throw new Error(`Não foi possível conectar a ${url} (${(err as Error).message}). Verifique a URL base da LLM${hostEnv.runtime === "browser" ? " e se o provedor permite chamadas do navegador (CORS)" : ""}.`);
+    throw new Error(`Não foi possível conectar a ${url} (${(err as Error).message}). Verifique a URL base da LLM e se o provedor permite chamadas do navegador (CORS).`);
   }
   if (!res.ok || !res.body) {
     const detail = await res.text().catch(() => "");

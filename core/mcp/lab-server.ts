@@ -5,9 +5,7 @@
  * vira uma ferramenta que qualquer cliente MCP (o Agent Lab, o Claude Desktop,
  * o Claude Code…) descobre via `tools/list` e executa via `tools/call`.
  *
- * O mesmo servidor roda de dois jeitos:
- *  - embutido (transporte em memória) — funciona até no navegador / GitHub Pages;
- *  - como processo separado via stdio — veja mcp-servers/laboratorio/index.ts.
+ * Roda embutido na própria página (transporte em memória), sem processo nem rede.
  */
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";

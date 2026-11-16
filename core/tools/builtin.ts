@@ -115,18 +115,14 @@ export const builtinTools: Record<string, BuiltinTool> = {
       const url = new URL(str(input.url, "url"));
       if (!/^https?:$/.test(url.protocol)) throw new Error("Somente URLs http/https são permitidas.");
       if (isPrivateHost(url.hostname)) throw new Error("Endereços locais/privados são bloqueados por segurança.");
-      const inBrowser = typeof window !== "undefined";
       let res: Response;
       try {
-        res = await fetch(url, {
-          signal: AbortSignal.timeout(15_000),
-          // Navegadores não permitem definir user-agent.
-          headers: inBrowser ? {} : { "user-agent": "AgentLab/0.2 (plataforma de estudo)" },
-          redirect: "follow",
-        });
+        res = await fetch(url, { signal: AbortSignal.timeout(15_000), redirect: "follow" });
       } catch (err) {
-        if (inBrowser) throw new Error(`O navegador bloqueou a requisição (CORS ou rede). No modo navegador só funcionam sites que liberam CORS; rode o servidor local para buscar qualquer página. Detalhe: ${(err as Error).message}`);
-        throw err;
+        throw new Error(
+          `O navegador bloqueou a requisição (CORS ou rede): só funcionam sites que liberam CORS. ` +
+            `Com uma LLM Anthropic, use as ferramentas web_search e web_fetch para ler qualquer página. Detalhe: ${(err as Error).message}`,
+        );
       }
       const type = res.headers.get("content-type") ?? "";
       const body = await res.text();

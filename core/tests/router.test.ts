@@ -7,10 +7,9 @@ beforeAll(async () => {
 });
 
 describe("API: sistema", () => {
-  it("informa o modo de execução, capacidades e catálogo de modelos", async () => {
+  it("informa capacidades e catálogo de modelos", async () => {
     const { status, body } = await ctx.api("GET", "/api/health");
     expect(status).toBe(200);
-    expect(body.runtime).toBe("server");
     expect(body.capabilities.builtinMcp).toContain("laboratorio");
     expect(body.catalog.anthropic.map((m: { id: string }) => m.id)).toContain("claude-opus-5-5");
   });

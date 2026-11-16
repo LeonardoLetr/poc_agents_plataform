@@ -20,7 +20,7 @@ export interface StorageAdapter {
   save(db: DB): void;
 }
 
-export const db: DB = { version: 8, llms: [], agents: [], memories: [], mcpServers: [], prompts: [], audit: [], runs: [] };
+export const db: DB = { version: 9, llms: [], agents: [], memories: [], mcpServers: [], prompts: [], audit: [], runs: [] };
 
 let adapter: StorageAdapter | null = null;
 let limits = { maxAudit: 5000, maxRuns: 200 };

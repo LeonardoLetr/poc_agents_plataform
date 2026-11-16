@@ -1,5 +1,4 @@
 import Anthropic from "@anthropic-ai/sdk";
-import { hostEnv } from "../env.js";
 import type { LlmConfig } from "../types.js";
 import { describeMcpResult, MCP_CONNECTOR_BETA } from "../mcp/remote.js";
 import { describeServerResult, isServerToolResult } from "../tools/server.js";
@@ -13,11 +12,10 @@ function clientFor(llm: LlmConfig): Anthropic {
   let client = clients.get(key);
   if (!client) {
     client = new Anthropic({
-      // Sem chave na LLM, o SDK usa as credenciais do ambiente (ANTHROPIC_API_KEY…) — só no servidor.
-      ...(llm.apiKey ? { apiKey: llm.apiKey } : {}),
+      apiKey: llm.apiKey,
       ...(llm.baseUrl ? { baseURL: llm.baseUrl } : {}),
-      // No modo navegador a chave fica no seu próprio browser; o SDK exige consentimento explícito.
-      dangerouslyAllowBrowser: hostEnv.runtime === "browser",
+      // A chave fica no navegador de quem usa a plataforma; o SDK exige consentimento explícito para isso.
+      dangerouslyAllowBrowser: true,
     });
     clients.set(key, client);
   }
@@ -25,7 +23,7 @@ function clientFor(llm: LlmConfig): Anthropic {
 }
 
 export function anthropicHasCredentials(llm: LlmConfig) {
-  return Boolean(llm.apiKey || (hostEnv.runtime === "server" && (hostEnv.ANTHROPIC_API_KEY || hostEnv.ANTHROPIC_AUTH_TOKEN)));
+  return Boolean(llm.apiKey);
 }
 
 export async function callAnthropic(call: LlmCall): Promise<AssistantTurn> {

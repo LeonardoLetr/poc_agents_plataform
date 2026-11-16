@@ -76,16 +76,16 @@ export interface Memory {
   source: "user" | "agent" | "auto";
 }
 
-/** stdio: processo local (só no modo servidor) · http: servidor remoto · builtin: servidor embutido que roda em memória. */
-export type McpTransport = "stdio" | "http" | "builtin";
+/** http: servidor remoto · builtin: servidor embutido que roda em memória. */
+export type McpTransport = "http" | "builtin";
 
 export interface McpServerConfig {
   id: string;
   name: string; // usado no prefixo das ferramentas: mcp__<name>__<tool>
   transport: McpTransport;
+  /** builtin: nome do servidor embutido. */
   command?: string;
   args?: string[];
-  env?: Record<string, string>;
   url?: string;
   headers?: Record<string, string>;
   /** HTTP: quem abre a conexão. "anthropic" = a API do Claude conecta durante a execução (sem CORS). */

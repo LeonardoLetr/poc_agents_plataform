@@ -1,4 +1,3 @@
-import { hostEnv } from "../env.js";
 import type Anthropic from "@anthropic-ai/sdk";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { SSEClientTransport } from "@modelcontextprotocol/sdk/client/sse.js";
@@ -15,16 +14,7 @@ export const BUILTIN_MCP_SERVERS: Record<string, { description: string; create: 
   laboratorio: { description: "Notas, dados, estatísticas de texto e conversão de unidades.", create: createLabServer },
 };
 
-/**
- * O hospedeiro pode fornecer transportes extras. O servidor Node registra o
- * `stdio` (processos locais); no navegador ele simplesmente não existe.
- */
-type StdioFactory = (cfg: McpServerConfig, log: (line: string) => void) => Transport;
-let stdioFactory: StdioFactory | null = null;
-export function registerStdioTransport(factory: StdioFactory) {
-  stdioFactory = factory;
-}
-export const supportsStdio = () => stdioFactory !== null;
+
 
 /**
  * Gerencia conexões com servidores MCP. Cada servidor expõe ferramentas que
@@ -98,25 +88,20 @@ async function buildTransport(cfg: McpServerConfig): Promise<Transport> {
     log(cfg.id, "Servidor embutido iniciado (transporte em memória).");
     return clientSide;
   }
-  if (cfg.transport === "stdio") {
-    if (!stdioFactory) throw new Error("Transporte stdio só está disponível no modo servidor (npm run dev). No navegador use HTTP ou um servidor embutido.");
-    if (!cfg.command) throw new Error("Comando obrigatório para transporte stdio.");
-    return stdioFactory(cfg, (line) => log(cfg.id, line));
-  }
   if (!cfg.url) throw new Error("URL obrigatória para transporte HTTP.");
   return new StreamableHTTPClientTransport(new URL(cfg.url), { requestInit: { headers: cfg.headers ?? {} } });
 }
 
 /**
  * Mensagem de erro de conexão com um diagnóstico em linguagem simples.
- * Os erros mais comuns: bloqueio de CORS no modo navegador e autenticação recusada.
+ * Os erros mais comuns: bloqueio de CORS e autenticação recusada.
  */
 export function explainConnectError(message: string, cfg: Pick<McpServerConfig, "transport" | "headers">): string {
   const hints: string[] = [];
-  if (cfg.transport === "http" && hostEnv.runtime === "browser" && /failed to fetch|fetch failed|networkerror|load failed/i.test(message)) {
+  if (cfg.transport === "http" && /failed to fetch|fetch failed|networkerror|load failed/i.test(message)) {
     hints.push(
-      "No modo navegador a conexão sai direto desta página, e o servidor precisa permitir requisições vindas deste site (CORS). " +
-        "Se ele não permitir, conecte pelo modo servidor (npm run dev).",
+      "A conexão sai direto desta página, e o servidor precisa permitir requisições vindas deste site (CORS). " +
+        "Se ele não permitir e o agente usar uma LLM Anthropic, edite o servidor e escolha \"API da Anthropic\" em \"Quem faz a conexão\".",
     );
   }
   if (/\b40[13]\b|unauthori[sz]ed|forbidden|invalid[^.]*(key|token)/i.test(message)) {

@@ -5,13 +5,10 @@ import { attachStorage, db, persist, type StorageAdapter } from "./store.js";
 import { now } from "./util.js";
 
 export { handle, subscribe, type ApiRequest, type ApiResponse } from "./router.js";
-export { registerStdioTransport } from "./mcp/manager.js";
 export type { StorageAdapter } from "./store.js";
 
 export interface CoreOptions {
-  runtime: "server" | "browser";
   storage: StorageAdapter;
-  env?: { ANTHROPIC_API_KEY?: string; ANTHROPIC_AUTH_TOKEN?: string; OPENAI_API_KEY?: string };
   /** Multiplicador dos atrasos simulados da LLM demo (padrão 1; 0 nos testes). */
   demoDelayScale?: number;
   limits?: { maxAudit?: number; maxRuns?: number };
@@ -23,21 +20,21 @@ let started = false;
 export function initCore(opts: CoreOptions) {
   if (started) return;
   started = true;
-  Object.assign(hostEnv, { runtime: opts.runtime, demoDelayScale: opts.demoDelayScale ?? 1, ...opts.env });
+  hostEnv.demoDelayScale = opts.demoDelayScale ?? 1;
   attachStorage(opts.storage, opts.limits);
   const raw = opts.storage.load();
-  Object.assign(db, raw ? migrate(raw as Record<string, unknown>, opts.runtime) : seedDb(opts.runtime));
+  Object.assign(db, raw ? migrate(raw as Record<string, unknown>) : seedDb());
 
   // Execuções interrompidas por um reinício não continuam sozinhas.
   for (const r of db.runs) {
     if (r.status === "running" || r.status === "awaiting_approval") {
       r.status = "failed";
-      r.error = opts.runtime === "browser" ? "A página foi recarregada durante a execução." : "Servidor reiniciado durante a execução.";
+      r.error = "A página foi recarregada durante a execução.";
       r.finishedAt = now();
     }
   }
   persist();
-  // Reconecta os servidores habilitados. Os embutidos reconectam a cada carregamento no modo navegador,
+  // Reconecta os servidores habilitados. Os embutidos reconectam a cada carregamento da página,
   // então não geram registro de auditoria (falhas continuam sendo registradas).
   for (const s of db.mcpServers.filter((s) => s.enabled)) void connect(s, { silent: s.transport === "builtin" });
 }

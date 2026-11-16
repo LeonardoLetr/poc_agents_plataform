@@ -55,12 +55,10 @@ describe("MCP: servidor embutido", () => {
   });
 });
 
-describe("MCP: transporte stdio sem hospedeiro Node", () => {
-  it("falha com mensagem explicativa quando o transporte não está registrado", async () => {
+describe("MCP: validação do cadastro", () => {
+  it("não aceita mais o transporte stdio (não há servidor local)", async () => {
     const res = await ctx.api("POST", "/api/mcp", { name: "processo", transport: "stdio", command: "node", args: ["servidor.js"] });
-    expect(res.status).toBe(201);
-    expect(res.body.state.status).toBe("error");
-    expect(res.body.state.error).toMatch(/só está disponível no modo servidor/);
+    expect(res.status).toBe(400);
   });
 
   it("rejeita nomes duplicados e inválidos", async () => {
@@ -90,18 +88,13 @@ describe("MCP: edição e diagnóstico de conexão", () => {
     expect(ctx.db.agents.find((a) => a.id === agent.body.id)!.tools).toEqual(["mcp__resend__*", "calculator"]);
   });
 
-  it("explica bloqueio de CORS no navegador e cabeçalho de autenticação sem o tipo", async () => {
+  it("explica bloqueio de CORS e cabeçalho de autenticação sem o tipo", async () => {
     const { explainConnectError } = await import("../mcp/manager.js");
-    const { hostEnv } = await import("../env.js");
-    const previous = hostEnv.runtime;
-    hostEnv.runtime = "browser";
-    try {
-      expect(explainConnectError("SSE error: Failed to fetch", { transport: "http", headers: {} })).toMatch(/CORS/);
-      expect(explainConnectError("HTTP 401 Unauthorized", { transport: "http", headers: { Authorization: "re_123" } })).toMatch(/Bearer <chave>/);
-      expect(explainConnectError("timeout", { transport: "http", headers: { Authorization: "Bearer re_123" } })).toBe("timeout");
-    } finally {
-      hostEnv.runtime = previous;
-    }
+    const cors = explainConnectError("SSE error: Failed to fetch", { transport: "http", headers: {} });
+    expect(cors).toMatch(/CORS/);
+    expect(cors).toMatch(/API da Anthropic/);
+    expect(explainConnectError("HTTP 401 Unauthorized", { transport: "http", headers: { Authorization: "re_123" } })).toMatch(/Bearer <chave>/);
+    expect(explainConnectError("timeout", { transport: "http", headers: { Authorization: "Bearer re_123" } })).toBe("timeout");
   });
 });
 

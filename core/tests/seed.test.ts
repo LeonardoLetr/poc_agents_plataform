@@ -3,11 +3,10 @@ import { SEED_LLM, migrate, seedDb } from "../seed.js";
 
 describe("dados iniciais", () => {
   it("criam LLMs, agentes válidos e o MCP embutido", () => {
-    const db = seedDb("browser");
+    const db = seedDb();
     const llmIds = new Set(db.llms.map((l) => l.id));
     expect(db.agents.every((a) => llmIds.has(a.llmId))).toBe(true);
     expect(db.mcpServers.map((s) => `${s.name}:${s.transport}`)).toEqual(["laboratorio:builtin"]);
-    expect(seedDb("server").mcpServers.map((s) => s.transport)).toContain("stdio");
   });
 });
 
@@ -25,7 +24,7 @@ describe("migração da versão 1", () => {
   };
 
   it("transforma provedor/modelo dos agentes em LLMs e preserva a chave antiga", () => {
-    const db = migrate(structuredClone(v1), "server");
+    const db = migrate(structuredClone(v1));
     const byId = Object.fromEntries(db.agents.map((a) => [a.id, a]));
     expect(byId.a1.llmId).toBe(SEED_LLM.opus);
     expect(byId.a3.llmId).toBe(SEED_LLM.demo);
@@ -36,53 +35,53 @@ describe("migração da versão 1", () => {
   });
 
   it("converte o laboratorio stdio em servidor embutido", () => {
-    const db = migrate(structuredClone(v1), "server");
+    const db = migrate(structuredClone(v1));
     expect(db.mcpServers[0]).toMatchObject({ transport: "builtin", command: "laboratorio" });
   });
 
   it("dados vazios geram o conjunto inicial", () => {
-    expect(migrate({}, "browser").agents.length).toBeGreaterThan(0);
+    expect(migrate({}).agents.length).toBeGreaterThan(0);
   });
 });
 
 describe("migração para a versão 3 (multiagente)", () => {
   const v2 = () => {
-    const db = seedDb("browser");
+    const db = seedDb();
     return { ...db, version: 2, agents: db.agents.filter((a) => a.name !== "Coordenador (offline)") };
   };
 
   it("adiciona o coordenador delegando ao agente demo existente", () => {
     const data = v2();
     const demo = data.agents.find((a) => a.name === "Agente Demo (offline)")!;
-    const db = migrate(structuredClone(data), "browser");
+    const db = migrate(structuredClone(data));
     const coordinator = db.agents.find((a) => a.name === "Coordenador (offline)");
     expect(coordinator?.tools).toContain(`agent__${demo.id}`);
-    expect(db.version).toBe(8);
+    expect(db.version).toBe(9);
   });
 
   it("não duplica o coordenador nem o cria sem o agente demo", () => {
-    const twice = migrate(migrate(structuredClone(v2()), "browser") as never, "browser");
+    const twice = migrate(migrate(structuredClone(v2())) as never);
     expect(twice.agents.filter((a) => a.name === "Coordenador (offline)")).toHaveLength(1);
     const noDemo = v2();
     noDemo.agents = noDemo.agents.filter((a) => a.name !== "Agente Demo (offline)");
-    expect(migrate(structuredClone(noDemo), "browser").agents.some((a) => a.name === "Coordenador (offline)")).toBe(false);
+    expect(migrate(structuredClone(noDemo)).agents.some((a) => a.name === "Coordenador (offline)")).toBe(false);
   });
 });
 
 describe("migração para a versão 5 (supervisor)", () => {
   it("adiciona o supervisor com Claude delegando ao Pesquisador e ao Analista", () => {
-    const fresh = seedDb("browser");
+    const fresh = seedDb();
     const data = { ...fresh, version: 4, agents: fresh.agents.filter((a) => a.name !== "Supervisor") };
-    const db = migrate(structuredClone(data), "browser");
+    const db = migrate(structuredClone(data));
     const supervisor = db.agents.find((a) => a.name === "Supervisor")!;
     const ids = Object.fromEntries(db.agents.map((a) => [a.name, a.id]));
     expect(supervisor.llmId).toBe(SEED_LLM.opus);
     expect(supervisor.tools).toEqual(expect.arrayContaining([`agent__${ids["Pesquisador"]}`, `agent__${ids["Analista de Dados"]}`]));
-    expect(migrate(structuredClone(db) as never, "browser").agents.filter((a) => a.name === "Supervisor")).toHaveLength(1);
+    expect(migrate(structuredClone(db) as never).agents.filter((a) => a.name === "Supervisor")).toHaveLength(1);
   });
 
   it("os dados iniciais já trazem o supervisor", () => {
-    const db = seedDb("server");
+    const db = seedDb();
     const supervisor = db.agents.find((a) => a.name === "Supervisor")!;
     const targets = supervisor.tools.filter((t) => t.startsWith("agent__")).map((t) => db.agents.find((a) => `agent__${a.id}` === t)?.name);
     expect(targets).toEqual(["Pesquisador", "Analista de Dados"]);
@@ -91,36 +90,36 @@ describe("migração para a versão 5 (supervisor)", () => {
 
 describe("migração para a versão 6 (assistente de e-mail)", () => {
   it("liga o assistente ao servidor do Resend já cadastrado, pelo endereço", () => {
-    const fresh = seedDb("browser");
+    const fresh = seedDb();
     const data = {
       ...fresh,
       version: 5,
       agents: fresh.agents.filter((a) => a.name !== "Assistente de E-mail"),
       mcpServers: [...fresh.mcpServers, { id: "mcp_x", name: "meu_resend", transport: "http" as const, url: "https://mcp.resend.com/mcp", via: "anthropic" as const, enabled: true, createdAt: "" }],
     };
-    const db = migrate(structuredClone(data), "browser");
+    const db = migrate(structuredClone(data));
     const agent = db.agents.find((a) => a.name === "Assistente de E-mail")!;
     expect(agent.llmId).toBe(SEED_LLM.opus);
     expect(agent.tools).toContain("mcp__meu_resend__*");
     expect(agent.systemPrompt).toMatch(/Nunca envie um e-mail sem confirmação/);
     expect(agent.systemPrompt).toMatch(/Gmail pelo Zapier/);
-    expect(migrate(structuredClone(db) as never, "browser").agents.filter((a) => a.name === "Assistente de E-mail")).toHaveLength(1);
+    expect(migrate(structuredClone(db) as never).agents.filter((a) => a.name === "Assistente de E-mail")).toHaveLength(1);
   });
 
   it("sem servidor cadastrado, usa o nome padrão do modelo pronto (resend)", () => {
-    expect(seedDb("browser").agents.find((a) => a.name === "Assistente de E-mail")!.tools).toContain("mcp__resend__*");
+    expect(seedDb().agents.find((a) => a.name === "Assistente de E-mail")!.tools).toContain("mcp__resend__*");
   });
 });
 
 describe("migração para a versão 7 (assistente de e-mail para qualquer servidor)", () => {
   const v6Prompt = "Você é um assistente que redige e envia e-mails usando as ferramentas do servidor MCP do Resend.\n\nRegras...";
   const base = () => {
-    const fresh = seedDb("browser");
+    const fresh = seedDb();
     return { ...fresh, version: 6, agents: fresh.agents.map((a) => (a.name === "Assistente de E-mail" ? { ...a, systemPrompt: v6Prompt, description: "Redige e envia e-mails pelo servidor MCP do Resend." } : a)) };
   };
 
   it("atualiza as instruções que o usuário não editou", () => {
-    const db = migrate(structuredClone(base()), "browser");
+    const db = migrate(structuredClone(base()));
     const agent = db.agents.find((a) => a.name === "Assistente de E-mail")!;
     expect(agent.systemPrompt).toMatch(/Gmail pelo Zapier/);
     expect(agent.description).not.toContain("do Resend");
@@ -129,18 +128,34 @@ describe("migração para a versão 7 (assistente de e-mail para qualquer servid
   it("preserva instruções editadas pelo usuário", () => {
     const data = base();
     data.agents = data.agents.map((a) => (a.name === "Assistente de E-mail" ? { ...a, systemPrompt: "Minhas próprias instruções" } : a));
-    const db = migrate(structuredClone(data), "browser");
+    const db = migrate(structuredClone(data));
     expect(db.agents.find((a) => a.name === "Assistente de E-mail")!.systemPrompt).toBe("Minhas próprias instruções");
   });
 });
 
 describe("migração para a versão 8 (referências a servidores MCP apagados)", () => {
   it("remove dos agentes ferramentas de servidores que não existem mais", () => {
-    const fresh = seedDb("browser");
+    const fresh = seedDb();
     const data = { ...fresh, version: 7, agents: fresh.agents.map((a) => (a.name === "Assistente de E-mail" ? { ...a, tools: ["mcp__resend__*", "mcp__zapier__*", "current_time"] } : a)) };
     data.mcpServers = [...data.mcpServers, { id: "mcp_z", name: "zapier", transport: "http" as const, url: "https://mcp.zapier.com/api/v1/connect", via: "anthropic" as const, enabled: true, createdAt: "" }];
-    const db = migrate(structuredClone(data), "browser");
+    const db = migrate(structuredClone(data));
     expect(db.agents.find((a) => a.name === "Assistente de E-mail")!.tools).toEqual(["mcp__zapier__*", "current_time"]);
     expect(db.agents.find((a) => a.name === "Explorador MCP")!.tools).toContain("mcp__laboratorio__*");
+  });
+});
+
+describe("migração para a versão 9 (sem servidor local)", () => {
+  it("remove servidores stdio e as ferramentas deles dos agentes", () => {
+    const fresh = seedDb();
+    const data = {
+      ...fresh,
+      version: 8,
+      mcpServers: [...fresh.mcpServers, { id: "mcp_e", name: "everything", transport: "stdio", command: "npx", args: ["-y", "x"], env: { A: "1" }, enabled: false, createdAt: "" }],
+      agents: fresh.agents.map((a) => (a.name === "Explorador MCP" ? { ...a, tools: [...a.tools, "mcp__everything__*"] } : a)),
+    };
+    const db = migrate(structuredClone(data) as never);
+    expect(db.mcpServers.map((s) => s.name)).toEqual(["laboratorio"]);
+    expect(db.agents.find((a) => a.name === "Explorador MCP")!.tools).toEqual(["mcp__laboratorio__*", "calculator"]);
+    expect("env" in db.mcpServers[0]).toBe(false);
   });
 });
