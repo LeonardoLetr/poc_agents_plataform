@@ -23,8 +23,9 @@ Melhorias e novas funcionalidades planejadas, priorizadas por impacto e esforço
 | AL-11 | Aprovação humana por ferramenta | Melhoria | P2 | P | a fazer |
 | AL-12 | Preços de modelos compatíveis com OpenAI | Melhoria | P3 | P | a fazer |
 | AL-13 | Busca semântica de memória com embeddings | Funcionalidade | P3 | M | a fazer |
+| AL-14 | Publicação do servidor na AWS | Infraestrutura | P3 | G | a fazer |
 
-Sequência sugerida: AL-01 → AL-02/AL-03 → AL-04 → AL-06 → AL-05 → AL-07 → demais.
+Sequência sugerida: AL-01 → AL-02/AL-03 → AL-04 → AL-06 → AL-05 → AL-07 → demais → AL-14 (último).
 
 ---
 
@@ -136,3 +137,24 @@ Sequência sugerida: AL-01 → AL-02/AL-03 → AL-04 → AL-06 → AL-05 → AL-
 - **Problema:** mesmo com melhor ranking lexical, sinônimos e paráfrases não são recuperados.
 - **Proposta:** provedor de embeddings opcional, com comparação entre busca lexical e semântica no laboratório de recuperação.
 - **Critérios de aceite:** funciona sem embeddings (fallback lexical); a pontuação de cada método fica visível.
+
+---
+
+## Infraestrutura
+
+### AL-14 · Publicação do servidor na AWS
+- **Problema:** a versão publicada roda apenas no modo navegador: cada usuário informa a própria chave, os dados ficam
+  no navegador e as execuções terminam ao fechar a aba. O modo servidor existe, mas foi feito para uso local: não tem
+  autenticação, aceita requisições de qualquer origem e grava os dados em um arquivo.
+- **Proposta:** versão privada em contêiner na AWS (App Runner ou ECS Fargate), servindo interface e API com HTTPS,
+  mantendo o GitHub Pages como demonstração pública.
+  - autenticação (Cognito ou OIDC no balanceador) e CORS restrito ao domínio da aplicação;
+  - chaves de API no Secrets Manager, nunca no repositório nem no navegador;
+  - persistência em banco (DynamoDB ou Postgres no RDS) no lugar de `server/data/db.json`;
+  - limites de uso por usuário (execuções por dia e teto de tokens) para controlar gastos;
+  - lista fechada de servidores MCP `stdio` permitidos;
+  - Dockerfile e workflow de publicação.
+- **Restrição conhecida:** execuções ao vivo, aprovações pendentes e streaming ficam na memória do processo; a primeira
+  versão deve rodar em uma única instância. Escalar horizontalmente exige mover esse estado para um serviço externo.
+- **Critérios de aceite:** acesso apenas autenticado; dados preservados após reinício do contêiner; chaves fora do
+  código; limites de uso aplicados e registrados na auditoria; publicação automatizada a partir da `main`.
