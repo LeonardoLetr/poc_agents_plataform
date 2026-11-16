@@ -5,6 +5,7 @@ import { createMemory, searchMemories } from "../memory.js";
 import { allMcpTools, callMcpTool, resolveMcpTool } from "../mcp/manager.js";
 import { db, persist } from "../store.js";
 import { builtinTools, type ToolContext } from "../tools/builtin.js";
+import { collectCitations, isServerTool, serverToolDefinitions } from "../tools/server.js";
 import type { AgentConfig, LlmConfig, RunEvent, RunRecord } from "../types.js";
 import { bus, clip, errorMessage, now, uid } from "../util.js";
 
@@ -60,6 +61,13 @@ function resolveTools(agent: AgentConfig) {
   const mcp = allMcpTools(db.mcpServers).filter((t) => toolEnabled(agent, t.definition.name, t.server.name));
   for (const t of mcp) defs.push(t.definition);
   return defs;
+}
+
+/** Ferramentas de servidor habilitadas no agente. Só são enviadas a LLMs Anthropic. */
+function resolveServerTools(agent: AgentConfig, llm: LlmConfig) {
+  const names = agent.tools.filter(isServerTool);
+  if (llm.provider !== "anthropic") return { defs: [], ignored: names };
+  return { defs: serverToolDefinitions(names, llm.model), ignored: [] as string[] };
 }
 
 function buildSystemPrompt(agent: AgentConfig, recalled: { content: string; kind: string }[]): string {
@@ -153,6 +161,25 @@ async function loop(run: LiveRun) {
     onMemoryCreated: (memory) => emit(run, { type: "memory.created", memory }),
   };
   const tools = resolveTools(agent);
+  const server = resolveServerTools(agent, llm);
+  const toolNames = [...tools.map((t) => t.name), ...agent.tools.filter(isServerTool).filter(() => server.defs.length > 0)];
+  // Repassa os eventos do provedor; chamadas a ferramentas de servidor também entram na auditoria.
+  const forward = (ev: RunEvent) => {
+    emit(run, ev);
+    if (ev.type === "tool.call" && ev.source === "server") {
+      audit({ type: "tool.call", actor: "agent", agentId: agent.id, runId: record.id, summary: `Chamou ${ev.name} (servidor Anthropic)`, data: { toolUseId: ev.id, input: ev.input, executedBy: "anthropic" } });
+    } else if (ev.type === "tool.result" && isServerTool(ev.name)) {
+      audit({
+        type: "tool.result",
+        actor: "system",
+        agentId: agent.id,
+        runId: record.id,
+        summary: `${ev.name} ${ev.isError ? "falhou" : "respondeu"} em ${ev.durationMs}ms (servidor Anthropic)`,
+        durationMs: ev.durationMs,
+        data: { toolUseId: ev.id, output: clip(ev.output, 2000), isError: ev.isError },
+      });
+    }
+  };
 
   try {
     if (!llmHasCredentials(llm)) {
@@ -163,6 +190,8 @@ async function loop(run: LiveRun) {
     }
 
     let finalText = "";
+    // Texto de turnos pausados (pause_turn) é somado à resposta final.
+    let carried = "";
     const startIteration = record.iterations;
     for (let i = 1; ; i++) {
       const iteration = startIteration + i;
@@ -174,7 +203,7 @@ async function loop(run: LiveRun) {
         type: "llm.request",
         iteration,
         messageCount: record.messages.length,
-        toolCount: tools.length,
+        toolCount: toolNames.length,
         systemPrompt: record.systemPrompt,
       });
       audit({
@@ -182,8 +211,15 @@ async function loop(run: LiveRun) {
         actor: "agent",
         agentId: agent.id,
         runId: record.id,
-        summary: `Iteração ${iteration}: ${record.messages.length} mensagens, ${tools.length} ferramentas → ${llm.name} (${llm.model})`,
-        data: { llm: llm.name, provider: llm.provider, model: llm.model, effort: llm.provider === "anthropic" ? llm.effort : undefined, tools: tools.map((t) => t.name) },
+        summary: `Iteração ${iteration}: ${record.messages.length} mensagens, ${toolNames.length} ferramentas → ${llm.name} (${llm.model})`,
+        data: {
+          llm: llm.name,
+          provider: llm.provider,
+          model: llm.model,
+          effort: llm.provider === "anthropic" ? llm.effort : undefined,
+          tools: toolNames,
+          ...(server.ignored.length ? { serverToolsIgnored: server.ignored, reason: "ferramentas de servidor exigem uma LLM Anthropic" } : {}),
+        },
       });
 
       const started = Date.now();
@@ -194,8 +230,9 @@ async function loop(run: LiveRun) {
         system: record.systemPrompt,
         messages: record.messages as Msg[],
         tools,
+        serverTools: server.defs,
         signal: run.abort.signal,
-        emit: (ev) => emit(run, ev),
+        emit: forward,
       });
       const durationMs = Date.now() - started;
       record.usage.input += turn.usage.input;
@@ -203,10 +240,7 @@ async function loop(run: LiveRun) {
 
       emit(run, { type: "llm.response", iteration, stopReason: turn.stopReason, usage: turn.usage, durationMs, model: turn.model });
       const toolUses = (turn.content as { type: string; id?: string; name?: string; input?: unknown }[]).filter((b) => b.type === "tool_use");
-      const text = (turn.content as { type: string; text?: string }[])
-        .filter((b) => b.type === "text")
-        .map((b) => b.text ?? "")
-        .join("");
+      const text = turnText(turn.content as { type: string; text?: string }[]);
       audit({
         type: "llm.response",
         actor: "agent",
@@ -218,14 +252,21 @@ async function loop(run: LiveRun) {
         data: { model: turn.model, stopReason: turn.stopReason, text: clip(text, 2000), toolUses: toolUses.map((t) => t.name) },
       });
 
+      const citations = collectCitations(turn.content as { type: string }[]);
+      if (citations.length) emit(run, { type: "citations", items: citations });
+
       // O conteúdo do assistente volta para o histórico exatamente como veio (inclusive blocos de pensamento).
       record.messages.push({ role: "assistant", content: turn.content });
 
       if (turn.stopReason === "refusal") throw new Error("O modelo recusou a solicitação (stop_reason: refusal).");
-      if (turn.stopReason === "pause_turn") continue;
+      if (turn.stopReason === "pause_turn") {
+        // O servidor atingiu o limite interno de iterações das ferramentas de servidor: reenviar retoma de onde parou.
+        carried = [carried, text].filter(Boolean).join("\n\n");
+        continue;
+      }
       if (turn.stopReason === "max_tokens" && toolUses.length) throw new Error("Entrada de ferramenta truncada (max_tokens).");
       if (toolUses.length === 0) {
-        finalText = text;
+        finalText = answerText(turn.content as { type: string; text?: string }[], [carried, text].filter(Boolean).join("\n\n"));
         break;
       }
 
@@ -278,6 +319,33 @@ async function loop(run: LiveRun) {
     run.busy = false;
     persist();
   }
+}
+
+/**
+ * Texto do turno. Blocos de texto consecutivos (divididos por citações) são unidos diretamente;
+ * blocos separados por chamadas de ferramenta de servidor viram parágrafos.
+ */
+export function turnText(content: { type: string; text?: string }[]): string {
+  let out = "";
+  let prev: string | null = null;
+  for (const b of content) {
+    if (b.type === "thinking" || b.type === "redacted_thinking") continue;
+    if (b.type === "text") out += (out && prev !== "text" ? "\n\n" : "") + (b.text ?? "");
+    prev = b.type;
+  }
+  return out;
+}
+
+/**
+ * Resposta final: quando o turno usou ferramentas de servidor, o texto anterior a elas é preâmbulo
+ * ("vou buscar…") e fica só na linha do tempo; a resposta é o texto depois do último resultado.
+ */
+export function answerText(content: { type: string; text?: string }[], fallback: string): string {
+  const visible = content.filter((b) => b.type !== "thinking" && b.type !== "redacted_thinking");
+  const lastTool = visible.map((b) => b.type).lastIndexOf(visible.filter((b) => b.type !== "text").at(-1)?.type ?? "");
+  if (lastTool < 0) return fallback;
+  const after = turnText(visible.slice(lastTool + 1));
+  return after.trim() ? after : fallback;
 }
 
 function llmFor(agent: AgentConfig, overrideId?: string): LlmConfig {

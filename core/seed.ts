@@ -45,9 +45,10 @@ export function seedAgents(): AgentConfig[] {
       color: "#0284c7",
       description: "Busca páginas na web, extrai fatos e guarda o que aprendeu na memória.",
       systemPrompt:
-        "Você é um pesquisador meticuloso. Planeje antes de agir, use `http_fetch` para obter fontes, " +
-        "cite as URLs que usou e salve fatos importantes com `memory_save`. Responda em português.",
-      tools: ["http_fetch", "memory_save", "memory_search", "scratchpad_write", "current_time"],
+        "Você é um pesquisador meticuloso. Planeje antes de agir, use `web_search` para encontrar fontes e " +
+        "`web_fetch` para lê-las (ou `http_fetch` quando a LLM não for da Anthropic), cite as URLs que usou " +
+        "e salve fatos importantes com `memory_save`. Responda em português.",
+      tools: ["web_search", "web_fetch", "http_fetch", "memory_save", "memory_search", "scratchpad_write", "current_time"],
     }),
     baseAgent({
       name: "Analista de Dados",

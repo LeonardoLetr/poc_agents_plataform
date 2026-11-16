@@ -135,10 +135,11 @@ export type RunEvent =
   | { type: "thinking.delta"; text: string }
   | { type: "text.delta"; text: string }
   | { type: "llm.response"; iteration: number; stopReason: string | null; usage: { input: number; output: number; cacheRead?: number }; durationMs: number; model: string }
-  | { type: "tool.call"; id: string; name: string; input: unknown; source: "builtin" | "mcp"; server?: string }
+  | { type: "tool.call"; id: string; name: string; input: unknown; source: "builtin" | "mcp" | "server"; server?: string }
   | { type: "tool.approval_requested"; id: string; name: string; input: unknown }
   | { type: "tool.approval_resolved"; id: string; approved: boolean }
   | { type: "tool.result"; id: string; name: string; output: string; isError: boolean; durationMs: number }
+  | { type: "citations"; items: { url: string; title: string | null; citedText: string }[] }
   | { type: "memory.created"; memory: Memory }
   | { type: "user.message"; text: string }
   | { type: "run.completed"; output: string; iterations: number; usage: { input: number; output: number } }

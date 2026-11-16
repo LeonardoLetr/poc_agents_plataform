@@ -9,6 +9,7 @@ import { createMemory, deleteMemory, searchMemories } from "./memory.js";
 import { newLlm } from "./seed.js";
 import { db, persist } from "./store.js";
 import { builtinTools } from "./tools/builtin.js";
+import { SERVER_TOOLS } from "./tools/server.js";
 import type { AgentConfig, AuditEntry, McpServerConfig, PromptTemplate, RunRecord } from "./types.js";
 import { bus, errorMessage, now, uid } from "./util.js";
 
@@ -163,7 +164,14 @@ route("GET", "/api/tools", () => {
     server: t.server.name,
     category: "mcp",
   }));
-  return [...builtin, ...mcp];
+  const server = Object.values(SERVER_TOOLS).map((t) => ({
+    name: t.name,
+    description: t.description,
+    inputSchema: {},
+    source: "server" as const,
+    category: t.category,
+  }));
+  return [...builtin, ...server, ...mcp];
 });
 
 // ───────────────────────── Agentes ─────────────────────────

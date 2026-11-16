@@ -12,6 +12,8 @@ export interface LlmCall {
   system: string;
   messages: Msg[];
   tools: Anthropic.Tool[];
+  /** Ferramentas de servidor (web_search, web_fetch): só o provedor Anthropic as envia; os demais ignoram. */
+  serverTools?: Anthropic.Beta.BetaToolUnion[];
   signal: AbortSignal;
   emit: (ev: RunEvent) => void;
 }
