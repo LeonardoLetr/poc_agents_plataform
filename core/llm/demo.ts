@@ -46,7 +46,7 @@ function extractMath(text: string): string | null {
   return best ? best.replace(/^[^\d(s]+|[^\d)]+$/g, "") : null;
 }
 
-function plan(input: string, tools: string[]): Step[] {
+function plan(input: string, tools: string[], agentNames: Map<string, string> = new Map()): Step[] {
   // tools: nomes das ferramentas habilitadas e disponíveis
   const has = (n: string) => tools.includes(n);
   const lower = input.toLowerCase();
@@ -65,6 +65,15 @@ function plan(input: string, tools: string[]): Step[] {
       thinking: "Antes de qualquer coisa, vale checar se já sei algo sobre isso na memória de longo prazo.",
       say: "Deixa eu verificar o que já está na minha memória sobre o assunto.",
       tool: { name: "memory_search", input: { query: keywords || input } },
+    });
+  }
+  // Multiagente: com outros agentes disponíveis como ferramentas, delega a tarefa a eles.
+  for (const t of tools.filter((n) => n.startsWith("agent__")).slice(0, 2)) {
+    const who = agentNames.get(t) ?? "outro agente";
+    steps.push({
+      thinking: `Tenho um especialista disponível (${who}). Em vez de fazer tudo sozinho, vou delegar a subtarefa e usar a resposta dele.`,
+      say: `Vou delegar esta parte para ${who}.`,
+      tool: { name: t, input: { task: input } },
     });
   }
   const math = has("calculator") ? extractMath(input) : null;
@@ -118,7 +127,7 @@ function plan(input: string, tools: string[]): Step[] {
   return steps;
 }
 
-function summarize(results: { name: string; content: string }[]): string {
+function summarize(results: { name: string; content: string }[], agentNames: Map<string, string> = new Map()): string {
   const lines: string[] = [];
   for (const r of results) {
     let data: unknown;
@@ -139,6 +148,11 @@ function summarize(results: { name: string; content: string }[]): string {
     else if (r.name.endsWith("dados_rolar")) lines.push(`- **Dados (via MCP):** ${d.notacao} → [${(d.rolagens as number[]).join(", ")}] = **${d.total}**`);
     else if (r.name.endsWith("notas_adicionar")) lines.push(`- **Nota salva no servidor MCP** (total: ${d.total})`);
     else if (r.name === "scratchpad_write") lines.push("- Plano registrado no scratchpad.");
+    else if (r.name.startsWith("agent__")) {
+      // Mantém só os itens da resposta do agente delegado (sem o aviso de modo demonstração).
+      const body = r.content.split("\n").filter((l) => l.trim().startsWith("-")).slice(0, 6);
+      lines.push(`- **Resposta de ${agentNames.get(r.name) ?? "agente delegado"}:**${body.length ? `\n${body.map((l) => `  ${l.trim()}`).join("\n")}` : ` ${r.content.slice(0, 200)}`}`);
+    }
     else lines.push(`- **${r.name}:** ${r.content.slice(0, 200)}`);
   }
   return lines.join("\n");
@@ -155,7 +169,8 @@ export async function demoTurn(call: LlmCall): Promise<AssistantTurn> {
   const stepIndex = sinceTask.filter((m) => m.role === "assistant").length;
 
   const toolNames = tools.map((t) => t.name);
-  const steps = plan(task, toolNames);
+  const agentNames = new Map(tools.flatMap((t) => (t.name.startsWith("agent__") ? [[t.name, t.description?.match(/agente "([^"]+)"/)?.[1] ?? t.name] as [string, string]] : [])));
+  const steps = plan(task, toolNames, agentNames);
   const content: AssistantTurn["content"] = [];
 
   await sleep(350, signal); // "latência de rede"
@@ -189,7 +204,7 @@ export async function demoTurn(call: LlmCall): Promise<AssistantTurn> {
     ? `Já tenho ${results.length} observações. Vou sintetizar a resposta final a partir delas.`
     : "Nenhuma ferramenta parece necessária para esta tarefa no modo demo. Vou responder diretamente e explicar como o loop funcionaria.";
   const answer = results.length
-    ? `Pronto! Aqui está o que descobri em ${stepIndex} iterações com ferramentas:\n\n${summarize(results)}\n\n> _Modo demonstração: o "LLM" é simulado, mas as ferramentas, a memória e a auditoria são reais. Cadastre uma LLM real em “LLMs” para usar um modelo de verdade._`
+    ? `Pronto! Aqui está o que descobri em ${stepIndex} iterações com ferramentas:\n\n${summarize(results, agentNames)}\n\n> _Modo demonstração: o "LLM" é simulado, mas as ferramentas, a memória e a auditoria são reais. Cadastre uma LLM real em “LLMs” para usar um modelo de verdade._`
     : `Recebi: "${task}".\n\nNo modo demonstração eu reajo a palavras-chave. Experimente pedir:\n- uma conta (ex.: **quanto é (1250 * 1.08) ^ 2**)\n- **que horas são agora?**\n- **lembre que eu prefiro café sem açúcar**\n- ler uma URL (ex.: **resuma https://example.com**)`;
   await streamText(thinking, "thinking.delta", emit, signal);
   content.push({ type: "thinking", thinking, signature: "demo" });

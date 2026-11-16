@@ -38,6 +38,7 @@ const baseAgent = (a: Partial<AgentConfig> & Pick<AgentConfig, "name" | "systemP
 });
 
 export function seedAgents(): AgentConfig[] {
+  const demo = demoAgent();
   return [
     baseAgent({
       name: "Pesquisador",
@@ -71,15 +72,6 @@ export function seedAgents(): AgentConfig[] {
       tools: ["memory_save", "memory_search", "memory_forget", "current_time"],
     }),
     baseAgent({
-      name: "Agente Demo (offline)",
-      emoji: "🎬",
-      color: "#16a34a",
-      description: "Roda sem chave de API: um LLM simulado que usa as ferramentas reais para você ver o loop funcionando.",
-      llmId: SEED_LLM.demo,
-      systemPrompt: "Você é um agente de demonstração que explica cada passo do loop agêntico.",
-      tools: ["calculator", "current_time", "memory_save", "memory_search", "scratchpad_write", "http_fetch", "mcp__laboratorio__*"],
-    }),
-    baseAgent({
       name: "Explorador MCP",
       emoji: "🔌",
       color: "#ea580c",
@@ -89,7 +81,37 @@ export function seedAgents(): AgentConfig[] {
       tools: ["mcp__laboratorio__*", "calculator"],
       llmId: SEED_LLM.haiku,
     }),
+    demo,
+    coordinatorAgent(demo.id),
   ];
+}
+
+function demoAgent(): AgentConfig {
+  return baseAgent({
+    name: "Agente Demo (offline)",
+    emoji: "🎬",
+    color: "#16a34a",
+    description: "Roda sem chave de API: um LLM simulado que usa as ferramentas reais para você ver o loop funcionando.",
+    llmId: SEED_LLM.demo,
+    systemPrompt: "Você é um agente de demonstração que explica cada passo do loop agêntico.",
+    tools: ["calculator", "current_time", "memory_save", "memory_search", "scratchpad_write", "http_fetch", "mcp__laboratorio__*"],
+  });
+}
+
+/** Supervisor de exemplo: delega ao agente demo, para o multiagente funcionar sem chave de API. */
+export function coordinatorAgent(demoId: string): AgentConfig {
+  return baseAgent({
+    name: "Coordenador (offline)",
+    emoji: "🧭",
+    color: "#7c3aed",
+    description: "Supervisor que divide a tarefa e delega a outros agentes. Roda sem chave de API.",
+    llmId: SEED_LLM.demo,
+    systemPrompt:
+      "Você é um coordenador. Divida a tarefa em subtarefas, delegue cada uma ao agente mais adequado e " +
+      "consolide as respostas em uma resposta final. Responda em português.",
+    tools: [`agent__${demoId}`, "scratchpad_write"],
+    memory: { autoRecall: false, autoEpisode: false, recallLimit: 5 },
+  });
 }
 
 export function seedMemories(): Memory[] {
@@ -183,7 +205,7 @@ export function seedPrompts(): PromptTemplate[] {
 
 export function seedDb(runtime: "server" | "browser"): DB {
   return {
-    version: 2,
+    version: 3,
     llms: seedLlms(),
     agents: seedAgents(),
     memories: seedMemories(),
@@ -200,7 +222,7 @@ export function migrate(raw: Record<string, unknown>, runtime: "server" | "brows
   // Dados salvos, mas sem nenhum agente nem LLM (armazenamento vazio ou corrompido): começa do conjunto inicial.
   if (!data.agents?.length && !data.llms?.length) return seedDb(runtime);
   const out: DB = {
-    version: 2,
+    version: 3,
     llms: data.llms ?? [],
     agents: data.agents ?? [],
     memories: data.memories ?? [],
@@ -229,6 +251,11 @@ export function migrate(raw: Record<string, unknown>, runtime: "server" | "brows
     }
     // O laboratorio agora é embutido (funciona sem processo externo).
     for (const s of out.mcpServers) if (s.name === "laboratorio" && s.transport === "stdio") Object.assign(s, { transport: "builtin", command: "laboratorio", args: [] });
+  }
+  if ((data.version ?? 1) < 3) {
+    // Versão 3: multiagente. Adiciona o coordenador de exemplo quando o agente demo ainda existe.
+    const demo = out.agents.find((a) => a.llmId === SEED_LLM.demo && a.name === "Agente Demo (offline)");
+    if (demo && out.llms.some((l) => l.id === SEED_LLM.demo) && !out.agents.some((a) => a.name === "Coordenador (offline)")) out.agents.push(coordinatorAgent(demo.id));
   }
   return out;
 }
