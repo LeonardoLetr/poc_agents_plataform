@@ -179,8 +179,10 @@ function GraphInner({ agent, tools, view, llmLabel }: { agent: Agent; tools: Too
           : { id: `tool:${t}`, label: t, sub: "ferramenta nativa", icon: ICONS[t] ?? Wrench, color: "#d97706" },
       ),
       ...[...mcpServers].map((s) => {
-        const available = tools.filter((t) => t.server === s).length;
-        return { id: `mcp:${s}`, label: s, sub: available ? `MCP · ${available} ferramentas` : "MCP · desconectado", icon: Plug, color: "#ea580c", dim: !available };
+        const serverTools = tools.filter((t) => t.server === s);
+        const available = serverTools.length;
+        const via = serverTools.some((t) => t.viaAnthropic);
+        return { id: `mcp:${s}`, label: s, sub: via ? "MCP · via Anthropic" : available ? `MCP · ${available} ferramentas` : "MCP · desconectado", icon: Plug, color: "#ea580c", dim: !available };
       }),
     ];
 

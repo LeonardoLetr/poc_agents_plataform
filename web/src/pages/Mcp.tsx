@@ -14,7 +14,7 @@ const PRESETS = [
   { name: "memory_graph", label: "Memory (grafo de conhecimento)", transport: "stdio", command: "npx", args: "-y @modelcontextprotocol/server-memory", note: "Memória persistente em forma de grafo de entidades e relações." },
   { name: "fetch", label: "Fetch (Python/uvx)", transport: "stdio", command: "uvx", args: "mcp-server-fetch", note: "Busca páginas e converte para markdown. Requer uv instalado." },
   { name: "git", label: "Git (Python/uvx)", transport: "stdio", command: "uvx", args: "mcp-server-git --repository .", note: "Ferramentas para ler histórico e diffs de um repositório git." },
-  { name: "resend", label: "Resend (e-mail)", transport: "http", url: "https://mcp.resend.com/mcp", headers: "Authorization: Bearer re_sua_chave", note: "Servidor oficial do Resend para enviar e-mails. Use a chave criada em resend.com/api-keys." },
+  { name: "resend", label: "Resend (e-mail)", transport: "http", url: "https://mcp.resend.com/mcp", headers: "Authorization: Bearer re_sua_chave", via: "anthropic", note: "Servidor oficial do Resend para enviar e-mails, conectado pela API da Anthropic. Chave em resend.com/api-keys." },
   { name: "remoto", label: "Servidor remoto (HTTP)", transport: "http", url: "https://exemplo.com/mcp", note: "Qualquer servidor MCP via Streamable HTTP (com fallback para SSE)." },
 ] as const;
 
@@ -190,9 +190,11 @@ function ServerCard({ server, onChange, onEdit }: { server: McpServer; onChange:
             <div className="flex flex-wrap items-center gap-2">
               <span className="font-semibold">{server.name}</span>
               <Badge color={meta.badge}>
-                <LiveDot color={meta.color} active={server.state.status === "connected" || server.state.status === "connecting"} /> {meta.text}
+                <LiveDot color={meta.color} active={server.state.status === "connected" || server.state.status === "connecting"} />{" "}
+                {server.via === "anthropic" && server.state.status === "connected" ? "pronto" : meta.text}
               </Badge>
               {server.state.serverInfo && <span className="font-mono text-[10.5px] text-ink-500">v{server.state.serverInfo.version}</span>}
+              {server.via === "anthropic" && <Badge color="info">via Anthropic</Badge>}
             </div>
             <div className="mt-1 truncate font-mono text-[11px] text-ink-400">
               {server.transport === "stdio" ? `$ ${server.command} ${(server.args ?? []).join(" ")}` : server.transport === "builtin" ? `embutido: ${server.command} (transporte em memória)` : server.url}
@@ -228,6 +230,12 @@ function ServerCard({ server, onChange, onEdit }: { server: McpServer; onChange:
         </div>
 
         {server.state.error && <div className="mt-3 whitespace-pre-line rounded-lg bg-bad/10 px-3 py-2 text-[12px] leading-relaxed text-bad">{server.state.error}</div>}
+        {server.via === "anthropic" && server.state.status === "connected" && (
+          <p className="mt-3 text-[12.5px] leading-relaxed text-ink-300">
+            A API da Anthropic conecta a este servidor durante as execuções de agentes com LLM Anthropic. As ferramentas aparecem na linha do tempo quando o
+            agente as usa; habilite <code className="text-mcp">mcp__{server.name}__*</code> no editor do agente.
+          </p>
+        )}
         {server.state.instructions && <p className="mt-3 text-[12.5px] text-ink-300">📋 {server.state.instructions}</p>}
 
         {server.state.tools.length > 0 && (
@@ -342,8 +350,8 @@ function ServerForm({ health, initial, onClose, onSaved }: { health: Health | nu
   const lines = (o?: Record<string, string>, sep = ": ") => Object.entries(o ?? {}).map(([k, v]) => `${k}${sep}${v}`).join("\n");
   const [form, setForm] = useState(
     initial
-      ? { name: initial.name, transport: initial.transport as T, command: initial.command ?? "", args: (initial.args ?? []).join(" "), env: lines(initial.env, "="), url: initial.url ?? "", headers: lines(initial.headers) }
-      : { name: "", transport: (stdio ? "stdio" : "http") as T, command: stdio ? "npx" : "", args: "", env: "", url: "", headers: "" },
+      ? { name: initial.name, transport: initial.transport as T, command: initial.command ?? "", args: (initial.args ?? []).join(" "), env: lines(initial.env, "="), url: initial.url ?? "", headers: lines(initial.headers), via: initial.via ?? "client" }
+      : { name: "", transport: (stdio ? "stdio" : "http") as T, command: stdio ? "npx" : "", args: "", env: "", url: "", headers: "", via: (stdio ? "client" : "anthropic") as "client" | "anthropic" },
   );
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -372,6 +380,7 @@ function ServerForm({ health, initial, onClose, onSaved }: { health: Health | nu
         env: kv(form.env),
         url: form.transport === "http" ? form.url : undefined,
         headers: kv(form.headers),
+        via: form.transport === "http" ? form.via : undefined,
         enabled: initial ? initial.enabled : true,
       };
       if (initial) await api.put(`/api/mcp/${initial.id}`, payload);
@@ -403,6 +412,7 @@ function ServerForm({ health, initial, onClose, onSaved }: { health: Health | nu
                   args: "args" in p ? p.args : "",
                   url: "url" in p ? p.url : "",
                   headers: "headers" in p ? p.headers : "",
+                  via: "via" in p ? p.via : form.via,
                 })
               }
               className="rounded-xl border border-ink-700 bg-ink-900 p-2.5 text-left transition hover:border-mcp/40 hover:bg-mcp/5 disabled:cursor-not-allowed disabled:opacity-35"
@@ -451,6 +461,25 @@ function ServerForm({ health, initial, onClose, onSaved }: { health: Health | nu
             <Field label="URL">
               <Input value={form.url} onChange={(e) => setForm({ ...form, url: e.target.value })} className="font-mono" placeholder="https://.../mcp" />
             </Field>
+            <div className="rounded-xl border border-ink-700 p-3">
+              <div className="mb-2 text-[12.5px] font-medium text-ink-200">Quem faz a conexão</div>
+              <div className="grid gap-2 sm:grid-cols-2">
+                {([
+                  ["anthropic", "API da Anthropic", "A própria API do Claude conecta ao servidor durante a execução. Funciona no site publicado (sem CORS), mas só com LLMs Anthropic e envia apenas o cabeçalho Authorization."],
+                  ["client", "Agent Lab", "O Agent Lab conecta, lista as ferramentas e as executa. Funciona com qualquer LLM; no site publicado, o servidor precisa permitir CORS."],
+                ] as const).map(([value, title, text]) => (
+                  <button
+                    key={value}
+                    type="button"
+                    onClick={() => setForm({ ...form, via: value })}
+                    className={`rounded-lg border p-2.5 text-left transition ${form.via === value ? "border-accent/50 bg-accent/10" : "border-ink-700 hover:bg-ink-900"}`}
+                  >
+                    <div className="text-[12.5px] font-medium text-ink-100">{title}</div>
+                    <div className="mt-0.5 text-[11.5px] leading-snug text-ink-400">{text}</div>
+                  </button>
+                ))}
+              </div>
+            </div>
             <Field label="Cabeçalhos" hint={initial ? "um por linha: Nome: valor · •••• mantém o valor salvo" : "um por linha: Nome: valor"}>
               <Textarea rows={2} value={form.headers} onChange={(e) => setForm({ ...form, headers: e.target.value })} className="font-mono text-[12px]" placeholder="Authorization: Bearer ..." />
             </Field>

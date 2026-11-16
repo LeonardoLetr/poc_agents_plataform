@@ -76,6 +76,8 @@ export interface ToolInfo {
   /** Multiagente: agente representado pela ferramenta e seu rótulo (emoji + nome). */
   agentId?: string;
   label?: string;
+  /** MCP conectado pela API da Anthropic: ferramentas conhecidas só durante a execução. */
+  viaAnthropic?: boolean;
 }
 
 export interface McpServer {
@@ -88,6 +90,7 @@ export interface McpServer {
   url?: string;
   /** Nomes dos cabeçalhos; os valores chegam ocultos (••••). */
   headers?: Record<string, string>;
+  via?: "client" | "anthropic";
   enabled: boolean;
   createdAt: string;
   state: {

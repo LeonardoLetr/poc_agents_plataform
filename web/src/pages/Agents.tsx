@@ -290,13 +290,18 @@ function AgentEditor({ initial, id, onClose, onSaved }: { initial: AgentInput; i
               {mcpServers.map((server) => {
                 const wildcard = `mcp__${server}__*`;
                 const serverTools = tools.data!.filter((t) => t.server === server);
+                const viaAnthropic = serverTools.some((t) => t.viaAnthropic);
                 return (
                   <div key={server} className="rounded-xl border border-mcp/20 bg-mcp/[0.03] p-3">
                     <label className="flex cursor-pointer items-center gap-2 text-[13px]">
                       <input type="checkbox" className="accent-[#2563eb]" checked={form.tools.includes(wildcard)} onChange={() => toggleTool(wildcard)} />
-                      <span className="font-medium text-mcp">MCP: {server}</span> <span className="text-ink-400">— todas as {serverTools.length} ferramentas</span>
+                      <span className="font-medium text-mcp">MCP: {server}</span>{" "}
+                      <span className="text-ink-400">{viaAnthropic ? "— via Anthropic: ferramentas descobertas na execução" : `— todas as ${serverTools.length} ferramentas`}</span>
                     </label>
-                    {!form.tools.includes(wildcard) && (
+                    {viaAnthropic && serverTools.length > 0 && form.tools.includes(wildcard) && selectedLlm && selectedLlm.provider !== "anthropic" && (
+                      <p className="mt-1.5 text-[11.5px] text-warn">Este servidor é conectado pela API da Anthropic: com a LLM selecionada, ele será ignorado.</p>
+                    )}
+                    {!viaAnthropic && !form.tools.includes(wildcard) && (
                       <div className="mt-2 flex flex-wrap gap-1.5">
                         {serverTools.map((t) => (
                           <button key={t.name} onClick={() => toggleTool(t.name)} className={`rounded-full border px-2 py-0.5 font-mono text-[11px] ${form.tools.includes(t.name) ? "border-mcp/50 bg-mcp/15 text-mcp" : "border-ink-700 text-ink-400"}`}>
