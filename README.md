@@ -19,7 +19,7 @@ OpenAI Chat Completions (OpenAI, OpenRouter, Groq, Ollama) e um modelo simulado 
 | **Comparar** | Execução da mesma tarefa em paralelo em até quatro combinações de agente e LLM, com progresso ao vivo e tabela de tokens, custo, duração, iterações e ferramentas, exportável em JSON. |
 | **Agentes** | Configuração de agentes: LLM, prompt de sistema, ferramentas nativas, MCP e de servidor da Anthropic (busca e leitura de páginas web), política de memória, limite de iterações e aprovação humana. |
 | **LLMs** | Cadastro de modelos em tempo de execução (provedor, modelo, chave, URL base e nível de esforço). Cada agente referencia uma LLM, que pode ser trocada a qualquer momento. |
-| **Servidores MCP** | Conexão de servidores via `stdio`, HTTP ou execução embutida, listagem das ferramentas descobertas, teste manual de `tools/call` e logs de conexão. |
+| **Servidores MCP** | Conexão de servidores via `stdio`, HTTP ou execução embutida, edição da configuração, listagem das ferramentas descobertas, teste manual de `tools/call`, logs e diagnóstico de erros de conexão. |
 | **Memória** | Quatro camadas (curto prazo, trabalho, longo prazo e episódica), visualização das memórias e simulação de recuperação com pontuação detalhada. |
 | **Prompts** | Biblioteca de prompts de sistema e de tarefa, com suporte a variáveis `{{nome}}`. |
 | **Auditoria** | Registro de todas as ações (autor, horário, tokens e duração), com filtros, atualização em tempo real e exportação em JSON. |
@@ -44,6 +44,8 @@ armazenamento local do navegador e as chaves de API são informadas por cada usu
 
 Limitações do modo navegador:
 - servidores MCP via `stdio` não estão disponíveis (HTTP e servidores embutidos funcionam normalmente);
+- servidores MCP remotos precisam permitir requisições vindas da página (CORS); quando não permitem, a conexão falha
+  com "Failed to fetch" e funciona pelo modo servidor;
 - a ferramenta `http_fetch` só acessa sites que permitem requisições de outras origens (CORS). Com LLMs Anthropic, use
   `web_search` e `web_fetch`, executadas na infraestrutura da Anthropic e sem essa restrição.
 
