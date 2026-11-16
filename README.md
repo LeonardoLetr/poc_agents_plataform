@@ -14,6 +14,7 @@ OpenAI Chat Completions (OpenAI, OpenRouter, Groq, Ollama) e um modelo simulado 
 | Tela | Descrição |
 |---|---|
 | **Playground** | Execução de tarefas com visualização do loop agêntico em tempo real: grafo de interação (modelo, ferramentas e memória), linha do tempo com raciocínio, chamadas `tool_use`/`tool_result` e consumo de tokens por iteração. Inclui inspeção da janela de contexto, continuação da conversa e aprovação manual de ferramentas (*human-in-the-loop*). |
+| **Janela de contexto** | Medidor por iteração (tokens de entrada, percentual da janela do modelo, cache e composição do contexto) e resumo automático do histórico ao passar de um limite configurável por agente, registrado na linha do tempo e na auditoria. |
 | **Multiagente** | Agentes podem delegar subtarefas a outros agentes, usados como ferramentas. Cada delegação é uma execução filha acompanhada ao vivo dentro da execução pai, com tokens agregados, limite de profundidade e bloqueio de delegação circular. |
 | **Comparar** | Execução da mesma tarefa em paralelo em até quatro combinações de agente e LLM, com progresso ao vivo e tabela de tokens, custo, duração, iterações e ferramentas, exportável em JSON. |
 | **Agentes** | Configuração de agentes: LLM, prompt de sistema, ferramentas nativas, MCP e de servidor da Anthropic (busca e leitura de páginas web), política de memória, limite de iterações e aprovação humana. |
@@ -62,6 +63,8 @@ npm run dev               # API em :8787 e interface em http://localhost:5173
   As variáveis de ambiente são usadas quando a LLM não possui chave própria.
 - O servidor MCP de exemplo (`laboratorio`) é embutido e conecta automaticamente.
 - O agente **Coordenador (offline)** demonstra o multiagente sem chave: delega a tarefa ao Agente Demo.
+- O **Agente Demo** usa uma janela simulada de 4 mil tokens: ao continuar a conversa algumas vezes, o resumo automático
+  do histórico aparece no medidor e na linha do tempo.
 - Se o servidor local não estiver disponível, a interface passa automaticamente para o modo navegador.
 
 Build de produção: `npm run build && npm start` (a API passa a servir a interface em `http://localhost:8787`).
@@ -98,7 +101,9 @@ O loop agêntico ([`core/agent/runner.ts`](core/agent/runner.ts)) executa, a cad
    cache de prefixo; em provedores compatíveis com OpenAI, o histórico é convertido (`tool_use` ↔ `tool_calls`);
 3. **execução das ferramentas** solicitadas (em paralelo, com aprovação opcional) e retorno de todos os `tool_result`
    em uma única mensagem;
-4. repetição até `stop_reason: end_turn` ou até o limite de iterações. Ao final, um resumo pode ser salvo como memória
+4. medição da janela de contexto e, se o agente habilitou e o limite foi atingido, substituição do histórico por um
+   resumo gerado pelo próprio modelo antes da próxima chamada;
+5. repetição até `stop_reason: end_turn` ou até o limite de iterações. Ao final, um resumo pode ser salvo como memória
    episódica.
 
 Cada etapa gera um evento para a visualização e um registro de auditoria.
@@ -109,6 +114,7 @@ Cada etapa gera um evento para a visualização e um registro de auditoria.
 core/                  núcleo compartilhado (servidor e navegador)
   agent/runner.ts      loop agêntico
   agent/delegation.ts  multiagente: agentes como ferramentas
+  agent/context.ts     medição da janela de contexto e resumo do histórico
   llm/                 provedores: anthropic.ts, openai.ts, demo.ts
   mcp/manager.ts       cliente MCP (stdio, Streamable HTTP, SSE e em memória)
   mcp/lab-server.ts    servidor MCP de exemplo
@@ -157,7 +163,7 @@ para novos servidores e também pode ser executado como processo stdio (`mcp-ser
 
 - O CI verifica os tipos e o build de todos os pacotes a cada push.
 - `npm test` executa a suíte do núcleo com Vitest (`core/tests/`): calculadora, memória, provedor compatível com
-  OpenAI, rotas da API, loop agêntico com a LLM demo, aprovação humana, MCP embutido, delegação entre agentes, ferramentas de servidor da
+  OpenAI, rotas da API, loop agêntico com a LLM demo, aprovação humana, MCP embutido, delegação entre agentes, medição e resumo da janela de contexto, ferramentas de servidor da
   Anthropic (com respostas simuladas) e migração de dados. A suíte
   roda no CI e antes de cada publicação.
 - `web/scripts/check-mobile.cjs` valida que nenhuma página excede a largura da tela em três dispositivos móveis. A

@@ -16,7 +16,7 @@ Melhorias e novas funcionalidades planejadas, priorizadas por impacto e esforço
 | AL-04 | Comparação de LLMs e agentes lado a lado | Funcionalidade | P1 | M | concluído |
 | AL-05 | Multiagente: agente como ferramenta e supervisor | Funcionalidade | P1 | G | concluído |
 | AL-06 | Ferramentas de servidor do Claude (web search e web fetch) | Funcionalidade | P1 | P | concluído |
-| AL-07 | Gestão da janela de contexto (medidor e resumo) | Funcionalidade | P1 | M | a fazer |
+| AL-07 | Gestão da janela de contexto (medidor e resumo) | Funcionalidade | P1 | M | concluído |
 | AL-08 | Replay passo a passo de execuções | Funcionalidade | P2 | M | a fazer |
 | AL-09 | Exportar e importar configuração | Funcionalidade | P2 | P | a fazer |
 | AL-10 | Prompts de tarefa com variáveis no Playground | Funcionalidade | P2 | P | a fazer |
@@ -107,6 +107,13 @@ Sequência sugerida: AL-01 → AL-02/AL-03 → AL-04 → AL-06 → AL-05 → AL-
   do histórico ao ultrapassar um limite configurável por agente.
 - **Critérios de aceite:** medidor visível no Playground; resumo registrado na linha do tempo e na auditoria; teste do
   disparo do resumo.
+- **Resultado:** medidor "Janela de contexto" no Playground (tokens de entrada reais por iteração, percentual da janela,
+  leitura de cache e composição estimada entre sistema, ferramentas e histórico) e resumo automático configurável por
+  agente (`core/agent/context.ts`). O resumo segue o formato de compactação simples recomendado pela Anthropic: o
+  modelo resume o histórico completo, com as mesmas ferramentas, e a próxima chamada começa só com o resumo, sem
+  reenviar blocos de raciocínio antigos (o que modelos com raciocínio preservado rejeitam). Proteções: nunca no meio
+  de uma rodada de ferramentas, intervalo mínimo de 2 iterações entre resumos e exigência de que o histórico seja ao
+  menos 40% do contexto. A janela vem do catálogo ou do campo opcional na LLM; o modelo demo usa 4 mil tokens.
 
 ### AL-08 · Replay passo a passo de execuções
 - **Problema:** execuções concluídas só podem ser vistas no estado final.
