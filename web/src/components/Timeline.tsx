@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from "motion/react";
-import { AlertTriangle, Brain, CheckCircle2, ChevronDown, ArrowUpRight, Bot, CircleDashed, Cloud, Hand, Link2, Loader2, MessageSquare, Plug, User, Wrench, XCircle } from "lucide-react";
+import { AlertTriangle, Brain, CheckCircle2, ChevronDown, ArrowUpRight, Bot, CircleDashed, Cloud, Hand, Link2, Loader2, MessageSquare, Plug, Scissors, User, Wrench, XCircle } from "lucide-react";
 import { useReducer, useState } from "react";
 import { Link } from "react-router-dom";
 import { fmtMs, fmtNumber, kindLabel, toolLabel } from "../lib/format";
@@ -118,6 +118,25 @@ function ChildRun({ child }: { child: NonNullable<ToolStep["child"]> }) {
           ))}
         </div>
       )}
+    </div>
+  );
+}
+
+function Compaction({ step }: { step: Extract<Step, { kind: "compaction" }> }) {
+  const [open, setOpen] = useState(false);
+  const pct = step.window ? Math.round((step.tokensBefore / step.window) * 100) : null;
+  return (
+    <div className="rounded-xl border border-memory/20 bg-memory/[0.05] px-3 py-2.5 text-[12.5px] text-ink-300">
+      <button onClick={() => setOpen(!open)} className="flex w-full flex-wrap items-center gap-x-2 gap-y-1 text-left">
+        <span className="font-medium text-memory">Histórico resumido</span>
+        <span className="tabular-nums">
+          {step.messagesBefore} mensagens · {fmtNumber(step.tokensBefore)} → ~{fmtNumber(step.tokensAfter)} tokens
+        </span>
+        {pct !== null && <Badge color="memory">{pct}% da janela · limite {step.thresholdPct}%</Badge>}
+        <ChevronDown size={13} className={`ml-auto text-ink-400 transition ${open ? "rotate-180" : ""}`} />
+      </button>
+      <p className="mt-1 text-[11.5px] text-ink-400">O modelo resumiu a conversa e a próxima chamada começa só com o resumo.</p>
+      {open && <pre className="mt-2 max-h-56 overflow-auto whitespace-pre-wrap rounded-lg bg-surface p-2.5 font-mono text-[11.5px] leading-relaxed text-ink-200">{step.summary}</pre>}
     </div>
   );
 }
@@ -245,6 +264,12 @@ export function Timeline({ steps, live }: { steps: Step[]; live: boolean }) {
                   <span className="mr-1.5 font-medium text-memory">Nova memória</span>
                   <Badge color="memory">{kindLabel[s.memory.kind]}</Badge> {s.memory.content}
                 </div>
+              </Rail>
+            );
+          case "compaction":
+            return (
+              <Rail key={key} icon={<Scissors size={14} />} color="#7c3aed" last={last}>
+                <Compaction step={s} />
               </Rail>
             );
           case "final":

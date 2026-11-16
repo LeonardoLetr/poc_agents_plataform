@@ -2,6 +2,7 @@ import { AnimatePresence, motion } from "motion/react";
 import { ArrowUp, Coins, History, Layers, Loader2, Repeat, Send, Square, Timer, Users } from "lucide-react";
 import { useEffect, useMemo, useReducer, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
+import { ContextMeter } from "../components/ContextMeter";
 import { AgentGraph } from "../components/AgentGraph";
 import { LiveDot } from "../components/effects";
 import { JsonView } from "../components/JsonView";
@@ -218,6 +219,8 @@ export default function Playground() {
             <Metric icon={<Coins size={11} />} label="Tokens saída" value={view.tokens.output} hint={view.childTokens.output ? `+${fmtNumber(view.childTokens.output)} delegados` : undefined} />
             <Metric icon={<Timer size={11} />} label="Ferramentas" value={Object.values(view.callCounts).reduce((a, b) => a + b, 0)} />
           </div>
+
+          <ContextMeter points={view.context} threshold={agent?.context} />
 
           {runId && (
             <Card className="p-4">

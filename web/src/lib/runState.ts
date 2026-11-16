@@ -37,8 +37,20 @@ export type Step =
       phase: "llm" | "tools" | "done";
     }
   | { kind: "memory"; memory: Memory; ts: string }
+  | { kind: "compaction"; ts: string; tokensBefore: number; tokensAfter: number; messagesBefore: number; summary: string; thresholdPct: number; window: number }
   | { kind: "final"; text: string; ts: string }
   | { kind: "error"; text: string; ts: string };
+
+export interface ContextPoint {
+  iteration: number;
+  tokens: number;
+  window: number;
+  cacheRead: number;
+  breakdown: { system: number; tools: number; history: number };
+  messageCount: number;
+  /** Houve resumo do histórico antes desta iteração. */
+  compactedBefore?: boolean;
+}
 
 export interface RunView {
   status: RunStatus | "idle";
@@ -47,6 +59,10 @@ export interface RunView {
   active: string | null;
   callCounts: Record<string, number>;
   tokens: { input: number; output: number };
+  /** Medições da janela de contexto, uma por iteração. */
+  context: ContextPoint[];
+  /** Iterações precedidas por um resumo do histórico. */
+  compactions: number[];
   /** Tokens das execuções delegadas (filhas e netas). */
   childTokens: { input: number; output: number };
   iteration: number;
@@ -62,6 +78,8 @@ export const emptyRun: RunView = {
   callCounts: {},
   tokens: { input: 0, output: 0 },
   childTokens: { input: 0, output: 0 },
+  context: [],
+  compactions: [],
   iteration: 0,
   pendingApprovals: [],
 };
@@ -161,6 +179,14 @@ export function reduceRun(state: RunView, ev: RunEvent): RunView {
         tools: it.tools.map((t) => (t.id === ev.toolUseId && t.child ? { ...t, child: { ...t.child, status: ev.status, iterations: ev.iterations, usage: ev.usage } } : t)),
       }));
       return { ...state, steps, childTokens: { input: state.childTokens.input + ev.usage.input, output: state.childTokens.output + ev.usage.output } };
+    case "context.measured": {
+      const compactedBefore = state.compactions.includes(ev.iteration);
+      return { ...state, context: [...state.context, { iteration: ev.iteration, tokens: ev.tokens, window: ev.window, cacheRead: ev.cacheRead, breakdown: ev.breakdown, messageCount: ev.messageCount, compactedBefore }] };
+    }
+    case "context.compacted": {
+      const window = state.context[state.context.length - 1]?.window ?? 0;
+      return { ...state, steps: [...steps, { kind: "compaction", ts: ev.ts, tokensBefore: ev.tokensBefore, tokensAfter: ev.tokensAfter, messagesBefore: ev.messagesBefore, summary: ev.summary, thresholdPct: ev.thresholdPct, window }], compactions: [...state.compactions, ev.iteration] };
+    }
     case "citations":
       updateIter((it) => ({ ...it, citations: [...(it.citations ?? []), ...ev.items] }));
       return { ...state, steps };

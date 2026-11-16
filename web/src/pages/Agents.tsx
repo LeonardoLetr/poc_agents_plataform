@@ -333,6 +333,19 @@ function AgentEditor({ initial, id, onClose, onSaved }: { initial: AgentInput; i
                 <Input type="number" min={1} max={50} value={form.maxIterations} onChange={(e) => set("maxIterations", Number(e.target.value))} />
               </Field>
             </div>
+            <Toggle
+              checked={form.context?.autoCompact ?? false}
+              onChange={(v) => set("context", { thresholdPct: form.context?.thresholdPct ?? 60, autoCompact: v })}
+              label="Resumo automático do histórico"
+              description="Ao passar do limite da janela de contexto, o modelo resume a conversa e continua a partir do resumo."
+            />
+            {form.context?.autoCompact && (
+              <div className="px-2 pt-1">
+                <Field label="Limite da janela" hint="% que dispara o resumo">
+                  <Input type="number" min={5} max={95} value={form.context.thresholdPct} onChange={(e) => set("context", { autoCompact: true, thresholdPct: Math.min(95, Math.max(5, Number(e.target.value) || 60)) })} />
+                </Field>
+              </div>
+            )}
           </div>
         </div>
 

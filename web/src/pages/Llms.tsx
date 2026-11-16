@@ -128,7 +128,7 @@ export default function Llms({ health, onChange }: { health: Health | null; onCh
                       setEditing({
                         id: l.id,
                         llm: l,
-                        data: { name: l.name, provider: l.provider, model: l.model, baseUrl: l.baseUrl, effort: l.effort, refusalFallback: l.refusalFallback, maxTokens: l.maxTokens },
+                        data: { name: l.name, provider: l.provider, model: l.model, baseUrl: l.baseUrl, effort: l.effort, refusalFallback: l.refusalFallback, maxTokens: l.maxTokens, contextWindow: l.contextWindow },
                       })
                     }
                   >
@@ -272,6 +272,15 @@ function LlmEditor({ initial, id, existing, health, onClose, onSaved }: { initia
             <Input type="number" min={256} max={128000} value={form.maxTokens ?? (form.provider === "openai" ? 4096 : 64000)} onChange={(e) => set("maxTokens", Number(e.target.value))} />
           </Field>
         )}
+        <Field label="Janela de contexto (tokens)" hint="opcional · usado no medidor e no resumo automático">
+          <Input
+            type="number"
+            min={1000}
+            placeholder={form.provider === "anthropic" ? "catálogo (1.000.000 nos modelos Claude atuais)" : form.provider === "openai" ? "padrão: 128.000" : "padrão: 4.000 (simulado)"}
+            value={form.contextWindow ?? ""}
+            onChange={(e) => set("contextWindow", e.target.value ? Number(e.target.value) : undefined)}
+          />
+        </Field>
 
         <ErrorNote message={error} />
         <div className="flex justify-end gap-2">
