@@ -21,6 +21,8 @@ export interface LlmConfig {
   /** Só Anthropic: fallback no servidor quando o modelo recusa. */
   refusalFallback: boolean;
   maxTokens: number;
+  /** Janela de contexto em tokens. Opcional: sem valor, usa o catálogo (ou um padrão por provedor). */
+  contextWindow?: number;
   createdAt: string;
   updatedAt: string;
 }
@@ -47,6 +49,12 @@ export interface AgentConfig {
     recallLimit: number;
     /** Inclui memórias episódicas no recall automático (padrão: não). */
     recallEpisodes?: boolean;
+  };
+  /** Gestão da janela de contexto: resumo automático do histórico ao passar do limite. */
+  context?: {
+    autoCompact: boolean;
+    /** Percentual da janela que dispara o resumo. */
+    thresholdPct: number;
   };
   createdAt: string;
   updatedAt: string;
@@ -106,6 +114,7 @@ export type AuditType =
   | "tool.approval_resolved"
   | "agent.delegated"
   | "agent.delegation_finished"
+  | "context.compacted"
   | "memory.recalled"
   | "memory.created"
   | "memory.updated"
@@ -136,7 +145,7 @@ export type RunEvent =
   | { type: "llm.request"; iteration: number; messageCount: number; toolCount: number; systemPrompt: string }
   | { type: "thinking.delta"; text: string }
   | { type: "text.delta"; text: string }
-  | { type: "llm.response"; iteration: number; stopReason: string | null; usage: { input: number; output: number; cacheRead?: number }; durationMs: number; model: string }
+  | { type: "llm.response"; iteration: number; stopReason: string | null; usage: { input: number; output: number; cacheRead?: number; cacheWrite?: number }; durationMs: number; model: string }
   | { type: "tool.call"; id: string; name: string; input: unknown; source: "builtin" | "mcp" | "server" | "agent"; server?: string }
   | { type: "tool.approval_requested"; id: string; name: string; input: unknown }
   | { type: "tool.approval_resolved"; id: string; approved: boolean }
@@ -150,6 +159,18 @@ export type RunEvent =
       iterations: number;
       usage: { input: number; output: number };
     }
+  | {
+      type: "context.measured";
+      iteration: number;
+      /** Tokens de entrada da chamada (inclui leitura e escrita de cache). */
+      tokens: number;
+      window: number;
+      cacheRead: number;
+      /** Estimativa por parte do contexto (caracteres / 4). */
+      breakdown: { system: number; tools: number; history: number };
+      messageCount: number;
+    }
+  | { type: "context.compacted"; iteration: number; tokensBefore: number; tokensAfter: number; messagesBefore: number; summary: string; thresholdPct: number }
   | { type: "citations"; items: { url: string; title: string | null; citedText: string }[] }
   | { type: "memory.created"; memory: Memory }
   | { type: "user.message"; text: string }
@@ -189,6 +210,10 @@ export interface RunRecord {
   chain?: string[];
   /** Execuções filhas iniciadas por esta. */
   childRunIds?: string[];
+  /** Última medição da janela de contexto. */
+  context?: { tokens: number; window: number };
+  /** Resumos do histórico já feitos nesta execução. */
+  compactions?: { iteration: number; tokensBefore: number; messagesBefore: number; at: string }[];
   /** Tokens consumidos pelas execuções filhas (inclui as netas). */
   childUsage?: { input: number; output: number };
 }

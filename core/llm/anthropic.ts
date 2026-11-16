@@ -80,7 +80,7 @@ export async function callAnthropic(call: LlmCall): Promise<AssistantTurn> {
   return {
     content: msg.content as unknown as Block[],
     stopReason: msg.stop_reason,
-    usage: { input: msg.usage.input_tokens, output: msg.usage.output_tokens, cacheRead: msg.usage.cache_read_input_tokens ?? undefined },
+    usage: { input: msg.usage.input_tokens, output: msg.usage.output_tokens, cacheRead: msg.usage.cache_read_input_tokens ?? undefined, cacheWrite: msg.usage.cache_creation_input_tokens ?? undefined },
     model: msg.model,
   };
 }

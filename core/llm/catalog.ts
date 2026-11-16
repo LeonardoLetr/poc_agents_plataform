@@ -22,6 +22,21 @@ export const PRICING: Record<string, { input: number; output: number }> = {
   "claude-fable-5-2": { input: 8, output: 40 },
 };
 
+/** Janela de contexto (tokens) dos modelos do catálogo. */
+const CONTEXT_WINDOWS: Record<string, number> = {
+  "claude-opus-5-5": 1_000_000,
+  "claude-sonnet-5-5": 1_000_000,
+  "claude-haiku-5-5": 1_000_000,
+  "claude-fable-5-2": 1_000_000,
+};
+
+/** Padrões quando o modelo não está no catálogo. O demo usa uma janela pequena para o resumo ser visível. */
+const DEFAULT_WINDOW = { anthropic: 200_000, openai: 128_000, demo: 4_000 } as const;
+
+export function contextWindowFor(llm: { provider: keyof typeof DEFAULT_WINDOW; model: string; contextWindow?: number }): number {
+  return llm.contextWindow || CONTEXT_WINDOWS[llm.model] || DEFAULT_WINDOW[llm.provider];
+}
+
 export function supportsServerFallback(model: string) {
   return ANTHROPIC_MODELS.some((m) => m.id === model && m.fallback);
 }

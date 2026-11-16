@@ -101,6 +101,7 @@ const LlmInput = z.object({
   effort: z.enum(["low", "medium", "high", "xhigh", "max"]).default("medium"),
   refusalFallback: z.boolean().default(true),
   maxTokens: z.number().int().min(256).max(128000).optional(),
+  contextWindow: z.number().int().min(1000).max(10_000_000).optional(),
 });
 
 route("GET", "/api/llms", () => db.llms.map((l) => ({ ...publicLlm(l), agents: db.agents.filter((a) => a.llmId === l.id).map((a) => a.id) })));
@@ -125,6 +126,7 @@ route("PUT", "/api/llms/:id", ({ id }, req) => {
     effort: body.effort,
     refusalFallback: body.refusalFallback,
     maxTokens: body.maxTokens ?? llm.maxTokens,
+    contextWindow: body.contextWindow,
     updatedAt: now(),
   });
   if (body.apiKey !== undefined) llm.apiKey = body.apiKey.trim() || undefined;
@@ -194,6 +196,7 @@ const AgentInput = z.object({
   memory: z
     .object({ autoRecall: z.boolean(), autoEpisode: z.boolean(), recallLimit: z.number().int().min(0).max(20), recallEpisodes: z.boolean().optional() })
     .default({ autoRecall: true, autoEpisode: true, recallLimit: 5 }),
+  context: z.object({ autoCompact: z.boolean(), thresholdPct: z.number().int().min(5).max(95) }).optional(),
 });
 const checkLlm = (llmId: string) => db.llms.some((l) => l.id === llmId) || notFound("LLM");
 

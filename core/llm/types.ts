@@ -21,6 +21,6 @@ export interface LlmCall {
 export interface AssistantTurn {
   content: Block[];
   stopReason: string | null;
-  usage: { input: number; output: number; cacheRead?: number };
+  usage: { input: number; output: number; cacheRead?: number; cacheWrite?: number };
   model: string;
 }

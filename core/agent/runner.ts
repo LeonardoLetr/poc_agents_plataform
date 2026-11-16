@@ -5,6 +5,8 @@ import { createMemory, searchMemories } from "../memory.js";
 import { allMcpTools, callMcpTool, resolveMcpTool } from "../mcp/manager.js";
 import { db, persist } from "../store.js";
 import { builtinTools, type ToolContext } from "../tools/builtin.js";
+import { contextWindowFor } from "../llm/catalog.js";
+import { compactedMessage, contextBreakdown, historyShare, estimateTokens, extractSummary, shouldCompact, SUMMARY_PROMPT } from "./context.js";
 import { agentIdFromTool, agentToolDefinition, delegationBlocked, isAgentTool } from "./delegation.js";
 import { collectCitations, isServerTool, serverToolDefinitions } from "../tools/server.js";
 import type { AgentConfig, LlmConfig, RunEvent, RunRecord } from "../types.js";
@@ -211,6 +213,57 @@ async function delegate(parent: LiveRun, toolUseId: string, agentId: string, tas
   return { output: `O agente "${target!.name}" falhou: ${child.error ?? "erro desconhecido"}`, isError: true };
 }
 
+/**
+ * Substitui o histórico por um resumo gerado pelo próprio modelo (compactação simples).
+ * Só roda no início de uma iteração, com a rodada de ferramentas anterior já respondida.
+ */
+async function compactHistory(run: LiveRun, tools: Anthropic.Tool[], serverTools: Anthropic.Beta.BetaToolUnion[], iteration: number, window: number) {
+  const { record, llm, agent } = run;
+  const messages = record.messages as Msg[];
+  const tokensBefore = record.context?.tokens ?? 0;
+  const thresholdPct = agent.context?.thresholdPct ?? 60;
+  const last = messages[messages.length - 1];
+  // Ao continuar uma conversa, a nova mensagem do usuário fica fora do resumo e segue logo depois dele.
+  const keepLast = typeof last?.content === "string" && messages.length > 1;
+  const toSummarize = keepLast ? messages.slice(0, -1) : messages;
+
+  const turn = await callLlm({
+    llm,
+    agent,
+    run: record,
+    system: record.systemPrompt,
+    messages: [...toSummarize, { role: "user", content: SUMMARY_PROMPT }],
+    // As mesmas ferramentas da conversa: trocar a lista invalidaria o raciocínio já registrado.
+    tools,
+    serverTools,
+    signal: run.abort.signal,
+    emit: () => undefined,
+  });
+  record.usage.input += turn.usage.input;
+  record.usage.output += turn.usage.output;
+  const summary = extractSummary(turnText(turn.content as { type: string; text?: string }[]));
+  if (!summary) {
+    audit({ type: "context.compacted", actor: "system", agentId: agent.id, runId: record.id, summary: "Resumo do contexto não gerado: o modelo não retornou texto. O histórico foi mantido." });
+    return;
+  }
+
+  const messagesBefore = messages.length;
+  record.messages = [{ role: "user", content: compactedMessage(record.input, summary) }, ...(keepLast ? [last] : [])];
+  const tokensAfter = estimateTokens(record.systemPrompt) + estimateTokens(tools) + estimateTokens(record.messages);
+  record.context = { tokens: tokensAfter, window };
+  (record.compactions ??= []).push({ iteration, tokensBefore, messagesBefore, at: now() });
+  emit(run, { type: "context.compacted", iteration, tokensBefore, tokensAfter, messagesBefore, summary, thresholdPct });
+  audit({
+    type: "context.compacted",
+    actor: "system",
+    agentId: agent.id,
+    runId: record.id,
+    summary: `Histórico resumido: ${messagesBefore} mensagens (${tokensBefore} tokens, ${Math.round((tokensBefore / window) * 100)}% da janela) → resumo de ~${tokensAfter} tokens`,
+    tokens: turn.usage,
+    data: { thresholdPct, window, tokensBefore, tokensAfter, messagesBefore, summary: clip(summary, 2000) },
+  });
+}
+
 async function loop(run: LiveRun) {
   const { agent, record, llm } = run;
   run.busy = true;
@@ -258,6 +311,27 @@ async function loop(run: LiveRun) {
       const iteration = startIteration + i;
       if (i > agent.maxIterations) throw new Error(`Limite de ${agent.maxIterations} iterações atingido sem concluir a tarefa.`);
       if (run.abort.signal.aborted) throw new DOMException("cancelado", "AbortError");
+      // Resumo automático: só com a rodada anterior respondida (última mensagem do usuário).
+      const window = contextWindowFor(llm);
+      const lastRole = (record.messages[record.messages.length - 1] as { role?: string } | undefined)?.role;
+      // Intervalo mínimo de 2 iterações entre resumos: com um limite muito baixo, o resumo não pode virar um loop de custo.
+      const lastCompaction = record.compactions?.[record.compactions.length - 1];
+      const recentlyCompacted = lastCompaction !== undefined && iteration - lastCompaction.iteration < 2;
+      if (
+        lastRole === "user" &&
+        !recentlyCompacted &&
+        record.context &&
+        shouldCompact({
+          enabled: agent.context?.autoCompact ?? false,
+          thresholdPct: agent.context?.thresholdPct ?? 60,
+          tokens: record.context.tokens,
+          window,
+          messageCount: record.messages.length,
+          historyShare: historyShare(record.systemPrompt, [...tools, ...server.defs], record.messages),
+        })
+      ) {
+        await compactHistory(run, tools, server.defs, iteration, window);
+      }
       record.iterations = iteration;
       emit(run, { type: "iteration.started", iteration });
       emit(run, {
@@ -300,6 +374,18 @@ async function loop(run: LiveRun) {
       record.usage.output += turn.usage.output;
 
       emit(run, { type: "llm.response", iteration, stopReason: turn.stopReason, usage: turn.usage, durationMs, model: turn.model });
+      // Medição da janela: tokens reais de entrada (com cache) e detalhamento estimado.
+      const contextTokens = turn.usage.input + (turn.usage.cacheRead ?? 0) + (turn.usage.cacheWrite ?? 0);
+      record.context = { tokens: contextTokens, window };
+      emit(run, {
+        type: "context.measured",
+        iteration,
+        tokens: contextTokens,
+        window,
+        cacheRead: turn.usage.cacheRead ?? 0,
+        breakdown: contextBreakdown(record.systemPrompt, [...tools, ...server.defs], record.messages),
+        messageCount: record.messages.length,
+      });
       const toolUses = (turn.content as { type: string; id?: string; name?: string; input?: unknown }[]).filter((b) => b.type === "tool_use");
       const text = turnText(turn.content as { type: string; text?: string }[]);
       audit({
