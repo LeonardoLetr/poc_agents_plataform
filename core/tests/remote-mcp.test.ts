@@ -76,10 +76,10 @@ describe("MCP conectado pela Anthropic: execução", () => {
 
     expect(events.some((e) => e.type === "run.completed")).toBe(true);
     expect(requests).toHaveLength(1);
-    expect(requests[0].url).toContain("api.anthropic.com");
-    expect(requests[0].headers["anthropic-beta"]).toContain("mcp-client-2025-11-20");
-    expect(requests[0].body.mcp_servers).toEqual([{ type: "url", name: "resend", url: "https://mcp.resend.com/mcp", authorization_token: "re_teste" }]);
-    expect(requests[0].body.tools).toContainEqual({ type: "mcp_toolset", mcp_server_name: "resend" });
+    expect(requests[0]?.url).toContain("api.anthropic.com");
+    expect(requests[0]?.headers["anthropic-beta"]).toContain("mcp-client-2025-11-20");
+    expect(requests[0]?.body.mcp_servers).toEqual([{ type: "url", name: "resend", url: "https://mcp.resend.com/mcp", authorization_token: "re_teste" }]);
+    expect(requests[0]?.body.tools).toContainEqual({ type: "mcp_toolset", mcp_server_name: "resend" });
 
     expect(events.find((e) => e.type === "tool.call")).toMatchObject({ id: "mcptoolu_1", name: "mcp__resend__send_email", source: "mcp", server: "resend", input: { to: "ana@exemplo.com", subject: "Oi" } });
     expect(events.find((e) => e.type === "tool.result")).toMatchObject({ id: "mcptoolu_1", output: "Email sent: 4f2a", isError: false });
@@ -127,9 +127,9 @@ describe("MCP conectado pela Anthropic: descoberta de ferramentas", () => {
 
     const res = await api("POST", `/api/mcp/${created.body.id}/discover`, {});
     expect(res.status).toBe(200);
-    expect(bodies[0].mcp_servers).toEqual([{ type: "url", name: "zapier", url: "https://mcp.zapier.com/api/v1/connect", authorization_token: "tok" }]);
-    expect(bodies[0].tools).toContainEqual({ type: "mcp_toolset", mcp_server_name: "zapier" });
-    expect(bodies[0].output_config?.effort).toBe("low");
+    expect(bodies[0]?.mcp_servers).toEqual([{ type: "url", name: "zapier", url: "https://mcp.zapier.com/api/v1/connect", authorization_token: "tok" }]);
+    expect(bodies[0]?.tools).toContainEqual({ type: "mcp_toolset", mcp_server_name: "zapier" });
+    expect(bodies[0]?.output_config?.effort).toBe("low");
     expect(res.body.knownTools.map((t: { name: string }) => t.name)).toEqual(["gmail_send_email", "gmail_create_draft"]);
 
     const tools = await api<{ name: string }[]>("GET", "/api/tools");

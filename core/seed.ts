@@ -273,6 +273,9 @@ export function seedDb(): DB {
 }
 
 /** Converte dados da versão 1 (provedor/modelo dentro do agente) para LLMs separadas. */
+/** Servidor MCP de uma ferramenta qualificada (`mcp__<servidor>__<ferramenta>`). */
+const serverOfTool = (tool: string) => tool.slice("mcp__".length).split("__")[0] ?? "";
+
 export function migrate(raw: Record<string, unknown>): DB {
   const data = raw as Partial<DB> & { settings?: { anthropicApiKey?: string }; version?: number };
   // Dados salvos, mas sem nenhum agente nem LLM (armazenamento vazio ou corrompido): começa do conjunto inicial.
@@ -341,7 +344,7 @@ export function migrate(raw: Record<string, unknown>): DB {
   if ((data.version ?? 1) < 8) {
     // Versão 8: remove referências a servidores MCP que já foram apagados (antes a exclusão não limpava os agentes).
     const names = new Set(out.mcpServers.map((s) => s.name));
-    for (const a of out.agents) a.tools = a.tools.filter((t) => !t.startsWith("mcp__") || names.has(t.slice(5).split("__")[0]));
+    for (const a of out.agents) a.tools = a.tools.filter((t) => !t.startsWith("mcp__") || names.has(serverOfTool(t)));
   }
   if ((data.version ?? 1) < 9) {
     // Versão 9: sem servidor local, não há mais transporte stdio. Servidores stdio e suas ferramentas saem dos dados.
@@ -349,7 +352,7 @@ export function migrate(raw: Record<string, unknown>): DB {
     const removed = new Set(legacy.filter((s) => s.transport === "stdio").map((s) => s.name));
     out.mcpServers = out.mcpServers.filter((s) => !removed.has(s.name));
     for (const s of out.mcpServers as (McpServerConfig & { env?: unknown })[]) delete s.env;
-    for (const a of out.agents) a.tools = a.tools.filter((t) => !t.startsWith("mcp__") || !removed.has(t.slice(5).split("__")[0]));
+    for (const a of out.agents) a.tools = a.tools.filter((t) => !t.startsWith("mcp__") || !removed.has(serverOfTool(t)));
   }
   return out;
 }

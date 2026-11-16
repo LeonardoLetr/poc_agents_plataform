@@ -19,13 +19,14 @@ const GROUPS = [
   { id: "config", label: "Configuração" },
 ];
 
+const CONFIG_STYLE = { icon: Settings2, color: "#9a9abd" };
 const TYPE_STYLE: Record<string, { icon: typeof Bot; color: string }> = {
   run: { icon: Play, color: "#0284c7" },
   llm: { icon: Cpu, color: "#2563eb" },
   tool: { icon: Wrench, color: "#d97706" },
   memory: { icon: Brain, color: "#7c3aed" },
   mcp: { icon: Plug, color: "#ea580c" },
-  config: { icon: Settings2, color: "#9a9abd" },
+  config: CONFIG_STYLE,
 };
 
 export default function Audit() {
@@ -138,7 +139,7 @@ export default function Audit() {
         {entries.length === 0 && <div className="flex flex-col items-center p-12 text-ink-400"><ShieldCheck className="mb-2" /> Nenhum evento para estes filtros.</div>}
         <AnimatePresence initial={false}>
           {entries.map((e) => {
-            const style = TYPE_STYLE[e.type.split(".")[0]] ?? TYPE_STYLE.config;
+            const style = TYPE_STYLE[e.type.split(".")[0] ?? ""] ?? CONFIG_STYLE;
             const Icon = style.icon;
             const open = openId === e.id;
             return (

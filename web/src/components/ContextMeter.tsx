@@ -8,7 +8,7 @@ import { Card } from "./ui";
  * Medidor da janela de contexto: quanto do limite do modelo cada iteração ocupou,
  * onde o resumo automático dispara e do que o contexto é feito.
  */
-export function ContextMeter({ points, threshold }: { points: ContextPoint[]; threshold?: { autoCompact: boolean; thresholdPct: number } }) {
+export function ContextMeter({ points, threshold }: { points: ContextPoint[]; threshold?: { autoCompact: boolean; thresholdPct: number } | undefined }) {
   const last = points[points.length - 1];
   const pct = last ? Math.min(100, (last.tokens / last.window) * 100) : 0;
   const limit = threshold?.autoCompact ? threshold.thresholdPct : null;
@@ -58,7 +58,7 @@ export function ContextMeter({ points, threshold }: { points: ContextPoint[]; th
             ))}
           </div>
           <div className="mt-1 flex justify-between text-[10.5px] tabular-nums text-ink-500">
-            <span>it. {points[0].iteration}</span>
+            <span>it. {points[0]?.iteration}</span>
             <span>it. {last.iteration}</span>
           </div>
 

@@ -8,6 +8,7 @@ import { useEffect, useState } from "react";
  */
 
 type NodeId = "llm" | "client" | "server";
+type Path = [[NodeId, NodeId], ...[NodeId, NodeId][]];
 const NODES: Record<NodeId, { x: number; label: string; sub: string; icon: typeof Bot; color: string }> = {
   llm: { x: 16, label: "Modelo", sub: "Claude, GPT…", icon: Cpu, color: "var(--color-accent)" },
   client: { x: 50, label: "Agent Lab", sub: "cliente MCP", icon: Bot, color: "var(--color-info)" },
@@ -21,12 +22,12 @@ interface Step {
   label: string;
   text: string;
   /** Trechos percorridos pelo pacote, em ordem. */
-  path: [NodeId, NodeId][];
+  path: Path;
   /** Ferramenta em destaque (índice em TOOLS); "all" acende todas. */
   tool?: number | "all";
 }
 
-const STEPS: Step[] = [
+const STEPS: [Step, ...Step[]] = [
   { title: "Conectar", label: "initialize", text: "O Agent Lab abre a conexão e os dois lados combinam a versão do protocolo e o que cada um suporta.", path: [["client", "server"]] },
   {
     title: "Descobrir",
@@ -62,7 +63,7 @@ export function McpDiagram() {
     return () => clearTimeout(t);
   }, [step, playing]);
 
-  const current = STEPS[step];
+  const current = STEPS[step] ?? STEPS[0];
   const activeNodes = new Set(current.path.flat());
   const activeEdge = (a: NodeId, b: NodeId) => current.path.some(([x, y]) => (x === a && y === b) || (x === b && y === a));
 
@@ -181,7 +182,7 @@ export function McpDiagram() {
 }
 
 /** Pacote que percorre os trechos da etapa, um depois do outro. */
-function Packet({ path }: { path: [NodeId, NodeId][] }) {
+function Packet({ path }: { path: Path }) {
   const xs = [NODES[path[0][0]].x, ...path.map(([, b]) => NODES[b].x)];
   return (
     <motion.span

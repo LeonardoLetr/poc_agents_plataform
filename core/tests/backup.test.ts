@@ -28,7 +28,7 @@ describe("exportar e importar configuração", () => {
     const res = await api("POST", "/api/import", { data: file, mode: "merge" });
     expect(res.status).toBe(200);
     expect(res.body.counts.agents).toEqual({ added: 1, replaced: 0, skipped: file.agents.length - 1 });
-    expect(res.body.conflicts.some((c: { collection: string; id: string }) => c.collection === "agents" && c.id === file.agents[0].id)).toBe(true);
+    expect(res.body.conflicts.some((c: { collection: string; id: string }) => c.collection === "agents" && c.id === file.agents[0]?.id)).toBe(true);
     expect(db.agents.some((a) => a.id === "agt_importado")).toBe(true);
     // LLMs mantidas (conflitos) não geram aviso de chave; só as que entraram pelo arquivo.
     expect(res.body.warnings.some((w: string) => w.includes("Informe a chave"))).toBe(false);
@@ -43,7 +43,7 @@ describe("exportar e importar configuração", () => {
     const res = await api("POST", "/api/import", { data: file, mode: "replace" });
     expect(res.status).toBe(200);
     expect(db.agents.map((a) => a.id)).toEqual(["agt_unico"]);
-    expect(db.agents[0].llmId).toBe("llm_demo");
+    expect(db.agents[0]?.llmId).toBe("llm_demo");
     expect(db.llms.find((l) => l.id === "llm_claude_opus")!.apiKey).toBe("sk-ant-mantida");
     expect(res.body.warnings.some((w: string) => w.includes("Único"))).toBe(true);
     expect(db.audit.some((a) => a.summary.startsWith("Configuração importada"))).toBe(true);

@@ -25,7 +25,7 @@ Melhorias e novas funcionalidades planejadas, priorizadas por impacto e esforço
 | AL-13 | Busca semântica de memória com embeddings | Funcionalidade | P3 | M | a fazer |
 | AL-14 | Publicação do servidor na AWS | Infraestrutura | P3 | G | a fazer |
 | AL-15 | Servidores MCP remotos via conector da API do Claude | Funcionalidade | P2 | M | concluído |
-| AL-16 | Adequar o núcleo às diretrizes de código | Qualidade | P1 | G | a fazer |
+| AL-16 | Adequar o núcleo às diretrizes de código | Qualidade | P1 | G | em andamento (fase 1 concluída) |
 
 Sequência sugerida: AL-16 → AL-11 → AL-10 → demais → AL-14 (último).
 
@@ -184,7 +184,8 @@ Sequência sugerida: AL-16 → AL-11 → AL-10 → demais → AL-14 (último).
   só tem `strict` e não há linter, então promises esquecidas passam despercebidas.
 - **Proposta:** adequação em fases pequenas, cada uma em uma branch, sem mudar comportamento e com a suíte atual
   passando a cada passo:
-  1. ligar `noUncheckedIndexedAccess`, `exactOptionalPropertyTypes` e as demais opções da seção 2 e corrigir os erros;
+  1. ligar `noUncheckedIndexedAccess`, `exactOptionalPropertyTypes` e as demais opções da seção 2 e corrigir os erros
+     (concluída);
   2. adotar typescript-eslint (`strict-type-checked` e as regras da seção 9) e formatação automática no CI;
   3. trocar as formas escritas à mão pelos tipos do SDK da Anthropic e eliminar `as unknown as`;
   4. dividir `loop()` em etapas (chamar a LLM, processar a resposta, executar ferramentas, registrar), com as decisões

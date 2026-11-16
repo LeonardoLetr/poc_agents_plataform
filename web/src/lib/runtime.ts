@@ -65,7 +65,11 @@ export function getCore(): Promise<Core> {
               const legacy: KeyMap = {};
               for (const l of data.llms ?? []) if (l.apiKey) legacy[l.id] = l.apiKey;
               const keys = { ...legacy, ...readKeys(localStorage), ...readKeys(sessionStorage) };
-              for (const l of data.llms ?? []) l.apiKey = keys[l.id] || undefined;
+              for (const l of data.llms ?? []) {
+                const key = keys[l.id];
+                if (key) l.apiKey = key;
+                else delete l.apiKey;
+              }
               return data;
             } catch {
               return null;

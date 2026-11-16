@@ -26,12 +26,12 @@ describe("migração da versão 1", () => {
   it("transforma provedor/modelo dos agentes em LLMs e preserva a chave antiga", () => {
     const db = migrate(structuredClone(v1));
     const byId = Object.fromEntries(db.agents.map((a) => [a.id, a]));
-    expect(byId.a1.llmId).toBe(SEED_LLM.opus);
-    expect(byId.a3.llmId).toBe(SEED_LLM.demo);
-    const analyst = db.llms.find((l) => l.id === byId.a2.llmId)!;
+    expect(byId.a1?.llmId).toBe(SEED_LLM.opus);
+    expect(byId.a3?.llmId).toBe(SEED_LLM.demo);
+    const analyst = db.llms.find((l) => l.id === byId.a2?.llmId)!;
     expect(analyst).toMatchObject({ provider: "anthropic", model: "claude-opus-5-5", effort: "high", apiKey: "sk-ant-legado" });
     expect(db.llms.find((l) => l.id === SEED_LLM.opus)?.apiKey).toBe("sk-ant-legado");
-    expect("provider" in byId.a1).toBe(false);
+    expect(byId.a1).not.toHaveProperty("provider");
   });
 
   it("converte o laboratorio stdio em servidor embutido", () => {
@@ -156,6 +156,6 @@ describe("migração para a versão 9 (sem servidor local)", () => {
     const db = migrate(structuredClone(data) as never);
     expect(db.mcpServers.map((s) => s.name)).toEqual(["laboratorio"]);
     expect(db.agents.find((a) => a.name === "Explorador MCP")!.tools).toEqual(["mcp__laboratorio__*", "calculator"]);
-    expect("env" in db.mcpServers[0]).toBe(false);
+    expect(db.mcpServers[0]).not.toHaveProperty("env");
   });
 });

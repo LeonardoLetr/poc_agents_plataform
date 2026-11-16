@@ -67,8 +67,8 @@ describe("definição das ferramentas de servidor", () => {
 
   it("limita usos e ativa citações na leitura de páginas", () => {
     const [fetchDef] = serverToolDefinitions(["web_fetch"], "claude-opus-5-5") as { max_uses?: number; citations?: { enabled: boolean } }[];
-    expect(fetchDef.max_uses).toBe(5);
-    expect(fetchDef.citations).toEqual({ enabled: true });
+    expect(fetchDef?.max_uses).toBe(5);
+    expect(fetchDef?.citations).toEqual({ enabled: true });
   });
 });
 
@@ -169,8 +169,8 @@ describe("loop agêntico com ferramentas de servidor", () => {
     expect(events.at(-1)?.type).toBe("run.completed");
     expect(requests).toHaveLength(2);
     // A retomada reenvia o turno pausado do assistente como última mensagem, sem "continue" extra.
-    expect(requests[1].messages.at(-1)?.role).toBe("assistant");
-    expect(requests[0].tools?.map((t) => t.name)).toEqual(["calculator", "web_search"]);
+    expect(requests[1]?.messages.at(-1)?.role).toBe("assistant");
+    expect(requests[0]?.tools?.map((t) => t.name)).toEqual(["calculator", "web_search"]);
     expect(events.filter((e) => e.type === "tool.call" && e.source === "server")).toHaveLength(2);
     expect(events.some((e) => e.type === "citations")).toBe(true);
     const completed = events.at(-1) as { output: string };
@@ -197,7 +197,7 @@ describe("loop agêntico com ferramentas de servidor", () => {
     const run = await api("POST", "/api/runs", { agentId: agent.body.id, input: "olá" });
     await collectRun(core, run.body.id);
 
-    expect(bodies[0].tools?.map((t) => t.function.name)).toEqual(["calculator"]);
+    expect(bodies[0]?.tools?.map((t) => t.function.name)).toEqual(["calculator"]);
     const request = db.audit.find((a) => a.runId === run.body.id && a.type === "llm.request");
     expect(request?.data).toMatchObject({ serverToolsIgnored: ["web_search"] });
   });

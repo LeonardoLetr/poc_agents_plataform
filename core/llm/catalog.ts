@@ -33,7 +33,7 @@ const CONTEXT_WINDOWS: Record<string, number> = {
 /** Padrões quando o modelo não está no catálogo. O demo usa uma janela pequena para o resumo ser visível. */
 const DEFAULT_WINDOW = { anthropic: 200_000, openai: 128_000, demo: 4_000 } as const;
 
-export function contextWindowFor(llm: { provider: keyof typeof DEFAULT_WINDOW; model: string; contextWindow?: number }): number {
+export function contextWindowFor(llm: { provider: keyof typeof DEFAULT_WINDOW; model: string; contextWindow?: number | undefined }): number {
   return llm.contextWindow || CONTEXT_WINDOWS[llm.model] || DEFAULT_WINDOW[llm.provider];
 }
 

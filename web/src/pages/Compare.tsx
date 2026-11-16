@@ -4,7 +4,7 @@ import { useEffect, useMemo, useReducer, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { Markdown } from "../components/Markdown";
 import { Badge, Button, Card, ErrorNote, PageHeader, Select, Textarea } from "../components/ui";
-import { api, type Agent, type Comparison, type ComparisonSummary, type Llm, type RunEvent } from "../lib/api";
+import { api, type Agent, type Comparison, type ComparisonSummary, type Llm, type RunEvent, type RunStatus } from "../lib/api";
 import { fmtMs, fmtNumber, fmtUsd, timeAgo } from "../lib/format";
 import { useEventStream, useInterval, useResource } from "../lib/hooks";
 import { emptyRun, reduceRun } from "../lib/runState";
@@ -15,7 +15,7 @@ import { emptyRun, reduceRun } from "../lib/runState";
  */
 type Entry = { agentId: string; llmId: string }; // llmId "" = LLM configurada no agente
 
-const STATUS: Record<string, { label: string; color: "ok" | "warn" | "bad" | "ink" }> = {
+const STATUS: Record<RunStatus, { label: string; color: "ok" | "warn" | "bad" | "ink" }> = {
   running: { label: "Executando", color: "warn" },
   awaiting_approval: { label: "Aguardando aprovação", color: "warn" },
   completed: { label: "Concluída", color: "ok" },
@@ -37,8 +37,8 @@ export default function Compare() {
   // Duas combinações iniciais: os dois primeiros agentes, cada um com a própria LLM.
   // Sem chaves configuradas, a segunda combinação usa a LLM demo para a comparação funcionar de imediato.
   useEffect(() => {
-    if (entries.length || !agents.data?.length || !llms.data) return;
-    const demo = agents.data.find((a) => a.llmId === "llm_demo") ?? agents.data[0];
+    const demo = agents.data?.find((a) => a.llmId === "llm_demo") ?? agents.data?.[0];
+    if (entries.length || !agents.data || !demo || !llms.data) return;
     const other = agents.data.find((a) => a.id !== demo.id && a.tools.some((t) => t.startsWith("mcp__"))) ?? agents.data.find((a) => a.id !== demo.id) ?? demo;
     const otherReady = llms.data.find((l) => l.id === other.llmId)?.ready;
     setEntries([
@@ -153,7 +153,7 @@ export default function Compare() {
 function LiveRunCard({ index, result }: { index: number; result: Comparison["results"][number] }) {
   const [view, dispatch] = useReducer((s: typeof emptyRun, e: RunEvent | { type: "snapshot"; events: RunEvent[] }) => (e.type === "snapshot" ? (e as { events: RunEvent[] }).events.reduce(reduceRun, emptyRun) : reduceRun(s, e as RunEvent)), emptyRun);
   useEventStream<RunEvent | { type: "snapshot"; events: RunEvent[] }>(`/api/runs/${result.runId}/stream`, dispatch);
-  const status = STATUS[view.status === "idle" ? result.status : view.status] ?? STATUS.running;
+  const status = STATUS[view.status === "idle" ? result.status : view.status];
   const final = [...view.steps].reverse().find((s) => s.kind === "final" || s.kind === "error");
   const tools = Object.values(view.callCounts).reduce((a, b) => a + b, 0);
 
@@ -270,7 +270,7 @@ function MetricsTable({ data }: { data: Comparison }) {
   );
 }
 
-function RecentComparisons({ items, current }: { items: ComparisonSummary[]; current?: string }) {
+function RecentComparisons({ items, current }: { items: ComparisonSummary[]; current?: string | undefined }) {
   const [open, setOpen] = useState(false);
   return (
     <div className="relative">

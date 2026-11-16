@@ -47,7 +47,7 @@ export function createLabServer(): McpServer {
       inputSchema: { notacao: z.string().regex(/^\d{1,2}d\d{1,3}$/).describe("Ex.: 3d6") },
     },
     async ({ notacao }) => {
-      const [n, faces] = notacao.split("d").map(Number);
+      const [n = 1, faces = 6] = notacao.split("d").map(Number);
       const rolls = Array.from({ length: n }, () => 1 + Math.floor(Math.random() * faces));
       return text({ notacao, rolagens: rolls, total: rolls.reduce((a, b) => a + b, 0) });
     },
@@ -90,7 +90,9 @@ export function createLabServer(): McpServer {
       inputSchema: { valor: z.number(), conversao: z.enum(Object.keys(UNITS) as [string, ...string[]]) },
     },
     async ({ valor, conversao }) => {
-      const [result, unit] = UNITS[conversao](valor);
+      const convert = UNITS[conversao];
+      if (!convert) return text({ erro: `Conversão desconhecida: ${conversao}` });
+      const [result, unit] = convert(valor);
       return text({ entrada: valor, conversao, resultado: Math.round(result * 1000) / 1000, unidade: unit });
     },
   );

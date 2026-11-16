@@ -163,7 +163,7 @@ async function executeTool(run: LiveRun, block: { id: string; name: string; inpu
     durationMs,
     data: { toolUseId: block.id, output: clip(output, 2000), isError },
   });
-  return { type: "tool_result", tool_use_id: block.id, content: output, is_error: isError || undefined };
+  return { type: "tool_result", tool_use_id: block.id, content: output, ...(isError ? { is_error: true } : {}) };
 }
 
 /** Executa uma subtarefa em outro agente e aguarda a resposta final (execução filha). */
@@ -559,12 +559,12 @@ export function summarizeEpisode(input: string, iterations: number, events: RunR
  * `comparisonId` agrupa execuções disparadas juntas pela comparação lado a lado.
  */
 export interface StartRunOptions {
-  llmId?: string;
-  comparisonId?: string;
-  parentRunId?: string;
-  parentToolUseId?: string;
-  depth?: number;
-  chain?: string[];
+  llmId?: string | undefined;
+  comparisonId?: string | undefined;
+  parentRunId?: string | undefined;
+  parentToolUseId?: string | undefined;
+  depth?: number | undefined;
+  chain?: string[] | undefined;
 }
 
 export function startRun(agent: AgentConfig, input: string, opts: StartRunOptions = {}): RunRecord {

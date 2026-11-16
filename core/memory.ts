@@ -64,7 +64,7 @@ export interface ScoredMemory {
 
 export function searchMemories(
   query: string,
-  opts: { agentId?: string | null; limit?: number; touch?: boolean; excludeKinds?: MemoryKind[] } = {},
+  opts: { agentId?: string | null | undefined; limit?: number | undefined; touch?: boolean | undefined; excludeKinds?: MemoryKind[] | undefined } = {},
 ): ScoredMemory[] {
   const queryTerms = [...new Set(tokenize(query).map(stem))];
   const pool = db.memories.filter(
@@ -77,21 +77,21 @@ export function searchMemories(
 
   // Frequência (parcial) de cada termo da consulta em cada documento, e em quantos documentos ele aparece.
   const freq = docs.map((d) => queryTerms.map((q) => d.terms.reduce((sum, t) => sum + termSimilarity(q, t), 0)));
-  const docCount = queryTerms.map((_, qi) => freq.filter((f) => f[qi] > 0).length);
+  const docCount = queryTerms.map((_, qi) => freq.filter((f) => (f[qi] ?? 0) > 0).length);
   const idf = docCount.map((n) => Math.log(1 + (docs.length - n + 0.5) / (n + 0.5)));
 
   const bm25 = docs.map((d, di) =>
     queryTerms.reduce((sum, _, qi) => {
-      const f = freq[di][qi];
+      const f = freq[di]?.[qi] ?? 0;
       if (!f) return sum;
-      return sum + idf[qi] * ((f * (K1 + 1)) / (f + K1 * (1 - B + (B * d.terms.length) / avgLen)));
+      return sum + (idf[qi] ?? 0) * ((f * (K1 + 1)) / (f + K1 * (1 - B + (B * d.terms.length) / avgLen)));
     }, 0),
   );
   const best = Math.max(...bm25);
 
   const scored = docs
     .map((d, di) => {
-      const relevance = best > 0 ? bm25[di] / best : 0;
+      const relevance = best > 0 ? (bm25[di] ?? 0) / best : 0;
       const importance = d.memory.importance / 5;
       const ageDays = (Date.now() - new Date(d.memory.lastAccessedAt ?? d.memory.createdAt).getTime()) / 86_400_000;
       const recency = Math.exp(-ageDays / 30);
@@ -150,10 +150,9 @@ export function createMemory(input: {
  * Remove uma memória. O usuário pode remover qualquer uma; um agente só remove as próprias:
  * memórias globais e de outros agentes ficam protegidas.
  */
-export function deleteMemory(id: string, actor: "user" | "agent", ctx: { agentId?: string; runId?: string } = {}): boolean {
-  const idx = db.memories.findIndex((m) => m.id === id);
-  if (idx < 0) return false;
-  const target = db.memories[idx];
+export function deleteMemory(id: string, actor: "user" | "agent", ctx: { agentId?: string | undefined; runId?: string | undefined } = {}): boolean {
+  const target = db.memories.find((m) => m.id === id);
+  if (!target) return false;
   if (actor === "agent" && target.agentId !== ctx.agentId) {
     throw new Error(
       target.agentId === null
@@ -161,8 +160,8 @@ export function deleteMemory(id: string, actor: "user" | "agent", ctx: { agentId
         : "Esta memória pertence a outro agente e não pode ser removida por este.",
     );
   }
-  const [removed] = db.memories.splice(idx, 1);
+  db.memories.splice(db.memories.indexOf(target), 1);
   persist();
-  audit({ type: "memory.deleted", actor, ...ctx, summary: `Memória removida: ${removed.content.slice(0, 80)}`, data: removed });
+  audit({ type: "memory.deleted", actor, ...ctx, summary: `Memória removida: ${target.content.slice(0, 80)}`, data: target });
   return true;
 }

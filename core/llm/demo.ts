@@ -13,7 +13,7 @@ import type { AssistantTurn, LlmCall } from "./types.js";
 interface Step {
   thinking: string;
   say: string;
-  tool?: { name: string; input: Record<string, unknown> };
+  tool: { name: string; input: Record<string, unknown> };
 }
 
 const sleep = (ms: number, signal: AbortSignal) =>
@@ -103,19 +103,21 @@ function plan(input: string, tools: string[], agentNames: Map<string, string> = 
   // Ferramentas vindas de servidores MCP (nome qualificado mcp__servidor__ferramenta)
   const mcpTool = (suffix: string) => tools.find((t) => t.startsWith("mcp__") && t.endsWith(`__${suffix}`));
   const dice = lower.match(/\b(\d{1,2}d\d{1,3})\b/)?.[1] ?? (/(dado|rolar|role)/.test(lower) ? "2d6" : null);
-  if (dice && mcpTool("dados_rolar")) {
+  const rollTool = mcpTool("dados_rolar");
+  if (dice && rollTool) {
     steps.push({
       thinking: `Pediram uma rolagem de dados (${dice}). Existe uma ferramenta para isso num servidor MCP externo — vou delegar a ele.`,
       say: "Vou rolar os dados usando a ferramenta do servidor MCP.",
-      tool: { name: mcpTool("dados_rolar")!, input: { notacao: dice } },
+      tool: { name: rollTool, input: { notacao: dice } },
     });
   }
-  const noteMatch = input.match(/nota[:\s]+["“]?([^"”]+)["”]?/i);
-  if (noteMatch && mcpTool("notas_adicionar")) {
+  const note = input.match(/nota[:\s]+["“]?([^"”]+)["”]?/i)?.[1];
+  const noteTool = mcpTool("notas_adicionar");
+  if (note && noteTool) {
     steps.push({
       thinking: "Querem registrar uma nota. O servidor MCP 'laboratorio' tem um bloco de notas — vou usá-lo.",
       say: "Salvando a nota no servidor MCP.",
-      tool: { name: mcpTool("notas_adicionar")!, input: { texto: noteMatch[1].trim() } },
+      tool: { name: noteTool, input: { texto: note.trim() } },
     });
   }
   if (/(lembr|memoriz|salv|guard|prefir|gosto)/.test(lower) && has("memory_save")) {
@@ -216,7 +218,7 @@ export async function demoTurn(call: LlmCall): Promise<AssistantTurn> {
 
   // Encontra a última mensagem do usuário que é texto (a tarefa atual).
   let taskIdx = messages.length - 1;
-  while (taskIdx >= 0 && typeof messages[taskIdx].content !== "string") taskIdx--;
+  while (taskIdx >= 0 && typeof messages[taskIdx]?.content !== "string") taskIdx--;
   const rawTask = String(messages[taskIdx]?.content ?? run.input);
   // Histórico resumido: retoma o plano da tarefa original a partir do que o resumo diz que já foi feito.
   const compacted = rawTask.startsWith(COMPACTED_MARKER) ? parseCompacted(rawTask) : null;
@@ -231,13 +233,13 @@ export async function demoTurn(call: LlmCall): Promise<AssistantTurn> {
 
   await sleep(350, signal); // "latência de rede"
 
-  if (stepIndex < steps.length) {
-    const step = steps[stepIndex];
+  const step = steps[stepIndex];
+  if (step) {
     await streamText(step.thinking, "thinking.delta", emit, signal);
     content.push({ type: "thinking", thinking: step.thinking, signature: "demo" });
     await streamText(step.say, "text.delta", emit, signal);
     content.push({ type: "text", text: step.say });
-    content.push({ type: "tool_use", id: `toolu_demo_${Date.now().toString(36)}`, name: step.tool!.name, input: step.tool!.input });
+    content.push({ type: "tool_use", id: `toolu_demo_${Date.now().toString(36)}`, name: step.tool.name, input: step.tool.input });
     return {
       content,
       stopReason: "tool_use",

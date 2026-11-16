@@ -28,7 +28,7 @@ export default function MemoryPage() {
     [memories.data, agentFilter],
   );
   const counts = useMemo(() => {
-    const c: Record<string, number> = { fact: 0, preference: 0, procedure: 0, episode: 0 };
+    const c: Record<MemoryKind, number> = { fact: 0, preference: 0, procedure: 0, episode: 0 };
     for (const m of memories.data ?? []) c[m.kind]++;
     return c;
   }, [memories.data]);

@@ -36,9 +36,9 @@ describe("memória de longo prazo", () => {
     expect(created.status).toBe(201);
 
     const results = mem.searchMemories("como funciona o deploy no github");
-    expect(results[0].memory.id).toBe(created.body.id);
-    expect(results[0].breakdown.relevance).toBe(1); // o mais relevante é a referência da normalização
-    expect(results[0].score).toBeGreaterThan(0);
+    expect(results[0]?.memory.id).toBe(created.body.id);
+    expect(results[0]?.breakdown.relevance).toBe(1); // o mais relevante é a referência da normalização
+    expect(results[0]?.score).toBeGreaterThan(0);
   });
 
   it("não retorna memórias sem termos em comum", () => {
@@ -53,7 +53,8 @@ describe("memória de longo prazo", () => {
 
   it("registra acesso quando a busca marca uso (touch)", () => {
     const [first] = mem.searchMemories("deploy github", { touch: true });
-    expect(first.memory.accessCount).toBe(1);
+    if (!first) throw new Error("memória não encontrada");
+    expect(first?.memory.accessCount).toBe(1);
     expect(first.memory.lastAccessedAt).not.toBeNull();
   });
 
@@ -79,7 +80,7 @@ describe("ranking BM25", () => {
     for (let i = 0; i < 4; i++) mem.createMemory({ content: `Nota genérica ${i} sobre projeto`, source: "user", importance: 3 });
     mem.createMemory({ content: "Projeto usa banco Postgres", source: "user", importance: 3 });
     const [top] = mem.searchMemories("projeto postgres");
-    expect(top.memory.content).toBe("Projeto usa banco Postgres");
+    expect(top?.memory.content).toBe("Projeto usa banco Postgres");
   });
 
   it("permite excluir tipos de memória da busca", () => {
@@ -95,6 +96,7 @@ describe("permissão para remover memórias", () => {
   it("um agente remove só as próprias memórias; globais e de outros agentes ficam protegidas", async () => {
     const { builtinTools } = await import("../tools/builtin.js");
     const forget = builtinTools.memory_forget;
+    if (!forget) throw new Error("ferramenta memory_forget ausente");
     const own = mem.createMemory({ content: "anotação do agente A", kind: "fact", agentId: "agt_a", source: "agent" });
     const other = mem.createMemory({ content: "anotação do agente B", kind: "fact", agentId: "agt_b", source: "agent" });
     const global = mem.createMemory({ content: "preferência do usuário", kind: "preference", agentId: null, source: "user" });
@@ -111,7 +113,9 @@ describe("permissão para remover memórias", () => {
   it("memory_search informa o escopo e o usuário continua podendo remover qualquer memória", async () => {
     const { builtinTools } = await import("../tools/builtin.js");
     const global = mem.createMemory({ content: "o usuário trabalha com observabilidade", kind: "fact", agentId: null, source: "user" });
-    const found = JSON.parse(await builtinTools.memory_search.run({ query: "observabilidade" }, toolCtx("agt_a"))) as { id: string; scope: string }[];
+    const search = builtinTools.memory_search;
+    if (!search) throw new Error("ferramenta memory_search ausente");
+    const found = JSON.parse(await search.run({ query: "observabilidade" }, toolCtx("agt_a"))) as { id: string; scope: string }[];
     expect(found.find((r) => r.id === global.id)?.scope).toBe("global");
 
     const res = await ctx.api("DELETE", `/api/memories/${global.id}`);

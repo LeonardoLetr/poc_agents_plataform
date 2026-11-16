@@ -36,8 +36,8 @@ describe("medição e resumo automático no loop", () => {
     const measured = ofType(events, "context.measured");
     expect(measured.length).toBeGreaterThanOrEqual(4);
     expect(measured.every((m) => m.window === 4_000 && m.tokens > 0)).toBe(true);
-    expect(measured[1].tokens).toBeGreaterThan(measured[0].tokens);
-    expect(measured[1].breakdown.history).toBeGreaterThan(measured[0].breakdown.history);
+    expect(measured[1]?.tokens ?? 0).toBeGreaterThan(measured[0]?.tokens ?? 0);
+    expect(measured[1]?.breakdown.history ?? 0).toBeGreaterThan(measured[0]?.breakdown.history ?? 0);
     expect(db.runs.find((r) => r.id === run.body.id)!.context).toEqual({ tokens: measured.at(-1)!.tokens, window: 4_000 });
   });
 
@@ -60,7 +60,7 @@ describe("medição e resumo automático no loop", () => {
     }
 
     const [compacted] = ofType(events, "context.compacted");
-    expect(compacted).toBeDefined();
+    if (!compacted) throw new Error("compactação não registrada");
     expect(compacted.tokensAfter).toBeLessThan(compacted.tokensBefore);
     expect(compacted.tokensBefore / 4_000).toBeGreaterThanOrEqual(0.5);
     expect(compacted.summary).toContain("= **9**");
@@ -126,7 +126,9 @@ describe("resumo com a API da Anthropic", () => {
     ];
     vi.stubGlobal("fetch", vi.fn(async (_url: string, init: RequestInit) => {
       bodies.push(JSON.parse(init.body as string));
-      return responses[bodies.length - 1]();
+      const respond = responses[bodies.length - 1];
+      if (!respond) throw new Error("requisição inesperada");
+      return respond();
     }));
 
     const llm = await api("POST", "/api/llms", { name: "Opus contexto", provider: "anthropic", model: "claude-opus-5-5", apiKey: "sk-ant-teste-contexto", effort: "medium", refusalFallback: false });
@@ -141,14 +143,14 @@ describe("resumo com a API da Anthropic", () => {
     expect(events.at(-1)).toMatchObject({ type: "run.completed", output: "A resposta é 42." });
     expect(bodies).toHaveLength(3);
     // Pedido de resumo: histórico completo + instrução, com a mesma lista de ferramentas.
-    expect(bodies[1].tools.map((t) => t.name)).toEqual(bodies[0].tools.map((t) => t.name));
-    const summaryRequest = bodies[1].messages.at(-1)!;
+    expect(bodies[1]?.tools.map((t) => t.name)).toEqual(bodies[0]?.tools.map((t) => t.name));
+    const summaryRequest = bodies[1]?.messages.at(-1)!;
     expect(summaryRequest.role).toBe("user");
     expect(String(summaryRequest.content).startsWith(SUMMARY_REQUEST_MARKER)).toBe(true);
     // Depois do resumo, nenhuma mensagem antiga (nem bloco de raciocínio) é reenviada.
-    expect(bodies[2].messages).toHaveLength(1);
-    expect(String(bodies[2].messages[0].content)).toContain("Calculado 6*7 = 42");
-    expect(JSON.stringify(bodies[2].messages)).not.toContain("assinatura");
+    expect(bodies[2]?.messages).toHaveLength(1);
+    expect(String(bodies[2]?.messages[0]?.content)).toContain("Calculado 6*7 = 42");
+    expect(JSON.stringify(bodies[2]?.messages)).not.toContain("assinatura");
     expect(ofType(events, "context.compacted")[0]).toMatchObject({ tokensBefore: 700_000, thresholdPct: 60 });
   });
 });

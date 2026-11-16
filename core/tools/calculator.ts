@@ -75,7 +75,8 @@ export function evaluate(src: string): number {
     if (id) {
       const name = id[0].toLowerCase();
       i += id[0].length;
-      if (name in CONSTS) return CONSTS[name];
+      const constant = CONSTS[name];
+      if (constant !== undefined) return constant;
       const fn = FUNCS[name];
       if (!fn) throw new Error(`Função desconhecida: ${name}`);
       if (!eat("(")) throw new Error(`Esperado "(" após ${name}`);

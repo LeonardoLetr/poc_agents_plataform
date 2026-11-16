@@ -52,7 +52,7 @@ export function shouldCompact(opts: { enabled: boolean; thresholdPct: number; to
 
 export function extractSummary(text: string): string {
   const m = text.match(/<summary>([\s\S]*?)<\/summary>/i);
-  return (m ? m[1] : text).trim();
+  return (m?.[1] ?? text).trim();
 }
 
 /** Mensagem que inicia o histórico compactado. */

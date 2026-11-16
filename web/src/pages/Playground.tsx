@@ -32,7 +32,7 @@ function mergeDelta(list: RunEvent[], ev: RunEvent): RunEvent[] {
   return [...list, ev];
 }
 
-const EXAMPLES: Record<string, string[]> = {
+const EXAMPLES = {
   demo: ["Quanto é (1250 * 1.08) ^ 2 e que horas são agora?", "Lembre que eu prefiro café sem açúcar", "Role 2d20 e adicione a nota: estudar MCP amanhã", "Resuma https://example.com"],
   default: [
     "Pesquise o que é o Model Context Protocol em https://modelcontextprotocol.io e salve o principal na memória",
@@ -76,7 +76,7 @@ export default function Playground() {
 
   // Agente selecionado: o da execução aberta, ou o primeiro da lista.
   useEffect(() => {
-    if (!agentId && agents.data?.length) setAgentId(agents.data.find((a) => a.llmId === "llm_demo")?.id ?? agents.data[0].id);
+    if (!agentId && agents.data?.length) setAgentId(agents.data.find((a) => a.llmId === "llm_demo")?.id ?? agents.data[0]?.id ?? "");
   }, [agents.data, agentId]);
 
   useEffect(() => {
@@ -379,7 +379,7 @@ export default function Playground() {
   );
 }
 
-function Metric({ icon, label, value, hint }: { icon: React.ReactNode; label: string; value: number; hint?: string }) {
+function Metric({ icon, label, value, hint }: { icon: React.ReactNode; label: string; value: number; hint?: string | undefined }) {
   return (
     <Card className="p-4">
       <div className="flex items-center gap-2 text-[12px] text-ink-400">
@@ -395,7 +395,7 @@ function Metric({ icon, label, value, hint }: { icon: React.ReactNode; label: st
   );
 }
 
-function RecentRuns({ runs, current }: { runs: RunSummary[]; current?: string }) {
+function RecentRuns({ runs, current }: { runs: RunSummary[]; current?: string | undefined }) {
   const [open, setOpen] = useState(false);
   const color = { running: "text-warn", awaiting_approval: "text-warn", completed: "text-ok", failed: "text-bad", cancelled: "text-ink-400" };
   return (

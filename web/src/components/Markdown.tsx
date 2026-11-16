@@ -15,7 +15,7 @@ function inline(text: string, key: string): ReactNode[] {
     else if (t.startsWith("`")) out.push(<code key={k} className="rounded bg-ink-850 px-1 py-0.5 font-mono text-[0.85em] text-info">{t.slice(1, -1)}</code>);
     else if (t.startsWith("_")) out.push(<em key={k} className="text-ink-300">{t.slice(1, -1)}</em>);
     else if (t.startsWith("[")) {
-      const [, label, href] = t.match(/\[([^\]]+)\]\(([^)]+)\)/)!;
+      const [, label = t, href = ""] = t.match(/\[([^\]]+)\]\(([^)]+)\)/) ?? [];
       // Só links http(s): o texto vem do modelo e não deve poder injetar `javascript:`.
       if (!/^https?:\/\//.test(href)) out.push(label);
       else out.push(<a key={k} href={href} target="_blank" rel="noreferrer" className="text-info underline decoration-info/30 underline-offset-2 hover:decoration-info">{label}</a>);
@@ -48,19 +48,19 @@ export function Markdown({ text, className = "" }: { text: string; className?: s
       return;
     }
     if (code) return void code.push(line);
-    const li = line.match(/^(\s*)([-*]|\d+\.)\s+(.*)/);
-    if (li) {
+    const [, indent, , item] = line.match(/^(\s*)([-*]|\d+\.)\s+(.*)/) ?? [];
+    if (item !== undefined) {
       list.push(
-        <li key={k} className={`relative pl-3 before:absolute before:left-0 before:top-[0.6em] before:h-1 before:w-1 before:rounded-full before:bg-accent ${li[1].length ? "ml-4" : ""}`}>
-          {inline(li[3], k)}
+        <li key={k} className={`relative pl-3 before:absolute before:left-0 before:top-[0.6em] before:h-1 before:w-1 before:rounded-full before:bg-accent ${indent ? "ml-4" : ""}`}>
+          {inline(item, k)}
         </li>,
       );
       return;
     }
     flush();
     if (!line.trim()) return;
-    const h = line.match(/^(#{1,4})\s+(.*)/);
-    if (h) blocks.push(<div key={k} className="mt-3 mb-1 font-semibold text-ink-100">{inline(h[2], k)}</div>);
+    const heading = line.match(/^#{1,4}\s+(.*)/)?.[1];
+    if (heading !== undefined) blocks.push(<div key={k} className="mt-3 mb-1 font-semibold text-ink-100">{inline(heading, k)}</div>);
     else if (line.startsWith(">")) blocks.push(<blockquote key={k} className="my-2 border-l-2 border-accent/50 pl-3 text-ink-300">{inline(line.replace(/^>\s?/, ""), k)}</blockquote>);
     else blocks.push(<p key={k} className="my-1.5">{inline(line, k)}</p>);
   });

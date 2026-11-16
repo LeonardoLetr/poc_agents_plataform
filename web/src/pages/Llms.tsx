@@ -161,7 +161,7 @@ export default function Llms({ health, onChange }: { health: Health | null; onCh
   );
 }
 
-function LlmEditor({ initial, id, existing, health, onClose, onSaved }: { initial: LlmInput; id?: string; existing?: Llm; health: Health | null; onClose: () => void; onSaved: () => void }) {
+function LlmEditor({ initial, id, existing, health, onClose, onSaved }: { initial: LlmInput; id?: string | undefined; existing?: Llm | undefined; health: Health | null; onClose: () => void; onSaved: () => void }) {
   const [form, setForm] = useState<LlmInput>(initial);
   const [key, setKey] = useState("");
   const [clearKey, setClearKey] = useState(false);

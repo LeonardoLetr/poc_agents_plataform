@@ -127,7 +127,7 @@ function hexToRgb(hex: string) {
   return `${(n >> 16) & 255} ${(n >> 8) & 255} ${n & 255}`;
 }
 
-function AgentEditor({ initial, id, onClose, onSaved }: { initial: AgentInput; id?: string; onClose: () => void; onSaved: () => void }) {
+function AgentEditor({ initial, id, onClose, onSaved }: { initial: AgentInput; id?: string | undefined; onClose: () => void; onSaved: () => void }) {
   const [form, setForm] = useState<AgentInput>(initial);
   const [error, setError] = useState<string | null>(null);
   const tools = useResource<ToolInfo[]>("/api/tools");

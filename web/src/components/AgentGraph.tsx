@@ -145,7 +145,7 @@ function GraphInner({ agent, tools, view, llmLabel }: { agent: Agent; tools: Too
     const mcpServers = new Set<string>();
     for (const t of agent.tools) {
       const m = t.match(/^mcp__(.+?)__/);
-      if (m) mcpServers.add(m[1]);
+      if (m?.[1]) mcpServers.add(m[1]);
     }
     const hasMemory = agent.tools.some((t) => t.startsWith("memory_")) || agent.memory.autoRecall || agent.memory.autoEpisode;
     const hasScratch = agent.tools.some((t) => t.startsWith("scratchpad_"));

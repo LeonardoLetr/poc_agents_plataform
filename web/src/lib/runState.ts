@@ -10,7 +10,7 @@ export interface ToolStep {
   name: string;
   input: unknown;
   source: "builtin" | "mcp" | "server" | "agent";
-  server?: string;
+  server?: string | undefined;
   /** Multiagente: execução filha iniciada por esta chamada. */
   child?: { runId: string; agentName: string; status?: RunStatus; iterations?: number; usage?: { input: number; output: number } };
   status: "running" | "awaiting_approval" | "done" | "error" | "denied";
@@ -102,7 +102,7 @@ export function graphTarget(name: string, server?: string): string {
 function lastIteration(steps: Step[]) {
   for (let i = steps.length - 1; i >= 0; i--) {
     const s = steps[i];
-    if (s.kind === "iteration") return s;
+    if (s?.kind === "iteration") return s;
   }
   return null;
 }
@@ -112,7 +112,7 @@ export function reduceRun(state: RunView, ev: RunEvent): RunView {
   const updateIter = (fn: (it: Extract<Step, { kind: "iteration" }>) => Extract<Step, { kind: "iteration" }>) => {
     for (let i = steps.length - 1; i >= 0; i--) {
       const s = steps[i];
-      if (s.kind === "iteration") {
+      if (s?.kind === "iteration") {
         steps[i] = fn({ ...s, tools: [...s.tools] });
         return;
       }

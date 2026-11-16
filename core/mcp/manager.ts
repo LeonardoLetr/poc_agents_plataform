@@ -32,13 +32,13 @@ export interface McpToolInfo {
 
 interface Connection {
   status: McpStatus;
-  client?: Client;
-  transport?: Transport;
+  client?: Client | undefined;
+  transport?: Transport | undefined;
   tools: McpToolInfo[];
-  error?: string;
-  serverInfo?: { name: string; version: string };
-  instructions?: string;
-  connectedAt?: string;
+  error?: string | undefined;
+  serverInfo?: { name: string; version: string } | undefined;
+  instructions?: string | undefined;
+  connectedAt?: string | undefined;
   logs: string[];
 }
 

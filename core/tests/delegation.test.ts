@@ -26,6 +26,7 @@ describe("multiagente: agente como ferramenta", () => {
 
     const [started] = ofType(events, "delegation.started");
     const [finished] = ofType(events, "delegation.finished");
+    if (!started || !finished) throw new Error("delegação não registrada");
     expect(started).toMatchObject({ agentId: demo.id, agentName: "Agente Demo (offline)", task: "quanto é 12 * 7?" });
     expect(finished).toMatchObject({ childRunId: started.childRunId, status: "completed" });
     expect(ofType(events, "tool.call").find((e) => e.name === `agent__${demo.id}`)?.source).toBe("agent");
@@ -54,7 +55,7 @@ describe("multiagente: agente como ferramenta", () => {
     const events = await collectRun(core, run.body.id);
     expect(events.at(-1)?.type).toBe("run.completed");
 
-    const childId = ofType(events, "delegation.started")[0].childRunId;
+    const childId = ofType(events, "delegation.started")[0]?.childRunId;
     const child = db.runs.find((r) => r.id === childId)!;
     const refused = child.events.find((e) => e.type === "tool.result") as { output: string; isError: boolean };
     expect(refused.isError).toBe(true);

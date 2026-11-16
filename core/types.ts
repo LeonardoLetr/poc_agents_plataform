@@ -1,4 +1,5 @@
-// Tipos de domínio compartilhados pelo servidor.
+// Tipos de domínio do núcleo.
+// Campos opcionais aceitam `undefined` explícito: são preenchidos a partir de entradas validadas (Zod) e podem ser limpos.
 
 export type Provider = "anthropic" | "openai" | "demo";
 export type Effort = "low" | "medium" | "high" | "xhigh" | "max";
@@ -13,16 +14,16 @@ export interface LlmConfig {
   provider: Provider;
   model: string;
   /** Nunca é devolvida pela API — só `apiKeySet`/`apiKeyHint`. */
-  apiKey?: string;
+  apiKey?: string | undefined;
   /** Opcional. Anthropic: proxy/gateway. OpenAI-compatível: ex. https://openrouter.ai/api/v1 */
-  baseUrl?: string;
+  baseUrl?: string | undefined;
   /** Só Anthropic: esforço de raciocínio. */
   effort: Effort;
   /** Só Anthropic: fallback no servidor quando o modelo recusa. */
   refusalFallback: boolean;
   maxTokens: number;
   /** Janela de contexto em tokens. Opcional: sem valor, usa o catálogo (ou um padrão por provedor). */
-  contextWindow?: number;
+  contextWindow?: number | undefined;
   createdAt: string;
   updatedAt: string;
 }
@@ -48,14 +49,14 @@ export interface AgentConfig {
     autoEpisode: boolean;
     recallLimit: number;
     /** Inclui memórias episódicas no recall automático (padrão: não). */
-    recallEpisodes?: boolean;
+    recallEpisodes?: boolean | undefined;
   };
   /** Gestão da janela de contexto: resumo automático do histórico ao passar do limite. */
   context?: {
     autoCompact: boolean;
     /** Percentual da janela que dispara o resumo. */
     thresholdPct: number;
-  };
+  } | undefined;
   createdAt: string;
   updatedAt: string;
 }
@@ -84,17 +85,17 @@ export interface McpServerConfig {
   name: string; // usado no prefixo das ferramentas: mcp__<name>__<tool>
   transport: McpTransport;
   /** builtin: nome do servidor embutido. */
-  command?: string;
-  args?: string[];
-  url?: string;
-  headers?: Record<string, string>;
+  command?: string | undefined;
+  args?: string[] | undefined;
+  url?: string | undefined;
+  headers?: Record<string, string> | undefined;
   /** HTTP: quem abre a conexão. "anthropic" = a API do Claude conecta durante a execução (sem CORS). */
-  via?: "client" | "anthropic";
+  via?: "client" | "anthropic" | undefined;
   /**
    * Servidores conectados pela Anthropic: ferramentas conhecidas pela plataforma, descobertas sob demanda
    * ("discovered") ou registradas quando um agente as usou ("used").
    */
-  knownTools?: { name: string; description?: string; source: "discovered" | "used" }[];
+  knownTools?: { name: string; description?: string | undefined; source: "discovered" | "used" }[] | undefined;
   enabled: boolean;
   createdAt: string;
 }
@@ -106,6 +107,14 @@ export interface PromptTemplate {
   content: string;
   category: "system" | "task";
   createdAt: string;
+}
+
+/** Consumo de tokens de uma chamada (ou de uma execução). */
+export interface Usage {
+  input: number;
+  output: number;
+  cacheRead?: number | undefined;
+  cacheWrite?: number | undefined;
 }
 
 export type AuditType =
@@ -136,12 +145,12 @@ export interface AuditEntry {
   ts: string;
   type: AuditType;
   actor: "user" | "agent" | "system";
-  agentId?: string;
-  runId?: string;
+  agentId?: string | undefined;
+  runId?: string | undefined;
   summary: string;
   data?: unknown;
-  durationMs?: number;
-  tokens?: { input: number; output: number; cacheRead?: number };
+  durationMs?: number | undefined;
+  tokens?: Usage | undefined;
 }
 
 /** Eventos ao vivo de uma execução (enviados via SSE para a UI). */
@@ -152,8 +161,8 @@ export type RunEvent =
   | { type: "llm.request"; iteration: number; messageCount: number; toolCount: number; systemPrompt: string }
   | { type: "thinking.delta"; text: string }
   | { type: "text.delta"; text: string }
-  | { type: "llm.response"; iteration: number; stopReason: string | null; usage: { input: number; output: number; cacheRead?: number; cacheWrite?: number }; durationMs: number; model: string }
-  | { type: "tool.call"; id: string; name: string; input: unknown; source: "builtin" | "mcp" | "server" | "agent"; server?: string }
+  | { type: "llm.response"; iteration: number; stopReason: string | null; usage: Usage; durationMs: number; model: string }
+  | { type: "tool.call"; id: string; name: string; input: unknown; source: "builtin" | "mcp" | "server" | "agent"; server?: string | undefined }
   | { type: "tool.approval_requested"; id: string; name: string; input: unknown }
   | { type: "tool.approval_resolved"; id: string; approved: boolean }
   | { type: "tool.result"; id: string; name: string; output: string; isError: boolean; durationMs: number }
@@ -181,7 +190,7 @@ export type RunEvent =
   | { type: "citations"; items: { url: string; title: string | null; citedText: string }[] }
   | { type: "memory.created"; memory: Memory }
   | { type: "user.message"; text: string }
-  | { type: "run.completed"; output: string; iterations: number; usage: { input: number; output: number }; childUsage?: { input: number; output: number } }
+  | { type: "run.completed"; output: string; iterations: number; usage: { input: number; output: number }; childUsage?: { input: number; output: number } | undefined }
   | { type: "run.failed"; error: string }
   | { type: "run.cancelled" };
 
@@ -205,22 +214,22 @@ export interface RunRecord {
   systemPrompt: string;
   scratchpad: string[];
   /** LLM usada nesta execução (pode diferir da LLM configurada no agente, ex.: em comparações). */
-  llmId?: string;
+  llmId?: string | undefined;
   /** Agrupa execuções disparadas juntas pela tela de comparação. */
-  comparisonId?: string;
+  comparisonId?: string | undefined;
   /** Multiagente: execução que delegou esta (e a chamada de ferramenta correspondente). */
-  parentRunId?: string;
-  parentToolUseId?: string;
+  parentRunId?: string | undefined;
+  parentToolUseId?: string | undefined;
   /** Profundidade na cadeia de delegação (0 = execução iniciada pelo usuário). */
-  depth?: number;
+  depth?: number | undefined;
   /** Agentes da cadeia, do primeiro ao atual (proteção contra delegação circular). */
-  chain?: string[];
+  chain?: string[] | undefined;
   /** Execuções filhas iniciadas por esta. */
-  childRunIds?: string[];
+  childRunIds?: string[] | undefined;
   /** Última medição da janela de contexto. */
-  context?: { tokens: number; window: number };
+  context?: { tokens: number; window: number } | undefined;
   /** Resumos do histórico já feitos nesta execução. */
-  compactions?: { iteration: number; tokensBefore: number; messagesBefore: number; at: string }[];
+  compactions?: { iteration: number; tokensBefore: number; messagesBefore: number; at: string }[] | undefined;
   /** Tokens consumidos pelas execuções filhas (inclui as netas). */
-  childUsage?: { input: number; output: number };
+  childUsage?: { input: number; output: number } | undefined;
 }

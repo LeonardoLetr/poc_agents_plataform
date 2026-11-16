@@ -29,7 +29,7 @@ export function prettyJson(value: unknown): string {
 /** Rótulo amigável para ferramentas (tira o prefixo MCP). */
 export function toolLabel(name: string): { label: string; server?: string } {
   const m = name.match(/^mcp__(.+?)__(.+)$/);
-  return m ? { label: m[2], server: m[1] } : { label: name };
+  return m?.[1] && m[2] ? { label: m[2], server: m[1] } : { label: name };
 }
 
 export const kindLabel: Record<string, string> = {

@@ -42,12 +42,20 @@ const notFound = (what: string): never => {
   throw new HttpError(404, `${what} não encontrado(a)`);
 };
 
-type Handler = (p: Record<string, string>, req: ApiRequest) => unknown | Promise<unknown>;
+/** Parâmetros de um caminho como "/api/runs/:id/approve" → { id: string }. */
+type PathParams<P extends string> = P extends `${string}:${infer Key}/${infer Rest}`
+  ? { [K in Key]: string } & PathParams<`/${Rest}`>
+  : P extends `${string}:${infer Key}`
+    ? { [K in Key]: string }
+    : Record<never, never>;
+
+type Handler = (p: Record<string, string>, req: ApiRequest) => unknown;
 const routes: { method: string; pattern: RegExp; keys: string[]; handler: Handler }[] = [];
-function route(method: string, path: string, handler: Handler) {
+function route<P extends string>(method: string, path: P, handler: (p: PathParams<P>, req: ApiRequest) => unknown) {
   const keys: string[] = [];
-  const pattern = new RegExp(`^${path.replace(/:(\w+)/g, (_, k) => (keys.push(k), "([^/]+)"))}$`);
-  routes.push({ method, pattern, keys, handler });
+  const pattern = new RegExp(`^${path.replace(/:(\w+)/g, (_, k: string) => (keys.push(k), "([^/]+)"))}$`);
+  // Seguro: o despacho só chama o handler quando o padrão casou, com um valor para cada parâmetro do caminho.
+  routes.push({ method, pattern, keys, handler: handler as Handler });
 }
 
 // ───────────────────────── Sistema ─────────────────────────
@@ -107,8 +115,9 @@ const LlmInput = z.object({
 route("GET", "/api/llms", () => db.llms.map((l) => ({ ...publicLlm(l), agents: db.agents.filter((a) => a.llmId === l.id).map((a) => a.id) })));
 route("POST", "/api/llms", (_p, req) => {
   const body = LlmInput.parse(req.body);
-  const llm = newLlm({ ...body, apiKey: body.apiKey?.trim() || undefined, baseUrl: body.baseUrl?.trim() || undefined });
-  if (body.maxTokens) llm.maxTokens = body.maxTokens;
+  const { maxTokens, ...fields } = body;
+  const llm = newLlm({ ...fields, apiKey: body.apiKey?.trim() || undefined, baseUrl: body.baseUrl?.trim() || undefined });
+  if (maxTokens) llm.maxTokens = maxTokens;
   db.llms.push(llm);
   persist();
   audit({ type: "config.changed", actor: "user", summary: `LLM "${llm.name}" criada (${llm.provider} · ${llm.model})`, data: publicLlm(llm) });
@@ -140,11 +149,10 @@ route("PUT", "/api/llms/:id", ({ id }, req) => {
   return publicLlm(llm);
 });
 route("DELETE", "/api/llms/:id", ({ id }) => {
-  const idx = db.llms.findIndex((l) => l.id === id);
-  if (idx < 0) notFound("LLM");
+  const removed = db.llms.find((l) => l.id === id) ?? notFound("LLM");
   const users = db.agents.filter((a) => a.llmId === id);
   if (users.length) throw new HttpError(409, `Esta LLM é usada por: ${users.map((a) => a.name).join(", ")}. Troque a LLM desses agentes antes.`);
-  const [removed] = db.llms.splice(idx, 1);
+  db.llms.splice(db.llms.indexOf(removed), 1);
   persist();
   audit({ type: "config.changed", actor: "user", summary: `LLM "${removed.name}" removida` });
   return { ok: true };
@@ -258,9 +266,8 @@ route("PUT", "/api/agents/:id", ({ id }, req) => {
   return agent;
 });
 route("DELETE", "/api/agents/:id", ({ id }) => {
-  const idx = db.agents.findIndex((a) => a.id === id);
-  if (idx < 0) notFound("Agente");
-  const [removed] = db.agents.splice(idx, 1);
+  const removed = db.agents.find((a) => a.id === id) ?? notFound("Agente");
+  db.agents.splice(db.agents.indexOf(removed), 1);
   // Remove a delegação para o agente excluído dos demais.
   for (const a of db.agents) a.tools = a.tools.filter((t) => t !== agentToolName(removed.id));
   persist();
@@ -291,9 +298,8 @@ route("PUT", "/api/prompts/:id", ({ id }, req) => {
   return prompt;
 });
 route("DELETE", "/api/prompts/:id", ({ id }) => {
-  const idx = db.prompts.findIndex((p) => p.id === id);
-  if (idx < 0) notFound("Prompt");
-  const [removed] = db.prompts.splice(idx, 1);
+  const removed = db.prompts.find((p) => p.id === id) ?? notFound("Prompt");
+  db.prompts.splice(db.prompts.indexOf(removed), 1);
   persist();
   audit({ type: "config.changed", actor: "user", summary: `Prompt "${removed.name}" removido` });
   return { ok: true };
@@ -544,15 +550,16 @@ route("POST", "/api/compare", (_p, req) => {
 route("GET", "/api/compare", () => {
   const groups = new Map<string, RunRecord[]>();
   for (const r of db.runs) if (r.comparisonId) groups.set(r.comparisonId, [...(groups.get(r.comparisonId) ?? []), r]);
+  // Cada grupo tem ao menos uma execução: ele só é criado ao encontrar uma.
   return [...groups.entries()]
-    .map(([id, runs]) => ({ id, input: runs[0].input, startedAt: runs[0].startedAt, count: runs.length, done: runs.every((r) => r.finishedAt) }))
+    .flatMap(([id, runs]) => (runs[0] ? [{ id, input: runs[0].input, startedAt: runs[0].startedAt, count: runs.length, done: runs.every((r) => r.finishedAt) }] : []))
     .sort((a, b) => b.startedAt.localeCompare(a.startedAt))
     .slice(0, 20);
 });
 route("GET", "/api/compare/:id", ({ id }) => {
   const runs = db.runs.filter((r) => r.comparisonId === id);
-  if (!runs.length) notFound("Comparação");
-  return { id, input: runs[0].input, startedAt: runs[0].startedAt, done: runs.every((r) => r.finishedAt), results: runs.map(runMetrics) };
+  const first = runs[0] ?? notFound("Comparação");
+  return { id, input: first.input, startedAt: first.startedAt, done: runs.every((r) => r.finishedAt), results: runs.map(runMetrics) };
 });
 
 // ───────────────────────── Auditoria ─────────────────────────
@@ -581,7 +588,7 @@ export async function handle(req: ApiRequest): Promise<ApiResponse> {
     if (r.method !== req.method) continue;
     const m = r.pattern.exec(req.path);
     if (!m) continue;
-    const params = Object.fromEntries(r.keys.map((k, i) => [k, decodeURIComponent(m[i + 1])]));
+    const params = Object.fromEntries(r.keys.map((k, i) => [k, decodeURIComponent(m[i + 1] ?? "")]));
     try {
       const body = await r.handler(params, req);
       return { status: req.method === "POST" && !req.path.match(/\/(connect|disconnect|cancel|approve|messages|call|discover|import)$/) ? 201 : 200, body };

@@ -3,7 +3,7 @@ import { AlertTriangle, Brain, CheckCircle2, ChevronDown, ArrowUpRight, Bot, Cir
 import { useReducer, useState } from "react";
 import { Link } from "react-router-dom";
 import { fmtMs, fmtNumber, kindLabel, toolLabel } from "../lib/format";
-import type { Citation, RunEvent } from "../lib/api";
+import type { Citation, RunEvent, RunStatus } from "../lib/api";
 import { useEventStream } from "../lib/hooks";
 import { emptyRun, reduceRun, type Step, type ToolStep } from "../lib/runState";
 import { JsonView } from "./JsonView";
@@ -79,7 +79,7 @@ function ToolCard({ tool }: { tool: ToolStep }) {
   );
 }
 
-const CHILD_STATUS: Record<string, { text: string; badge: "warn" | "ok" | "bad" }> = {
+const CHILD_STATUS: Record<RunStatus, { text: string; badge: "warn" | "ok" | "bad" }> = {
   running: { text: "Executando", badge: "warn" },
   awaiting_approval: { text: "Aguardando aprovação", badge: "warn" },
   completed: { text: "Concluída", badge: "ok" },
@@ -94,7 +94,7 @@ function ChildRun({ child }: { child: NonNullable<ToolStep["child"]> }) {
     emptyRun,
   );
   useEventStream<RunEvent | { type: "snapshot"; events: RunEvent[] }>(`/api/runs/${child.runId}/stream`, dispatch);
-  const status = CHILD_STATUS[view.status === "idle" ? (child.status ?? "running") : view.status] ?? CHILD_STATUS.running;
+  const status = CHILD_STATUS[view.status === "idle" ? (child.status ?? "running") : view.status];
   const tools = view.steps.flatMap((s) => (s.kind === "iteration" ? s.tools : []));
   const tokens = view.tokens.input + view.tokens.output + view.childTokens.input + view.childTokens.output;
   return (
@@ -289,7 +289,7 @@ export function Timeline({ steps, live }: { steps: Step[]; live: boolean }) {
             );
         }
       })}
-      {live && steps.length > 0 && steps[steps.length - 1].kind !== "iteration" && (
+      {live && steps.length > 0 && steps.at(-1)?.kind !== "iteration" && (
         <div className="flex items-center gap-2 pl-11 text-[12px] text-ink-500">
           <CircleDashed size={12} className="animate-spin" /> processando…
         </div>

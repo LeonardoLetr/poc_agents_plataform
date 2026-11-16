@@ -36,7 +36,7 @@ describe("loop agêntico com a LLM demo", () => {
     const calls = toolCalls(events);
     expect(calls.map((c) => c.name)).toEqual(["calculator", "mcp__laboratorio__dados_rolar"]);
     expect(calls[1]).toMatchObject({ source: "mcp", server: "laboratorio" });
-    expect(toolResults(events)[0].output).toContain('"result":14');
+    expect(toolResults(events)[0]?.output).toContain('"result":14');
     expect(toolResults(events).every((r) => !r.isError)).toBe(true);
 
     const record = (await ctx.api("GET", `/api/runs/${runId}`)).body;
@@ -96,8 +96,8 @@ describe("loop agêntico com a LLM demo", () => {
     });
     expect(types(events)).toEqual(expect.arrayContaining(["tool.approval_requested", "tool.approval_resolved"]));
     const result = toolResults(events)[0];
-    expect(result.isError).toBe(true);
-    expect(result.output).toMatch(/NEGOU/);
+    expect(result?.isError).toBe(true);
+    expect(result?.output).toMatch(/NEGOU/);
     expect(types(events).at(-1)).toBe("run.completed");
   });
 
@@ -124,7 +124,7 @@ describe("loop agêntico com a LLM demo", () => {
     expect((await ctx.api("POST", `/api/runs/${first.id}/messages`, { text: "e quanto é 3 * 3?" })).status).toBe(200);
     const second = await pending;
     expect(types(second)[0]).toBe("user.message");
-    expect(toolResults(second)[0].output).toContain('"result":9');
+    expect(toolResults(second)[0]?.output).toContain('"result":9');
     const record = (await ctx.api("GET", `/api/runs/${first.id}`)).body;
     expect(record.messages.filter((m: { role: string; content: unknown }) => m.role === "user" && typeof m.content === "string")).toHaveLength(2);
   });

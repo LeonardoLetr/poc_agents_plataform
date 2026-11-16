@@ -52,7 +52,7 @@ describe("comparação lado a lado", () => {
   it("lista as comparações mais recentes primeiro", async () => {
     const { body } = await ctx.api("GET", "/api/compare");
     expect(body.length).toBeGreaterThanOrEqual(2);
-    expect(body[0].input).toBe("oi");
+    expect(body[0]?.input).toBe("oi");
     expect(body[0]).toMatchObject({ count: 2, done: true });
   });
 

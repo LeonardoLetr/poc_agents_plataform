@@ -26,11 +26,11 @@ export interface Llm {
   name: string;
   provider: Provider;
   model: string;
-  baseUrl?: string;
+  baseUrl?: string | undefined;
   effort: Effort;
   refusalFallback: boolean;
   maxTokens: number;
-  contextWindow?: number;
+  contextWindow?: number | undefined;
   apiKeySet: boolean;
   apiKeyHint: string | null;
   ready: boolean;
@@ -43,11 +43,11 @@ export interface LlmInput {
   provider: Provider;
   model: string;
   apiKey?: string;
-  baseUrl?: string;
+  baseUrl?: string | undefined;
   effort: Effort;
   refusalFallback: boolean;
   maxTokens?: number;
-  contextWindow?: number;
+  contextWindow?: number | undefined;
 }
 
 export type AgentInput = Omit<Agent, "id" | "createdAt" | "updatedAt">;
