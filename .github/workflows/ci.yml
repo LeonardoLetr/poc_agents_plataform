@@ -18,6 +18,8 @@ jobs:
       - run: npm ci
       - name: Tipos (core, server e web)
         run: npm run typecheck
+      - name: Testes do núcleo
+        run: npm test
       - name: Build completo (servidor + interface)
         run: npm run build
 

@@ -12,6 +12,8 @@ export interface CoreOptions {
   runtime: "server" | "browser";
   storage: StorageAdapter;
   env?: { ANTHROPIC_API_KEY?: string; ANTHROPIC_AUTH_TOKEN?: string; OPENAI_API_KEY?: string };
+  /** Multiplicador dos atrasos simulados da LLM demo (padrão 1; 0 nos testes). */
+  demoDelayScale?: number;
   limits?: { maxAudit?: number; maxRuns?: number };
 }
 
@@ -21,7 +23,7 @@ let started = false;
 export function initCore(opts: CoreOptions) {
   if (started) return;
   started = true;
-  Object.assign(hostEnv, { runtime: opts.runtime, ...opts.env });
+  Object.assign(hostEnv, { runtime: opts.runtime, demoDelayScale: opts.demoDelayScale ?? 1, ...opts.env });
   attachStorage(opts.storage, opts.limits);
   const raw = opts.storage.load();
   Object.assign(db, raw ? migrate(raw as Record<string, unknown>, opts.runtime) : seedDb(opts.runtime));

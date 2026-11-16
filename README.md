@@ -146,6 +146,9 @@ para novos servidores e também pode ser executado como processo stdio (`mcp-ser
 ## Qualidade
 
 - O CI verifica os tipos e o build de todos os pacotes a cada push.
+- `npm test` executa a suíte do núcleo com Vitest (`core/tests/`): calculadora, memória, provedor compatível com
+  OpenAI, rotas da API, loop agêntico com a LLM demo, aprovação humana, MCP embutido e migração de dados. A suíte
+  roda no CI e antes de cada publicação.
 - `web/scripts/check-mobile.cjs` valida que nenhuma página excede a largura da tela em três dispositivos móveis. A
   verificação é pré-requisito para a publicação.
 

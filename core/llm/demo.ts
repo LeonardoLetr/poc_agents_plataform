@@ -1,3 +1,4 @@
+import { hostEnv } from "../env.js";
 import type { RunEvent } from "../types.js";
 import type { AssistantTurn, LlmCall } from "./types.js";
 
@@ -16,7 +17,8 @@ interface Step {
 
 const sleep = (ms: number, signal: AbortSignal) =>
   new Promise<void>((resolve, reject) => {
-    const t = setTimeout(resolve, ms);
+    if (signal.aborted) return reject(new DOMException("cancelado", "AbortError"));
+    const t = setTimeout(resolve, ms * hostEnv.demoDelayScale);
     signal.addEventListener("abort", () => {
       clearTimeout(t);
       reject(new DOMException("cancelado", "AbortError"));

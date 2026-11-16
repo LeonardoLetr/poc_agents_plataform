@@ -10,7 +10,7 @@ Melhorias e novas funcionalidades planejadas, priorizadas por impacto e esforço
 
 | ID | Item | Tipo | Prioridade | Esforço | Status |
 |---|---|---|---|---|---|
-| AL-01 | Testes automatizados do núcleo | Qualidade | P0 | M | em andamento |
+| AL-01 | Testes automatizados do núcleo | Qualidade | P0 | M | concluído |
 | AL-02 | Ranking de memória mais robusto | Correção | P1 | P | a fazer |
 | AL-03 | Episódios de memória sem acúmulo de conteúdo | Correção | P1 | P | a fazer |
 | AL-04 | Comparação de LLMs e agentes lado a lado | Funcionalidade | P1 | M | a fazer |
@@ -41,6 +41,9 @@ Sequência sugerida: AL-01 → AL-02/AL-03 → AL-04 → AL-06 → AL-05 → AL-
     (incluindo validação e ocultação de chaves), execução completa com a LLM demo, aprovação humana, limite de
     iterações, ferramentas MCP embutidas e migração de dados da versão 1;
   - o CI executa a suíte em todo push e pull request.
+- **Resultado:** 48 testes em 7 arquivos (`core/tests/`), executados em cerca de 1 segundo. A suíte revelou e
+  corrigiu dois defeitos: a aprovação humana podia se perder quando respondida imediatamente (o receptor era
+  registrado depois do aviso) e dados salvos vazios resultavam em uma plataforma sem agentes.
 
 ### AL-02 · Ranking de memória mais robusto
 - **Problema:** a busca compara termos exatos; variações da mesma palavra ("prefiro" e "prefere") não se encontram.

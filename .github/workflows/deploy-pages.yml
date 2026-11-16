@@ -36,6 +36,9 @@ jobs:
       - name: Checar tipos
         run: npm run typecheck
 
+      - name: Testes do núcleo
+        run: npm test
+
       - name: Configurar Pages
         id: pages
         uses: actions/configure-pages@v5

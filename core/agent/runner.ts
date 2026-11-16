@@ -92,12 +92,14 @@ async function executeTool(run: LiveRun, block: { id: string; name: string; inpu
 
   if (run.agent.requireApproval) {
     run.record.status = "awaiting_approval";
-    emit(run, { type: "tool.approval_requested", id: block.id, name: block.name, input });
-    audit({ type: "tool.approval_requested", actor: "system", agentId: run.agent.id, runId: run.record.id, summary: `Aguardando aprovação para ${block.name}` });
-    const approved = await new Promise<boolean>((resolve) => {
+    // O receptor da decisão é registrado ANTES de anunciar o pedido: uma resposta imediata não pode se perder.
+    const decision = new Promise<boolean>((resolve) => {
       run.approvals.set(block.id, resolve);
       run.abort.signal.addEventListener("abort", () => resolve(false), { once: true });
     });
+    emit(run, { type: "tool.approval_requested", id: block.id, name: block.name, input });
+    audit({ type: "tool.approval_requested", actor: "system", agentId: run.agent.id, runId: run.record.id, summary: `Aguardando aprovação para ${block.name}` });
+    const approved = await decision;
     run.approvals.delete(block.id);
     if (run.approvals.size === 0) run.record.status = "running";
     emit(run, { type: "tool.approval_resolved", id: block.id, approved });
