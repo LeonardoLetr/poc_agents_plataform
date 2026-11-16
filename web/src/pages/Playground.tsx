@@ -118,7 +118,8 @@ export default function Playground() {
   }, [view.steps]);
   const agentLlm = llmOf(agent);
   const delegates = agent?.tools.some((t) => t.startsWith("agent__")) ?? false;
-  const emailer = agent?.tools.some((t) => /^mcp__.*resend.*__/i.test(t)) ?? false;
+  // Exemplos de e-mail para o assistente de e-mail ou agentes com servidores MCP de e-mail conhecidos.
+  const emailer = Boolean(agent && (/e-?mail/i.test(agent.name) || agent.tools.some((t) => /^mcp__.*(resend|zapier|gmail|brevo|mail).*__/i.test(t))));
   const examples = agentLlm?.provider === "demo" ? EXAMPLES.demo : emailer ? EXAMPLES.email : delegates ? EXAMPLES.team : EXAMPLES.default;
 
   async function start(text = input) {
