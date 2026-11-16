@@ -57,7 +57,7 @@ describe("migração para a versão 3 (multiagente)", () => {
     const db = migrate(structuredClone(data), "browser");
     const coordinator = db.agents.find((a) => a.name === "Coordenador (offline)");
     expect(coordinator?.tools).toContain(`agent__${demo.id}`);
-    expect(db.version).toBe(3);
+    expect(db.version).toBe(4);
   });
 
   it("não duplica o coordenador nem o cria sem o agente demo", () => {
