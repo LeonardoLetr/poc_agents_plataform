@@ -19,7 +19,7 @@ OpenAI Chat Completions (OpenAI, OpenRouter, Groq, Ollama) e um modelo simulado 
 | **Comparar** | Execução da mesma tarefa em paralelo em até quatro combinações de agente e LLM, com progresso ao vivo e tabela de tokens, custo, duração, iterações e ferramentas, exportável em JSON. |
 | **Agentes** | Configuração de agentes: LLM, prompt de sistema, ferramentas nativas, MCP e de servidor da Anthropic (busca e leitura de páginas web), política de memória, limite de iterações e aprovação humana. |
 | **LLMs** | Cadastro de modelos em tempo de execução (provedor, modelo, chave, URL base e nível de esforço). Cada agente referencia uma LLM, que pode ser trocada a qualquer momento. |
-| **Servidores MCP** | Conexão de servidores via `stdio`, HTTP (pelo Agent Lab ou pela API da Anthropic, sem depender de CORS) ou execução embutida, edição da configuração, listagem das ferramentas descobertas, teste manual de `tools/call`, logs e diagnóstico de erros de conexão. |
+| **Servidores MCP** | Conexão de servidores via HTTP (pelo Agent Lab ou pela API da Anthropic, sem depender de CORS) ou execução embutida, edição da configuração, listagem das ferramentas descobertas, teste manual de `tools/call`, logs e diagnóstico de erros de conexão. |
 | **Memória** | Quatro camadas (curto prazo, trabalho, longo prazo e episódica), visualização das memórias e simulação de recuperação com pontuação detalhada. |
 | **Prompts** | Biblioteca de prompts de sistema e de tarefa, com suporte a variáveis `{{nome}}`. |
 | **Auditoria** | Registro de todas as ações (autor, horário, tokens e duração), com filtros, atualização em tempo real e exportação em JSON. |
@@ -39,15 +39,15 @@ OpenAI Chat Completions (OpenAI, OpenRouter, Groq, Ollama) e um modelo simulado 
 A interface é publicada no GitHub Pages pelo workflow [`deploy-pages.yml`](.github/workflows/deploy-pages.yml):
 **https://leonardoletr.github.io/poc_agents_plataform/**
 
-Nessa versão a aplicação opera em **modo navegador**: o núcleo é executado na própria página, os dados ficam no
-armazenamento local do navegador e as chaves de API são informadas por cada usuário na tela **LLMs**.
+A aplicação não tem servidor próprio: o núcleo é executado na própria página, os dados ficam no armazenamento local
+do navegador e as chaves de API são informadas por cada usuário na tela **LLMs**.
 
-Limitações do modo navegador:
-- servidores MCP via `stdio` não estão disponíveis (HTTP e servidores embutidos funcionam normalmente);
+Limitações por rodar no navegador:
 - servidores MCP remotos conectados pelo Agent Lab precisam permitir requisições vindas da página (CORS). Com LLMs
   Anthropic, escolha "API da Anthropic" no cadastro do servidor: a conexão passa a ser feita pela API do Claude;
 - a ferramenta `http_fetch` só acessa sites que permitem requisições de outras origens (CORS). Com LLMs Anthropic, use
-  `web_search` e `web_fetch`, executadas na infraestrutura da Anthropic e sem essa restrição.
+  `web_search` e `web_fetch`, executadas na infraestrutura da Anthropic e sem essa restrição;
+- servidores MCP locais (transporte `stdio`) não são suportados.
 
 ## Execução local
 
@@ -55,14 +55,14 @@ Requisito: **Node.js 20+**.
 
 ```bash
 npm install
-cp .env.example .env      # opcional: ANTHROPIC_API_KEY / OPENAI_API_KEY
-npm run dev               # API em :8787 e interface em http://localhost:5173
+npm run dev               # interface em http://localhost:5173
 ```
+
+Localmente a aplicação funciona como a versão online: núcleo na página e dados no navegador.
 
 - O agente **Demo (offline)** funciona sem chave de API. O modelo é simulado, mas ferramentas, memória, MCP e auditoria
   operam normalmente.
-- Para usar um modelo real, informe a chave na tela **LLMs** ou defina `ANTHROPIC_API_KEY` / `OPENAI_API_KEY` no `.env`.
-  As variáveis de ambiente são usadas quando a LLM não possui chave própria.
+- Para usar um modelo real, informe a chave na tela **LLMs**.
 - O servidor MCP de exemplo (`laboratorio`) é embutido e conecta automaticamente.
 - O agente **Coordenador (offline)** demonstra o multiagente sem chave: delega a tarefa ao Agente Demo.
 - O **Assistente de E-mail** usa Claude e o servidor MCP de e-mail habilitado no editor do agente (por exemplo, Gmail
@@ -72,30 +72,25 @@ npm run dev               # API em :8787 e interface em http://localhost:5173
   (cálculos), consolidando as respostas. Requer a chave da LLM "Claude Opus 5.5".
 - O **Agente Demo** usa uma janela simulada de 4 mil tokens: ao continuar a conversa algumas vezes, o resumo automático
   do histórico aparece no medidor e na linha do tempo.
-- Se o servidor local não estiver disponível, a interface passa automaticamente para o modo navegador.
 
-Build de produção: `npm run build && npm start` (a API passa a servir a interface em `http://localhost:8787`).
+Build de produção: `npm run build` (arquivos estáticos em `web/dist`) e `npm run preview` para servi-lo localmente.
 
 ## Arquitetura
 
-Toda a lógica está em [`core/`](core/), um núcleo **sem dependências de Node.js**, executado em dois modos:
-
-| | Modo servidor (`npm run dev`) | Modo navegador (GitHub Pages) |
-|---|---|---|
-| Execução do núcleo | processo Node.js | página do navegador |
-| Comunicação com a interface | HTTP + SSE | chamada de função |
-| Persistência | `server/data/db.json` | `localStorage` |
-| Transportes MCP | stdio, HTTP e embutido | HTTP e embutido |
+Toda a lógica está em [`core/`](core/), um núcleo **sem dependências de Node.js**, executado na própria página. A
+interface conversa com ele por chamada de função, com as mesmas rotas de uma API (`core/router.ts`), e a persistência
+fica no `localStorage`, por meio de um adaptador de armazenamento. Essa separação permite hospedar o núcleo em um
+servidor no futuro sem reescrevê-lo (item AL-14 do backlog).
 
 ```mermaid
 flowchart LR
-  UI["Interface React<br/>(grafo, linha do tempo, páginas)"] -- "REST/SSE ou chamada direta" --> Router["core/router.ts"]
+  UI["Interface React<br/>(grafo, linha do tempo, páginas)"] -- "chamada direta" --> Router["core/router.ts"]
   Router --> Loop["Loop agêntico<br/>core/agent/runner.ts"]
   Loop -- "messages + tools" --> LLM["LLM configurada<br/>Claude · compatível com OpenAI · demo"]
   LLM -- "thinking / text / tool_use" --> Loop
   LLM -. "web_search / web_fetch<br/>(executadas pela Anthropic)" .-> Web["Web"]
   Loop --> Nativas["Ferramentas nativas<br/>calculadora, HTTP, data e hora,<br/>memória, scratchpad"]
-  Loop --> MCP["Cliente MCP"] --> Servers["Servidores MCP<br/>(stdio / HTTP / embutido)"]
+  Loop --> MCP["Cliente MCP"] --> Servers["Servidores MCP<br/>(HTTP / embutido)"]
   Loop -- "agent__&lt;id&gt;" --> Filha["Execução filha<br/>(outro agente, mesmo loop)"]
   Loop --> Mem[("Memória")]
   Loop --> Audit[("Auditoria")]
@@ -118,12 +113,12 @@ Cada etapa gera um evento para a visualização e um registro de auditoria.
 ### Estrutura
 
 ```
-core/                  núcleo compartilhado (servidor e navegador)
+core/                  núcleo da plataforma (executado na página)
   agent/runner.ts      loop agêntico
   agent/delegation.ts  multiagente: agentes como ferramentas
   agent/context.ts     medição da janela de contexto e resumo do histórico
   llm/                 provedores: anthropic.ts, openai.ts, demo.ts
-  mcp/manager.ts       cliente MCP (stdio, Streamable HTTP, SSE e em memória)
+  mcp/manager.ts       cliente MCP (Streamable HTTP, SSE e em memória)
   mcp/remote.ts        servidores MCP conectados pela API do Claude (conector MCP)
   mcp/lab-server.ts    servidor MCP de exemplo
   tools/builtin.ts     ferramentas nativas
@@ -131,9 +126,8 @@ core/                  núcleo compartilhado (servidor e navegador)
   memory.ts            memória de longo prazo e ranking de recuperação
   router.ts            API (rotas e streams)
   seed.ts              dados iniciais e migração de versões
-server/src/index.ts    hospedeiro Node.js: persistência em arquivo, MCP stdio, HTTP/SSE
 web/src/
-  lib/runtime.ts       seleção do modo de execução
+  lib/runtime.ts       inicialização do núcleo e armazenamento local (dados e cofre de chaves)
   pages/               telas
   components/          grafo do agente, linha do tempo e componentes de interface
 web/scripts/           verificações automatizadas (layout em dispositivos móveis)
@@ -143,10 +137,10 @@ docs/                  referências de design e estudos de layout
 
 ### Servidores MCP
 
-Em **Servidores MCP → Adicionar servidor** há modelos prontos (Everything, Filesystem, Memory, Fetch, Git) e configuração
-manual. As ferramentas são expostas como `mcp__<servidor>__<ferramenta>` e podem ser habilitadas por agente, todas de
-uma vez (`mcp__<servidor>__*`) ou individualmente. O servidor de exemplo em `core/mcp/lab-server.ts` serve de modelo
-para novos servidores e também pode ser executado como processo stdio (`mcp-servers/laboratorio/index.ts`).
+Em **Servidores MCP → Adicionar servidor** há configuração manual para servidores remotos (HTTP), conectados pelo
+Agent Lab ou pela API da Anthropic, e servidores embutidos. As ferramentas são expostas como
+`mcp__<servidor>__<ferramenta>` e podem ser habilitadas por agente, todas de uma vez (`mcp__<servidor>__*`) ou
+individualmente. O servidor embutido de exemplo, em `core/mcp/lab-server.ts`, serve de modelo para novos servidores.
 
 ## Segurança
 
@@ -157,21 +151,19 @@ para novos servidores e também pode ser executado como processo stdio (`mcp-ser
 - Cada agente tem limite de iterações e pode exigir aprovação para cada ferramenta.
 - Memórias salvas por um agente são privadas dele. Um agente só remove as próprias; memórias globais, criadas pelo
   usuário, e as de outros agentes ficam protegidas.
-- A API nunca retorna chaves de API, apenas os quatro últimos caracteres. No modo servidor, as chaves ficam em
-  `server/data/`, fora do controle de versão.
-- **Modo navegador:**
-  - As chaves não são enviadas ao GitHub nem a servidores intermediários. As requisições vão diretamente do
-    navegador ao provedor, via HTTPS.
-  - As chaves são armazenadas separadamente dos demais dados, por padrão no `sessionStorage`, que é descartado ao fechar
-    o navegador. A opção *Lembrar chaves neste navegador* utiliza o `localStorage`.
-  - O build publicado define uma **Content-Security-Policy** que restringe a execução de scripts à própria origem.
-  - Recomenda-se uma **chave dedicada, com limite de gastos**, revogada após o uso. Extensões do navegador e outras páginas
-    publicadas em `leonardoletr.github.io` (mesma origem) têm acesso ao armazenamento local.
-- O servidor local não possui autenticação e não deve ser exposto à internet.
+- As rotas internas nunca retornam chaves de API, apenas os quatro últimos caracteres; valores de cabeçalhos dos
+  servidores MCP aparecem ocultos.
+- As chaves não são enviadas ao GitHub nem a servidores intermediários. As requisições vão diretamente do navegador ao
+  provedor, via HTTPS (ou, no conector MCP, do navegador à API da Anthropic).
+- As chaves são armazenadas separadamente dos demais dados, por padrão no `sessionStorage`, que é descartado ao fechar
+  o navegador. A opção *Lembrar chaves neste navegador* utiliza o `localStorage`.
+- O build publicado define uma **Content-Security-Policy** que restringe a execução de scripts à própria origem.
+- Recomenda-se uma **chave dedicada, com limite de gastos**, revogada após o uso. Extensões do navegador e outras páginas
+  publicadas em `leonardoletr.github.io` (mesma origem) têm acesso ao armazenamento local.
 
 ## Qualidade
 
-- O CI verifica os tipos e o build de todos os pacotes a cada push.
+- O CI verifica os tipos, os testes e o build a cada push.
 - `npm test` executa a suíte do núcleo com Vitest (`core/tests/`): calculadora, memória, provedor compatível com
   OpenAI, rotas da API, loop agêntico com a LLM demo, aprovação humana, MCP embutido, delegação entre agentes, medição e resumo da janela de contexto, ferramentas de servidor da
   Anthropic (com respostas simuladas) e migração de dados. A suíte

@@ -172,17 +172,20 @@ Sequência sugerida: AL-01 → AL-02/AL-03 → AL-04 → AL-06 → AL-05 → AL-
 ## Infraestrutura
 
 ### AL-14 · Publicação do servidor na AWS
-- **Problema:** a versão publicada roda apenas no modo navegador: cada usuário informa a própria chave, os dados ficam
-  no navegador e as execuções terminam ao fechar a aba. O modo servidor existe, mas foi feito para uso local: não tem
-  autenticação, aceita requisições de qualquer origem e grava os dados em um arquivo.
+- **Problema:** a plataforma roda apenas no navegador: cada usuário informa a própria chave, os dados ficam no
+  navegador e as execuções terminam ao fechar a aba. Não há servidor próprio, autenticação nem banco de dados.
 - **Proposta:** versão privada em contêiner na AWS (App Runner ou ECS Fargate), servindo interface e API com HTTPS,
   mantendo o GitHub Pages como demonstração pública.
   - autenticação (Cognito ou OIDC no balanceador) e CORS restrito ao domínio da aplicação;
   - chaves de API no Secrets Manager, nunca no repositório nem no navegador;
-  - persistência em banco (DynamoDB ou Postgres no RDS) no lugar de `server/data/db.json`;
+  - persistência em banco (DynamoDB ou Postgres no RDS);
   - limites de uso por usuário (execuções por dia e teto de tokens) para controlar gastos;
-  - lista fechada de servidores MCP `stdio` permitidos;
+  - lista fechada de servidores MCP locais (`stdio`) permitidos, se esse transporte voltar;
   - Dockerfile e workflow de publicação.
+- **Ponto de partida:** o servidor Node local (`server/`, com persistência em arquivo, rotas HTTP/SSE e transporte MCP
+  `stdio`) foi removido para simplificar a plataforma enquanto não havia uso. Ele pode ser recuperado do histórico do
+  Git no commit `f4207f3` (`git checkout f4207f3 -- server`), e o núcleo continua independente do hospedeiro, com
+  armazenamento plugável.
 - **Restrição conhecida:** execuções ao vivo, aprovações pendentes e streaming ficam na memória do processo; a primeira
   versão deve rodar em uma única instância. Escalar horizontalmente exige mover esse estado para um serviço externo.
 - **Critérios de aceite:** acesso apenas autenticado; dados preservados após reinício do contêiner; chaves fora do

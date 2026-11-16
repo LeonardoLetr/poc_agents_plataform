@@ -19,9 +19,9 @@
 ## Validação antes de integrar
 
 ```bash
-npm run typecheck     # tipos de core, server e web
+npm run typecheck     # tipos do núcleo (core) e da interface (web)
 npm test              # suíte do núcleo (Vitest, core/tests)
-npm run build         # build do servidor e da interface
+npm run build         # build da interface
 ```
 
 Para mudanças visuais, executar também `node web/scripts/check-mobile.cjs` com o build servido em
