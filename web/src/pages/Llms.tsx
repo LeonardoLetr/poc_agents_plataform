@@ -26,7 +26,6 @@ export default function Llms({ health, onChange }: { health: Health | null; onCh
   const agents = useResource<Agent[]>("/api/agents");
   const [editing, setEditing] = useState<{ id?: string; data: LlmInput; llm?: Llm } | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const browser = health?.runtime === "browser";
   const [remember, setRemember] = useState(getRememberKeys);
 
   async function remove(l: Llm) {
@@ -53,7 +52,7 @@ export default function Llms({ health, onChange }: { health: Health | null; onCh
         }
       />
 
-      {browser && (
+      {(
         <div className="mb-6 rounded-2xl border border-ink-700 bg-surface p-4 text-[13px] leading-relaxed text-ink-300">
           <div className="flex items-start gap-3">
             <ShieldAlert size={18} className="mt-0.5 shrink-0 text-warn" />
@@ -240,7 +239,7 @@ function LlmEditor({ initial, id, existing, health, onClose, onSaved }: { initia
           <>
             <Field
               label="Chave da API"
-              hint={existing?.apiKeySet ? `atual: ${existing.apiKeyHint} — deixe vazio para manter` : health?.runtime === "server" ? "opcional se definida no .env" : "obrigatória no modo navegador"}
+              hint={existing?.apiKeySet ? `atual: ${existing.apiKeyHint} — deixe vazio para manter` : "obrigatória"}
             >
               <Input type="password" autoComplete="off" value={key} onChange={(e) => setKey(e.target.value)} placeholder={form.provider === "anthropic" ? "sk-ant-..." : "sk-..."} />
             </Field>

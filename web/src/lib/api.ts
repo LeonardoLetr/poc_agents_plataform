@@ -1,5 +1,5 @@
 // Tipos espelhados do núcleo + cliente que fala com o servidor OU com o núcleo no navegador.
-import { getCore, getMode } from "./runtime";
+import { getCore } from "./runtime";
 
 export type Provider = "anthropic" | "openai" | "demo";
 export type Effort = "low" | "medium" | "high" | "xhigh" | "max";
@@ -83,10 +83,9 @@ export interface ToolInfo {
 export interface McpServer {
   id: string;
   name: string;
-  transport: "stdio" | "http" | "builtin";
+  transport: "http" | "builtin";
   command?: string;
   args?: string[];
-  env?: Record<string, string>;
   url?: string;
   /** Nomes dos cabeçalhos; os valores chegam ocultos (••••). */
   headers?: Record<string, string>;
@@ -184,8 +183,7 @@ export type RunEvent = { ts: string } & (
 
 export interface Health {
   ok: boolean;
-  runtime: "server" | "browser";
-  capabilities: { stdio: boolean; builtinMcp: string[] };
+  capabilities: { builtinMcp: string[] };
   llmsReady: number;
   llmsTotal: number;
   catalog: {
@@ -209,27 +207,13 @@ export interface Stats {
   auditEntries: number;
 }
 
-const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
-
+/** A "requisição" é uma chamada de função ao núcleo, na mesma aba. */
 async function request<T>(method: string, url: string, body?: unknown): Promise<T> {
-  let status: number;
-  let data: unknown;
-  if ((await getMode()) === "browser") {
-    // Modo navegador: a "requisição" é uma chamada de função ao núcleo, na mesma aba.
-    const core = await getCore();
-    const parsed = new URL(url, "http://local");
-    const res = await core.handle({ method, path: parsed.pathname, query: Object.fromEntries(parsed.searchParams), body: body ?? {} });
-    status = res.status;
-    data = JSON.parse(JSON.stringify(res.body ?? null)); // cópia: a UI não pode mutar o estado do núcleo
-  } else {
-    const res = await fetch(BASE + url, {
-      method,
-      headers: body !== undefined ? { "content-type": "application/json" } : undefined,
-      body: body !== undefined ? JSON.stringify(body) : undefined,
-    });
-    status = res.status;
-    data = await res.json().catch(() => ({}));
-  }
+  const core = await getCore();
+  const parsed = new URL(url, "http://local");
+  const res = await core.handle({ method, path: parsed.pathname, query: Object.fromEntries(parsed.searchParams), body: body ?? {} });
+  const status = res.status;
+  const data: unknown = JSON.parse(JSON.stringify(res.body ?? null)); // cópia: a UI não pode mutar o estado do núcleo
   if (status >= 400) {
     const issues = (data as { issues?: { path: string[]; message: string }[] }).issues;
     const detail = issues?.map((i) => `${i.path.join(".")}: ${i.message}`).join("; ");
@@ -238,35 +222,19 @@ async function request<T>(method: string, url: string, body?: unknown): Promise<
   return data as T;
 }
 
-/** Assina um stream ao vivo (SSE no servidor; evento direto no navegador). Devolve o cancelamento. */
+/** Assina um stream ao vivo do núcleo (execuções, auditoria, status do MCP). Devolve o cancelamento. */
 export function subscribeStream(url: string, onMessage: (data: unknown) => void, onStatus: (connected: boolean) => void): () => void {
   let cancel = () => {};
   let closed = false;
-  void getMode().then(async (mode) => {
+  void getCore().then((core) => {
     if (closed) return;
-    if (mode === "browser") {
-      const core = await getCore();
-      if (closed) return;
-      // Entrega assíncrona e com cópia, como aconteceria pela rede.
-      const stop = core.subscribe(url, (data) => {
-        const copy = JSON.parse(JSON.stringify(data));
-        queueMicrotask(() => onMessage(copy));
-      });
-      onStatus(Boolean(stop));
-      cancel = () => stop?.();
-    } else {
-      const es = new EventSource(BASE + url);
-      es.onopen = () => onStatus(true);
-      es.onerror = () => onStatus(false);
-      es.onmessage = (e) => {
-        try {
-          onMessage(JSON.parse(e.data));
-        } catch {
-          /* ignora eventos malformados */
-        }
-      };
-      cancel = () => es.close();
-    }
+    // Entrega assíncrona e com cópia, para a UI nunca compartilhar objetos com o núcleo.
+    const stop = core.subscribe(url, (data) => {
+      const copy = JSON.parse(JSON.stringify(data));
+      queueMicrotask(() => onMessage(copy));
+    });
+    onStatus(Boolean(stop));
+    cancel = () => stop?.();
   });
   return () => {
     closed = true;

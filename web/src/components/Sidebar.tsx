@@ -1,5 +1,5 @@
 import { motion } from "motion/react";
-import { BookOpen, Bot, Brain, ChevronDown, Columns3, Cpu, FileText, Globe, LayoutDashboard, Play, Plug, Server, ShieldCheck, Trash2 } from "lucide-react";
+import { BookOpen, Bot, Brain, ChevronDown, Columns3, Cpu, FileText, Globe, LayoutDashboard, Play, Plug, ShieldCheck, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { NavLink, useLocation } from "react-router-dom";
 import type { Health, Stats } from "../lib/api";
@@ -81,14 +81,14 @@ export function Sidebar({ health }: { health: Health | null }) {
         {link({ to: "/learn", label: "Aprender", icon: BookOpen })}
         <div className="mt-2 flex items-center gap-2.5 rounded-lg border border-ink-700 bg-surface p-2.5">
           <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-ink-100 text-ink-950">
-            {health?.runtime === "browser" ? <Globe size={15} /> : <Server size={15} />}
+            <Globe size={15} />
           </div>
           <div className="min-w-0">
-            <div className="truncate text-[12px] font-medium text-ink-100">{health?.runtime === "browser" ? "Modo navegador" : "Servidor local"}</div>
+            <div className="truncate text-[12px] font-medium text-ink-100">Dados neste navegador</div>
             <div className="truncate text-[11px] text-ink-400">{health ? `${health.llmsReady}/${health.llmsTotal} LLMs prontas` : "Conectando…"}</div>
           </div>
         </div>
-        {health?.runtime === "browser" && (
+        {(
           <button
             onClick={() => confirm("Apagar todos os dados salvos neste navegador (agentes, LLMs, chaves, memórias)?") && resetBrowserData()}
             className="flex items-center gap-1 px-1 pt-1 text-[11px] text-ink-400 transition hover:text-bad"

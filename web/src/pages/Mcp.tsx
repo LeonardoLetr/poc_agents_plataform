@@ -9,11 +9,6 @@ import { fmtMs } from "../lib/format";
 import { useEventStream, useResource } from "../lib/hooks";
 
 const PRESETS = [
-  { name: "everything", label: "Everything (referência oficial)", transport: "stdio", command: "npx", args: "-y @modelcontextprotocol/server-everything", note: "Servidor de testes com ferramentas, prompts e recursos de exemplo." },
-  { name: "filesystem", label: "Filesystem", transport: "stdio", command: "npx", args: "-y @modelcontextprotocol/server-filesystem /tmp", note: "Lê e escreve arquivos dentro da pasta permitida (último argumento)." },
-  { name: "memory_graph", label: "Memory (grafo de conhecimento)", transport: "stdio", command: "npx", args: "-y @modelcontextprotocol/server-memory", note: "Memória persistente em forma de grafo de entidades e relações." },
-  { name: "fetch", label: "Fetch (Python/uvx)", transport: "stdio", command: "uvx", args: "mcp-server-fetch", note: "Busca páginas e converte para markdown. Requer uv instalado." },
-  { name: "git", label: "Git (Python/uvx)", transport: "stdio", command: "uvx", args: "mcp-server-git --repository .", note: "Ferramentas para ler histórico e diffs de um repositório git." },
   { name: "resend", label: "Resend (e-mail)", transport: "http", url: "https://mcp.resend.com/mcp", headers: "Authorization: Bearer re_sua_chave", via: "anthropic", note: "Servidor oficial do Resend para enviar e-mails, conectado pela API da Anthropic. Chave em resend.com/api-keys." },
   { name: "remoto", label: "Servidor remoto (HTTP)", transport: "http", url: "https://exemplo.com/mcp", note: "Qualquer servidor MCP via Streamable HTTP (com fallback para SSE)." },
 ] as const;
@@ -197,7 +192,7 @@ function ServerCard({ server, onChange, onEdit }: { server: McpServer; onChange:
               {server.via === "anthropic" && <Badge color="info">via Anthropic</Badge>}
             </div>
             <div className="mt-1 truncate font-mono text-[11px] text-ink-400">
-              {server.transport === "stdio" ? `$ ${server.command} ${(server.args ?? []).join(" ")}` : server.transport === "builtin" ? `embutido: ${server.command} (transporte em memória)` : server.url}
+              {server.transport === "builtin" ? `embutido: ${server.command} (transporte em memória)` : server.url}
             </div>
           </div>
           <div className="flex gap-1">
@@ -345,13 +340,12 @@ function ToolTester({ server, tool, onClose }: { server: McpServer; tool: McpSer
 
 /** Cadastro e edição. Na edição, valores ocultos (••••) mantêm o que já está salvo no servidor. */
 function ServerForm({ health, initial, onClose, onSaved }: { health: Health | null; initial: McpServer | null; onClose: () => void; onSaved: () => void }) {
-  const stdio = health?.capabilities.stdio ?? true;
-  type T = "stdio" | "http" | "builtin";
+  type T = "http" | "builtin";
   const lines = (o?: Record<string, string>, sep = ": ") => Object.entries(o ?? {}).map(([k, v]) => `${k}${sep}${v}`).join("\n");
   const [form, setForm] = useState(
     initial
-      ? { name: initial.name, transport: initial.transport as T, command: initial.command ?? "", args: (initial.args ?? []).join(" "), env: lines(initial.env, "="), url: initial.url ?? "", headers: lines(initial.headers), via: initial.via ?? "client" }
-      : { name: "", transport: (stdio ? "stdio" : "http") as T, command: stdio ? "npx" : "", args: "", env: "", url: "", headers: "", via: (stdio ? "client" : "anthropic") as "client" | "anthropic" },
+      ? { name: initial.name, transport: initial.transport as T, command: initial.command ?? "", url: initial.url ?? "", headers: lines(initial.headers), via: initial.via ?? "client" }
+      : { name: "", transport: "http" as T, command: "", url: "", headers: "", via: "anthropic" as "client" | "anthropic" },
   );
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -375,9 +369,8 @@ function ServerForm({ health, initial, onClose, onSaved }: { health: Health | nu
       const payload = {
         name: form.name,
         transport: form.transport,
-        command: form.transport !== "http" ? form.command : undefined,
-        args: form.transport === "stdio" ? form.args.match(/"[^"]*"|\S+/g)?.map((a) => a.replace(/^"|"$/g, "")) ?? [] : [],
-        env: kv(form.env),
+        command: form.transport === "builtin" ? form.command : undefined,
+        args: [],
         url: form.transport === "http" ? form.url : undefined,
         headers: kv(form.headers),
         via: form.transport === "http" ? form.via : undefined,
@@ -401,21 +394,18 @@ function ServerForm({ health, initial, onClose, onSaved }: { health: Health | nu
           {PRESETS.map((p) => (
             <button
               key={p.name}
-              disabled={p.transport === "stdio" && !stdio}
-              title={p.transport === "stdio" && !stdio ? "Precisa do servidor local (npm run dev)" : undefined}
               onClick={() =>
                 setForm({
                   ...form,
                   name: p.name,
                   transport: p.transport,
-                  command: "command" in p ? p.command : "",
-                  args: "args" in p ? p.args : "",
-                  url: "url" in p ? p.url : "",
+                  command: "",
+                  url: p.url,
                   headers: "headers" in p ? p.headers : "",
                   via: "via" in p ? p.via : form.via,
                 })
               }
-              className="rounded-xl border border-ink-700 bg-ink-900 p-2.5 text-left transition hover:border-mcp/40 hover:bg-mcp/5 disabled:cursor-not-allowed disabled:opacity-35"
+              className="rounded-xl border border-ink-700 bg-ink-900 p-2.5 text-left transition hover:border-mcp/40 hover:bg-mcp/5"
             >
               <div className="text-[12.5px] font-medium text-ink-100">{p.label}</div>
               <div className="mt-0.5 line-clamp-2 text-[11px] text-ink-400">{p.note}</div>
@@ -426,11 +416,10 @@ function ServerForm({ health, initial, onClose, onSaved }: { health: Health | nu
       <div className="space-y-4">
         <div className="grid gap-4 md:grid-cols-2">
           <Field label="Nome" hint="vira prefixo: mcp__nome__ferramenta">
-            <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="ex.: filesystem" />
+            <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="ex.: zapier" />
           </Field>
           <Field label="Transporte">
             <Select value={form.transport} onChange={(e) => setForm({ ...form, transport: e.target.value as T, command: e.target.value === "builtin" ? (health?.capabilities.builtinMcp[0] ?? "") : form.command })}>
-              <option value="stdio" disabled={!stdio}>stdio — processo local{stdio ? "" : " (só no modo servidor)"}</option>
               <option value="http">HTTP — servidor remoto</option>
               <option value="builtin">embutido — roda em memória</option>
             </Select>
@@ -442,20 +431,6 @@ function ServerForm({ health, initial, onClose, onSaved }: { health: Health | nu
               {health?.capabilities.builtinMcp.map((b) => <option key={b}>{b}</option>)}
             </Select>
           </Field>
-        ) : form.transport === "stdio" ? (
-          <>
-            <div className="grid gap-4 md:grid-cols-[160px_1fr]">
-              <Field label="Comando">
-                <Input value={form.command} onChange={(e) => setForm({ ...form, command: e.target.value })} className="font-mono" />
-              </Field>
-              <Field label="Argumentos">
-                <Input value={form.args} onChange={(e) => setForm({ ...form, args: e.target.value })} className="font-mono" placeholder="-y @modelcontextprotocol/server-everything" />
-              </Field>
-            </div>
-            <Field label="Variáveis de ambiente" hint={initial ? "uma por linha: CHAVE=valor · •••• mantém o valor salvo" : "uma por linha: CHAVE=valor (ficam ocultas na UI)"}>
-              <Textarea rows={2} value={form.env} onChange={(e) => setForm({ ...form, env: e.target.value })} className="font-mono text-[12px]" placeholder="GITHUB_TOKEN=..." />
-            </Field>
-          </>
         ) : (
           <>
             <Field label="URL">
