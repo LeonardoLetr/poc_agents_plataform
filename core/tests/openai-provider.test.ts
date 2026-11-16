@@ -41,7 +41,7 @@ afterEach(() => vi.unstubAllGlobals());
 
 describe("provedor compatível com OpenAI", () => {
   it("converte o histórico (tool_use → tool_calls, tool_result → role tool) e envia as ferramentas", async () => {
-    const fetchMock = vi.fn(async () => sse([{ choices: [{ delta: { content: "ok" }, finish_reason: "stop" }] }]));
+    const fetchMock = vi.fn<typeof fetch>(async () => sse([{ choices: [{ delta: { content: "ok" }, finish_reason: "stop" }] }]));
     vi.stubGlobal("fetch", fetchMock);
 
     await callOpenAi(
@@ -58,10 +58,10 @@ describe("provedor compatível com OpenAI", () => {
       ]),
     );
 
-    const [url, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
+    const [url, init] = fetchMock.mock.calls[0] ?? [];
     expect(url).toBe("https://exemplo.dev/v1/chat/completions");
-    expect((init.headers as Record<string, string>).authorization).toBe("Bearer sk-teste");
-    const body = JSON.parse(init.body as string);
+    expect((init?.headers as Record<string, string>).authorization).toBe("Bearer sk-teste");
+    const body = JSON.parse(init?.body as string);
     expect(body.messages).toEqual([
       { role: "system", content: "Seja breve." },
       { role: "user", content: "quanto é 6*7?" },

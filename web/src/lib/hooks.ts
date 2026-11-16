@@ -13,7 +13,7 @@ export function useResource<T>(url: string | null, deps: unknown[] = []) {
       setData(await api.get<T>(url));
       setError(null);
     } catch (e) {
-      setError((e as Error).message);
+      setError(e instanceof Error ? e.message : String(e));
     } finally {
       setLoading(false);
     }

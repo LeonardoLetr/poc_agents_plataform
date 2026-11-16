@@ -1,9 +1,9 @@
 import Anthropic from "@anthropic-ai/sdk";
 import type { LlmConfig } from "../types.js";
 import { describeMcpResult, MCP_CONNECTOR_BETA } from "../mcp/remote.js";
-import { describeServerResult, isServerToolResult } from "../tools/server.js";
+import { describeServerResult } from "../tools/server.js";
 import { supportsServerFallback } from "./catalog.js";
-import type { AssistantTurn, Block, LlmCall } from "./types.js";
+import type { AssistantTurn, LlmCall } from "./types.js";
 
 const clients = new Map<string, Anthropic>();
 
@@ -31,12 +31,12 @@ export async function callAnthropic(call: LlmCall): Promise<AssistantTurn> {
   const useFallback = llm.refusalFallback && supportsServerFallback(llm.model);
   const mcp = call.mcpServers ?? [];
   const betas = [...(useFallback ? ["server-side-fallback-2026-07-01"] : []), ...(mcp.length ? [MCP_CONNECTOR_BETA] : [])];
-  const params = {
+  const params: Anthropic.Beta.MessageCreateParams = {
     model: llm.model,
     max_tokens: llm.maxTokens || 64000,
     system: call.system,
     messages: call.messages,
-    tools: [...(call.tools as Anthropic.Beta.BetaToolUnion[]), ...(call.serverTools ?? [])],
+    tools: [...call.tools, ...(call.serverTools ?? [])],
     // Pensamento adaptativo com resumo, exibido na linha do tempo.
     thinking: { type: "adaptive" as const, display: "summarized" as const },
     output_config: { effort: llm.effort },
@@ -46,7 +46,7 @@ export async function callAnthropic(call: LlmCall): Promise<AssistantTurn> {
     ...(mcp.length ? { mcp_servers: mcp } : {}),
     ...(betas.length ? { betas } : {}),
   };
-  const stream = clientFor(llm).beta.messages.stream(params as Parameters<Anthropic["beta"]["messages"]["stream"]>[0], {
+  const stream = clientFor(llm).beta.messages.stream(params, {
     signal: call.signal,
   });
   // Texto que volta depois de um bloco de ferramenta de servidor começa em novo parágrafo.
@@ -60,7 +60,7 @@ export async function callAnthropic(call: LlmCall): Promise<AssistantTurn> {
       return;
     }
     if (event.type !== "content_block_delta") return;
-    const d = event.delta as { type: string; text?: string; thinking?: string };
+    const d = event.delta;
     if (d.type === "text_delta" && d.text) {
       emittedText = true;
       emit({ type: "text.delta", text: d.text });
@@ -68,44 +68,24 @@ export async function callAnthropic(call: LlmCall): Promise<AssistantTurn> {
   });
   // Ferramentas de servidor: a chamada e o resultado chegam como blocos completos durante o streaming.
   const serverCalls = new Map<string, { name: string; started: number }>();
+  const startCall = (id: string, name: string, input: unknown, server?: string) => {
+    serverCalls.set(id, { name, started: Date.now() });
+    emit({ type: "tool.call", id, name, input: input ?? {}, source: server ? "mcp" : "server", ...(server ? { server } : {}) });
+  };
+  const finishCall = (id: string, fallbackName: string, result: { output: string; isError: boolean }) => {
+    const info = serverCalls.get(id);
+    emit({ type: "tool.result", id, name: info?.name ?? fallbackName, ...result, durationMs: info ? Date.now() - info.started : 0 });
+  };
   stream.on("contentBlock", (block) => {
-    const b = block as unknown as { type: string; id?: string; name?: string; input?: unknown; tool_use_id?: string };
-    if (b.type === "mcp_tool_use" && b.id && b.name) {
-      // Ferramenta de um servidor MCP executada pela Anthropic: mesmo nome qualificado das ferramentas MCP locais.
-      const server = (block as unknown as { server_name: string }).server_name;
-      serverCalls.set(b.id, { name: `mcp__${server}__${b.name}`, started: Date.now() });
-      emit({ type: "tool.call", id: b.id, name: `mcp__${server}__${b.name}`, input: b.input ?? {}, source: "mcp", server });
-    } else if (b.type === "mcp_tool_result" && b.tool_use_id) {
-      const info = serverCalls.get(b.tool_use_id);
-      const { output, isError } = describeMcpResult(block as unknown as { content?: unknown; is_error?: boolean });
-      emit({
-        type: "tool.result",
-        id: b.tool_use_id,
-        name: info?.name ?? "mcp",
-        output,
-        isError,
-        durationMs: info ? Date.now() - info.started : 0,
-      });
-    } else if (b.type === "server_tool_use" && b.id && b.name) {
-      serverCalls.set(b.id, { name: b.name, started: Date.now() });
-      emit({ type: "tool.call", id: b.id, name: b.name, input: b.input ?? {}, source: "server" });
-    } else if (isServerToolResult(b)) {
-      const id = b.tool_use_id;
-      const callInfo = serverCalls.get(id);
-      const { output, isError } = describeServerResult(b);
-      emit({
-        type: "tool.result",
-        id,
-        name: callInfo?.name ?? b.type.replace(/_tool_result$/, ""),
-        output,
-        isError,
-        durationMs: callInfo ? Date.now() - callInfo.started : 0,
-      });
-    }
+    // Ferramenta de um servidor MCP executada pela Anthropic: mesmo nome qualificado das ferramentas MCP locais.
+    if (block.type === "mcp_tool_use") startCall(block.id, `mcp__${block.server_name}__${block.name}`, block.input, block.server_name);
+    else if (block.type === "mcp_tool_result") finishCall(block.tool_use_id, "mcp", describeMcpResult(block));
+    else if (block.type === "server_tool_use") startCall(block.id, block.name, block.input);
+    else if ("tool_use_id" in block) finishCall(block.tool_use_id, block.type.replace(/_tool_result$/, ""), describeServerResult(block));
   });
   const msg = await stream.finalMessage();
   return {
-    content: msg.content as unknown as Block[],
+    content: msg.content,
     stopReason: msg.stop_reason,
     usage: {
       input: msg.usage.input_tokens,

@@ -1,5 +1,6 @@
 import type Anthropic from "@anthropic-ai/sdk";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
+import { CallToolResultSchema } from "@modelcontextprotocol/sdk/types.js";
 import { SSEClientTransport } from "@modelcontextprotocol/sdk/client/sse.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
@@ -251,13 +252,15 @@ export async function callMcpTool(
   const c = connections.get(serverId);
   if (!c?.client || c.status !== "connected") throw new Error("Servidor MCP não está conectado.");
   log(serverId, `→ ${toolName}(${clip(JSON.stringify(args), 200)})`);
-  const result = await c.client.callTool({ name: toolName, arguments: args });
+  // O SDK aceita respostas no formato antigo do protocolo; aqui só interessa o formato atual, validado.
+  const parsed = CallToolResultSchema.safeParse(await c.client.callTool({ name: toolName, arguments: args }));
+  if (!parsed.success) throw new Error(`Resposta de ${toolName} fora do formato do protocolo MCP.`);
+  const result = parsed.data;
   const parts: string[] = [];
-  const content = (result.content ?? []) as { type: string; text?: string; mimeType?: string; resource?: { uri: string; text?: string } }[];
-  for (const block of content) {
-    if (block.type === "text") parts.push(block.text ?? "");
-    else if (block.type === "resource") parts.push(block.resource?.text ?? `[recurso ${block.resource?.uri}]`);
-    else parts.push(`[conteúdo ${block.type}${block.mimeType ? ` ${block.mimeType}` : ""} omitido]`);
+  for (const block of result.content) {
+    if (block.type === "text") parts.push(block.text);
+    else if (block.type === "resource") parts.push("text" in block.resource ? block.resource.text : `[recurso ${block.resource.uri}]`);
+    else parts.push(`[conteúdo ${block.type}${"mimeType" in block && block.mimeType ? ` ${block.mimeType}` : ""} omitido]`);
   }
   if (result.structuredContent && parts.length === 0) parts.push(JSON.stringify(result.structuredContent));
   const text = parts.join("\n") || "(sem conteúdo)";

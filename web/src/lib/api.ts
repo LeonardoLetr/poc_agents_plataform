@@ -1,69 +1,22 @@
-// Tipos espelhados do núcleo + cliente que fala com o servidor OU com o núcleo no navegador.
+// Tipos do núcleo usados pela interface + cliente que fala com o núcleo no navegador.
+import type { publicLlm } from "../../../core/llm/index";
+import type { publicState } from "../../../core/mcp/manager";
+import type { Citation } from "../../../core/tools/server";
+import type { AgentConfig, LlmConfig, McpServerConfig, RunEvent as CoreRunEvent, RunRecord, RunStatus } from "../../../core/types";
+import { z } from "zod";
 import { getCore } from "./runtime";
 
-export type Provider = "anthropic" | "openai" | "demo";
-export type Effort = "low" | "medium" | "high" | "xhigh" | "max";
+export type { AuditEntry, Effort, Memory, MemoryKind, PromptTemplate, Provider, RunStatus } from "../../../core/types";
+export type { Citation };
 
-export type Agent = {
-  id: string;
-  name: string;
-  emoji: string;
-  color: string;
-  description: string;
-  llmId: string;
-  systemPrompt: string;
-  tools: string[];
-  maxIterations: number;
-  requireApproval: boolean;
-  memory: { autoRecall: boolean; autoEpisode: boolean; recallLimit: number; recallEpisodes?: boolean };
-  context?: { autoCompact: boolean; thresholdPct: number };
-  createdAt: string;
-  updatedAt: string;
-};
-
-export type Llm = {
-  id: string;
-  name: string;
-  provider: Provider;
-  model: string;
-  baseUrl?: string | undefined;
-  effort: Effort;
-  refusalFallback: boolean;
-  maxTokens: number;
-  contextWindow?: number | undefined;
-  apiKeySet: boolean;
-  apiKeyHint: string | null;
-  ready: boolean;
-  agents: string[];
-  createdAt: string;
-  updatedAt: string;
-};
-export type LlmInput = {
-  name: string;
-  provider: Provider;
-  model: string;
-  apiKey?: string;
-  baseUrl?: string | undefined;
-  effort: Effort;
-  refusalFallback: boolean;
-  maxTokens?: number;
-  contextWindow?: number | undefined;
-};
-
+export type Agent = AgentConfig;
 export type AgentInput = Omit<Agent, "id" | "createdAt" | "updatedAt">;
 
-export type MemoryKind = "fact" | "episode" | "preference" | "procedure";
-export type Memory = {
-  id: string;
-  agentId: string | null;
-  kind: MemoryKind;
-  content: string;
-  tags: string[];
-  importance: number;
-  accessCount: number;
-  createdAt: string;
-  lastAccessedAt: string | null;
-  source: "user" | "agent" | "auto";
+/** LLM como a rota devolve: sem a chave, com o indicador de prontidão e os agentes que a usam. */
+export type Llm = ReturnType<typeof publicLlm> & { agents: string[] };
+export type LlmInput = Pick<LlmConfig, "name" | "provider" | "model" | "baseUrl" | "effort" | "refusalFallback" | "contextWindow"> & {
+  apiKey?: string;
+  maxTokens?: number;
 };
 
 export type ToolInfo = {
@@ -80,143 +33,19 @@ export type ToolInfo = {
   viaAnthropic?: boolean;
 };
 
-export type McpServer = {
-  id: string;
-  name: string;
-  transport: "http" | "builtin";
-  command?: string;
-  args?: string[];
-  url?: string;
-  /** Nomes dos cabeçalhos; os valores chegam ocultos (••••). */
-  headers?: Record<string, string>;
-  via?: "client" | "anthropic";
-  knownTools?: { name: string; description?: string; source: "discovered" | "used" }[];
-  enabled: boolean;
-  createdAt: string;
-  state: {
-    status: "disconnected" | "connecting" | "connected" | "error";
-    error?: string;
-    tools: { name: string; qualifiedName: string; description: string; inputSchema: ToolInfo["inputSchema"] }[];
-    serverInfo?: { name: string; version: string };
-    instructions?: string;
-    connectedAt?: string;
-    logs: string[];
-  };
+type McpState = ReturnType<typeof publicState>;
+
+/**
+ * Servidor MCP como a rota devolve: cabeçalhos com valores ocultos (••••) e o estado da conexão.
+ * O núcleo guarda o esquema das ferramentas como JSON Schema genérico; a interface lê só os campos do formulário.
+ */
+export type McpServer = McpServerConfig & {
+  state: Omit<McpState, "tools"> & { tools: (Omit<McpState["tools"][number], "inputSchema"> & { inputSchema: ToolInfo["inputSchema"] })[] };
 };
 
-export type PromptTemplate = {
-  id: string;
-  name: string;
-  description: string;
-  content: string;
-  category: "system" | "task";
-  createdAt: string;
-};
-
-export type AuditEntry = {
-  id: string;
-  ts: string;
-  type: string;
-  actor: "user" | "agent" | "system";
-  agentId?: string;
-  runId?: string;
-  summary: string;
-  data?: unknown;
-  durationMs?: number;
-  tokens?: { input: number; output: number; cacheRead?: number };
-};
-
-export type RunStatus = "running" | "awaiting_approval" | "completed" | "failed" | "cancelled";
-export type RunSummary = {
-  id: string;
-  agentId: string;
-  agentName: string;
-  input: string;
-  status: RunStatus;
-  output: string | null;
-  error: string | null;
-  iterations: number;
-  usage: { input: number; output: number };
-  startedAt: string;
-  finishedAt: string | null;
-  eventCount?: number;
-  parentRunId?: string;
-  depth?: number;
-  childRunIds?: string[];
-  childUsage?: { input: number; output: number };
-};
-export type RunDetail = {
-  events: RunEvent[];
-  messages: unknown[];
-  systemPrompt: string;
-  scratchpad: string[];
-} & RunSummary;
-
-export type Citation = {
-  url: string;
-  title: string | null;
-  citedText: string;
-};
-
-export type RunEvent = { ts: string } & (
-  | { type: "run.started"; runId: string; agentId: string; input: string; provider: Provider; model: string; llmName?: string }
-  | { type: "memory.recalled"; memories: { id: string; content: string; score: number; kind: MemoryKind }[] }
-  | { type: "iteration.started"; iteration: number }
-  | { type: "llm.request"; iteration: number; messageCount: number; toolCount: number; systemPrompt: string }
-  | { type: "thinking.delta"; text: string }
-  | { type: "text.delta"; text: string }
-  | {
-      type: "llm.response";
-      iteration: number;
-      stopReason: string | null;
-      usage: { input: number; output: number; cacheRead?: number; cacheWrite?: number };
-      durationMs: number;
-      model: string;
-    }
-  | { type: "tool.call"; id: string; name: string; input: unknown; source: "builtin" | "mcp" | "server" | "agent"; server?: string }
-  | { type: "tool.approval_requested"; id: string; name: string; input: unknown }
-  | { type: "tool.approval_resolved"; id: string; approved: boolean }
-  | { type: "tool.result"; id: string; name: string; output: string; isError: boolean; durationMs: number }
-  | { type: "citations"; items: Citation[] }
-  | {
-      type: "context.measured";
-      iteration: number;
-      tokens: number;
-      window: number;
-      cacheRead: number;
-      breakdown: { system: number; tools: number; history: number };
-      messageCount: number;
-    }
-  | {
-      type: "context.compacted";
-      iteration: number;
-      tokensBefore: number;
-      tokensAfter: number;
-      messagesBefore: number;
-      summary: string;
-      thresholdPct: number;
-    }
-  | { type: "delegation.started"; toolUseId: string; childRunId: string; agentId: string; agentName: string; task: string }
-  | {
-      type: "delegation.finished";
-      toolUseId: string;
-      childRunId: string;
-      status: RunStatus;
-      iterations: number;
-      usage: { input: number; output: number };
-    }
-  | { type: "memory.created"; memory: Memory }
-  | { type: "user.message"; text: string }
-  | {
-      type: "run.completed";
-      output: string;
-      iterations: number;
-      usage: { input: number; output: number };
-      childUsage?: { input: number; output: number };
-    }
-  | { type: "run.failed"; error: string }
-  | { type: "run.cancelled" }
-);
+export type RunEvent = CoreRunEvent & { ts: string };
+export type RunDetail = Omit<RunRecord, "events"> & { events: RunEvent[] };
+export type RunSummary = Omit<RunDetail, "events" | "messages"> & { eventCount?: number };
 
 export type Health = {
   ok: boolean;
@@ -245,6 +74,12 @@ export type Stats = {
 };
 
 /** A "requisição" é uma chamada de função ao núcleo, na mesma aba. */
+/** Corpo de erro das rotas: mensagem simples ou a lista de problemas de validação. */
+const ErrorBody = z.object({
+  error: z.string().optional(),
+  issues: z.array(z.object({ path: z.array(z.union([z.string(), z.number()])), message: z.string() })).optional(),
+});
+
 async function request<T>(method: string, url: string, body?: unknown): Promise<T> {
   const core = await getCore();
   const parsed = new URL(url, "http://local");
@@ -252,10 +87,12 @@ async function request<T>(method: string, url: string, body?: unknown): Promise<
   const status = res.status;
   const data: unknown = JSON.parse(JSON.stringify(res.body ?? null)); // cópia: a UI não pode mutar o estado do núcleo
   if (status >= 400) {
-    const issues = (data as { issues?: { path: string[]; message: string }[] }).issues;
+    const parsedError = ErrorBody.safeParse(data);
+    const { error, issues } = parsedError.success ? parsedError.data : {};
     const detail = issues?.map((i) => `${i.path.join(".")}: ${i.message}`).join("; ");
-    throw new Error(detail || (data as { error?: string }).error || `HTTP ${status}`);
+    throw new Error(detail || error || `HTTP ${status}`);
   }
+  // O núcleo roda no mesmo processo e é a fonte da resposta; quem chama informa o tipo da rota.
   return data as T;
 }
 

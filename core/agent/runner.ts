@@ -1,6 +1,6 @@
 import type Anthropic from "@anthropic-ai/sdk";
 import { audit } from "../audit.js";
-import { callLlm, friendlyLlmError, llmHasCredentials, type Msg } from "../llm/index.js";
+import { callLlm, friendlyLlmError, llmHasCredentials } from "../llm/index.js";
 import { createMemory, searchMemories } from "../memory.js";
 import { allMcpTools, callMcpTool, resolveMcpTool } from "../mcp/manager.js";
 import { rememberUsedTool, remoteMcpFor } from "../mcp/remote.js";
@@ -19,7 +19,7 @@ import {
 import { agentIdFromTool, agentToolDefinition, delegationBlocked, isAgentTool } from "./delegation.js";
 import { collectCitations, isServerTool, serverToolDefinitions } from "../tools/server.js";
 import type { AgentConfig, LlmConfig, RunEvent, RunRecord } from "../types.js";
-import { bus, clip, errorMessage, now, uid } from "../util.js";
+import { bus, clip, errorMessage, isRecord, now, uid } from "../util.js";
 
 /**
  * O CORAÇÃO DA PLATAFORMA: o loop agêntico.
@@ -53,8 +53,13 @@ function emit(run: LiveRun, ev: RunEvent) {
   const events = run.record.events;
   const last = events[events.length - 1];
   // Deltas de texto/pensamento são agrupados no histórico salvo (mas transmitidos um a um ao vivo).
-  if (last && (ev.type === "text.delta" || ev.type === "thinking.delta") && last.type === ev.type) {
-    (last as { text: string }).text += ev.text;
+  if (
+    last &&
+    (ev.type === "text.delta" || ev.type === "thinking.delta") &&
+    (last.type === "text.delta" || last.type === "thinking.delta") &&
+    last.type === ev.type
+  ) {
+    last.text += ev.text;
   } else {
     events.push({ ...ev, ts: now(), seq: events.length });
   }
@@ -83,10 +88,10 @@ function resolveTools(agent: AgentConfig) {
 }
 
 /** Ferramentas de servidor habilitadas no agente. Só são enviadas a LLMs Anthropic. */
-function resolveServerTools(agent: AgentConfig, llm: LlmConfig) {
+function resolveServerTools(agent: AgentConfig, llm: LlmConfig): { defs: Anthropic.Beta.BetaToolUnion[]; ignored: string[] } {
   const names = agent.tools.filter(isServerTool);
   if (llm.provider !== "anthropic") return { defs: [], ignored: names };
-  return { defs: serverToolDefinitions(names, llm.model), ignored: [] as string[] };
+  return { defs: serverToolDefinitions(names, llm.model), ignored: [] };
 }
 
 function buildSystemPrompt(agent: AgentConfig, recalled: { content: string; kind: string }[]): string {
@@ -109,7 +114,7 @@ async function executeTool(
   block: { id: string; name: string; input: unknown },
   ctx: ToolContext,
 ): Promise<Anthropic.Beta.BetaToolResultBlockParam> {
-  const input = (block.input ?? {}) as Record<string, unknown>;
+  const input = isRecord(block.input) ? block.input : {};
   const delegated = isAgentTool(block.name);
   const mcp = builtinTools[block.name] || delegated ? null : resolveMcpTool(block.name, db.mcpServers);
   emit(run, {
@@ -275,7 +280,7 @@ async function compactHistory(
   window: number,
 ) {
   const { record, llm, agent } = run;
-  const messages = record.messages as Msg[];
+  const messages = record.messages;
   const tokensBefore = record.context?.tokens ?? 0;
   const thresholdPct = agent.context?.thresholdPct ?? 60;
   const last = messages[messages.length - 1];
@@ -414,7 +419,7 @@ async function loop(run: LiveRun) {
       if (run.abort.signal.aborted) throw new DOMException("cancelado", "AbortError");
       // Resumo automático: só com a rodada anterior respondida (última mensagem do usuário).
       const window = contextWindowFor(llm);
-      const lastRole = (record.messages[record.messages.length - 1] as { role?: string } | undefined)?.role;
+      const lastRole = record.messages.at(-1)?.role;
       // Intervalo mínimo de 2 iterações entre resumos: com um limite muito baixo, o resumo não pode virar um loop de custo.
       const lastCompaction = record.compactions?.[record.compactions.length - 1];
       const recentlyCompacted = lastCompaction !== undefined && iteration - lastCompaction.iteration < 2;
@@ -468,7 +473,7 @@ async function loop(run: LiveRun) {
         llm,
         input: record.input,
         system: record.systemPrompt,
-        messages: record.messages as Msg[],
+        messages: record.messages,
         tools,
         serverTools: providerTools,
         mcpServers: remote.servers,
@@ -505,7 +510,7 @@ async function loop(run: LiveRun) {
         data: { model: turn.model, stopReason: turn.stopReason, text: clip(text, 2000), toolUses: toolUses.map((t) => t.name) },
       });
 
-      const citations = collectCitations(turn.content as { type: string }[]);
+      const citations = collectCitations(turn.content);
       if (citations.length) emit(run, { type: "citations", items: citations });
 
       // O conteúdo do assistente volta para o histórico exatamente como veio (inclusive blocos de pensamento).

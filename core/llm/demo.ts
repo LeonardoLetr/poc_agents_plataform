@@ -1,6 +1,7 @@
 import { hostEnv } from "../env.js";
 import { COMPACTED_MARKER, estimateTokens, SUMMARY_REQUEST_MARKER } from "../agent/context.js";
 import type { RunEvent } from "../types.js";
+import { isRecord } from "../util.js";
 import type { AssistantTurn, LlmCall, Msg } from "./types.js";
 
 /**
@@ -185,7 +186,7 @@ function summarize(results: { name: string; content: string }[], agentNames: Map
     } catch {
       data = r.content;
     }
-    const d = data as Record<string, unknown>;
+    const d = isRecord(data) ? data : {};
     if (typeof r.content === "string" && r.content.startsWith("Erro")) lines.push(`- **${r.name}** falhou: ${r.content}`);
     else if (r.name === "calculator") lines.push(`- **Cálculo:** \`${show(d.expression)}\` = **${show(d.result)}**`);
     else if (r.name === "current_time") lines.push(`- **Agora:** ${show(d.local)}`);
@@ -196,7 +197,7 @@ function summarize(results: { name: string; content: string }[], agentNames: Map
           .replace(/\s+/g, " ")}…`,
       );
     else if (r.name === "memory_search") {
-      const arr = Array.isArray(data) ? (data as { content: string; score: number }[]) : [];
+      const arr = Array.isArray(data) ? data.filter(isRecord).map((m) => ({ content: show(m.content), score: show(m.score) })) : [];
       lines.push(
         arr.length
           ? `- **Memórias encontradas:**\n${arr
@@ -207,7 +208,9 @@ function summarize(results: { name: string; content: string }[], agentNames: Map
       );
     } else if (r.name === "memory_save") lines.push("- **Memória salva** para as próximas conversas.");
     else if (r.name.endsWith("dados_rolar"))
-      lines.push(`- **Dados (via MCP):** ${show(d.notacao)} → [${(d.rolagens as number[]).join(", ")}] = **${show(d.total)}**`);
+      lines.push(
+        `- **Dados (via MCP):** ${show(d.notacao)} → [${Array.isArray(d.rolagens) ? d.rolagens.join(", ") : ""}] = **${show(d.total)}**`,
+      );
     else if (r.name.endsWith("notas_adicionar")) lines.push(`- **Nota salva no servidor MCP** (total: ${show(d.total)})`);
     else if (r.name === "scratchpad_write") lines.push("- Plano registrado no scratchpad.");
     else if (r.name.startsWith("agent__")) {
@@ -272,7 +275,7 @@ export async function demoTurn(call: LlmCall): Promise<AssistantTurn> {
   const lastMsg = messages[messages.length - 1];
   if (typeof lastMsg?.content === "string" && lastMsg.content.startsWith(SUMMARY_REQUEST_MARKER)) {
     await sleep(350, signal);
-    const firstTask = messages.find((m) => typeof m.content === "string")?.content as string | undefined;
+    const firstTask = messages.map((m) => m.content).find((c) => typeof c === "string");
     const text = `<summary>\n${demoSummary(messages.slice(0, -1), firstTask ?? input)}\n</summary>`;
     return { content: [{ type: "text", text }], stopReason: "end_turn", usage: usageFor(text), model: "demo-simulado" };
   }
@@ -290,8 +293,8 @@ export async function demoTurn(call: LlmCall): Promise<AssistantTurn> {
 
   const toolNames = tools.map((t) => t.name);
   const agentNames = new Map(
-    tools.flatMap((t) =>
-      t.name.startsWith("agent__") ? [[t.name, t.description?.match(/agente "([^"]+)"/)?.[1] ?? t.name] as [string, string]] : [],
+    tools.flatMap((t): [string, string][] =>
+      t.name.startsWith("agent__") ? [[t.name, t.description?.match(/agente "([^"]+)"/)?.[1] ?? t.name]] : [],
     ),
   );
   const steps = plan(task, toolNames, agentNames);

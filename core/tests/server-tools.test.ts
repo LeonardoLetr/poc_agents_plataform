@@ -119,12 +119,14 @@ describe("leitura dos resultados", () => {
   it("formata resultados de busca, documentos e erros (que chegam como objeto, não exceção)", () => {
     const search = describeServerResult({
       type: "web_search_tool_result",
-      content: [{ type: "web_search_result", title: "A", url: "https://a.dev" }],
+      tool_use_id: "srvtoolu_1",
+      content: [{ type: "web_search_result", title: "A", url: "https://a.dev", page_age: null, encrypted_content: "" }],
     });
     expect(search).toEqual({ output: "1. A — https://a.dev", isError: false });
 
     const error = describeServerResult({
       type: "web_search_tool_result",
+      tool_use_id: "srvtoolu_2",
       content: { type: "web_search_tool_result_error", error_code: "max_uses_exceeded" },
     });
     expect(error.isError).toBe(true);
@@ -132,10 +134,17 @@ describe("leitura dos resultados", () => {
 
     const doc = describeServerResult({
       type: "web_fetch_tool_result",
+      tool_use_id: "srvtoolu_3",
       content: {
         type: "web_fetch_result",
         url: "https://b.dev",
-        content: { type: "document", title: "Página B", source: { type: "text", media_type: "text/plain", data: "conteúdo da página" } },
+        retrieved_at: null,
+        content: {
+          type: "document",
+          title: "Página B",
+          citations: null,
+          source: { type: "text", media_type: "text/plain", data: "conteúdo da página" },
+        },
       },
     });
     expect(doc.isError).toBe(false);
@@ -144,7 +153,13 @@ describe("leitura dos resultados", () => {
   });
 
   it("coleta citações sem duplicar", () => {
-    const cite = { type: "web_search_result_location", url: "https://a.dev", title: "A", cited_text: "trecho" };
+    const cite = {
+      type: "web_search_result_location" as const,
+      url: "https://a.dev",
+      title: "A",
+      cited_text: "trecho",
+      encrypted_index: "",
+    };
     const items = collectCitations([
       { type: "text", text: "x", citations: [cite, cite] },
       { type: "text", text: "y" },
@@ -173,7 +188,7 @@ describe("texto da resposta", () => {
 
 describe("provedor Anthropic com ferramentas de servidor", () => {
   it("envia as definições na requisição e emite chamada e resultado ao vivo", async () => {
-    const fetchMock = vi.fn(async () => searchTurn());
+    const fetchMock = vi.fn<typeof fetch>(async () => searchTurn());
     vi.stubGlobal("fetch", fetchMock);
     const events: RunEvent[] = [];
     const call: LlmCall = {
@@ -189,7 +204,7 @@ describe("provedor Anthropic com ferramentas de servidor", () => {
 
     const turn = await callAnthropic(call);
 
-    const body = JSON.parse((fetchMock.mock.calls[0] as unknown as [string, RequestInit])[1].body as string);
+    const body = JSON.parse(fetchMock.mock.calls[0]?.[1]?.body as string);
     expect(body.tools).toEqual([{ type: "web_search_20260209", name: "web_search", max_uses: 5 }]);
     expect(turn.stopReason).toBe("end_turn");
     const callEv = events.find((e) => e.type === "tool.call");

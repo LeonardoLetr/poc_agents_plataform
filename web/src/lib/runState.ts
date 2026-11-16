@@ -29,7 +29,7 @@ export type Step =
       text: string;
       tools: ToolStep[];
       citations?: Citation[];
-      usage?: { input: number; output: number; cacheRead?: number };
+      usage?: { input: number; output: number; cacheRead?: number | undefined };
       stopReason?: string | null;
       durationMs?: number;
       messageCount?: number;

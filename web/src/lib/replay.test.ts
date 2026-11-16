@@ -4,7 +4,7 @@ import { iterationAt, iterationStarts, jumpIteration, replayDelay, viewAt } from
 
 const at = (s: number) => new Date(Date.UTC(2026, 0, 1, 0, 0, s)).toISOString();
 const events: RunEvent[] = [
-  { type: "run.started", runId: "r", agentId: "a", input: "quanto é 2+2?", provider: "demo", model: "demo", ts: at(0) },
+  { type: "run.started", runId: "r", agentId: "a", input: "quanto é 2+2?", provider: "demo", model: "demo", llmName: "Demo", ts: at(0) },
   { type: "iteration.started", iteration: 1, ts: at(1) },
   { type: "text.delta", text: "Vou calcular.", ts: at(2) },
   {

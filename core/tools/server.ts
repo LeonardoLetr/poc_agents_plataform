@@ -57,51 +57,46 @@ export function serverToolDefinitions(names: string[], model: string): Anthropic
   return defs;
 }
 
-type AnyBlock = { type: string; [k: string]: unknown };
-
-/** Bloco de resultado de ferramenta de servidor (`web_search_tool_result`, `web_fetch_tool_result`, ...). */
-export const isServerToolResult = (b: AnyBlock): b is AnyBlock & { tool_use_id: string } =>
-  b.type.endsWith("_tool_result") && b.type !== "tool_result" && typeof b.tool_use_id === "string";
+/** Resultado de ferramenta executada pela Anthropic (`web_search_tool_result`, `web_fetch_tool_result`...). Os de MCP têm leitura própria. */
+export type ServerToolResultBlock = Exclude<
+  Extract<Anthropic.Beta.BetaContentBlock, { tool_use_id: string }>,
+  Anthropic.Beta.BetaMCPToolResultBlock
+>;
 
 const clip = (s: string, n: number) => (s.length > n ? `${s.slice(0, n - 1)}…` : s);
 
 /** Texto legível do resultado, para a linha do tempo e a auditoria. Erros chegam como objeto, nunca como exceção. */
-export function describeServerResult(block: AnyBlock): { output: string; isError: boolean } {
-  const content = block.content;
-  if (content && typeof content === "object" && !Array.isArray(content) && "error_code" in content) {
-    return { output: `Erro da ferramenta de servidor: ${String(content.error_code)}`, isError: true };
+export function describeServerResult(block: ServerToolResultBlock): { output: string; isError: boolean } {
+  if (typeof block.content === "object" && "error_code" in block.content) {
+    return { output: `Erro da ferramenta de servidor: ${block.content.error_code}`, isError: true };
   }
-  // web_search: lista de resultados.
-  if (Array.isArray(content)) {
-    const results = content as { type?: string; title?: string; url?: string; page_age?: string | null }[];
-    if (!results.length) return { output: "Nenhum resultado encontrado.", isError: false };
-    const lines = results.map((r, i) => `${i + 1}. ${r.title ?? "(sem título)"} — ${r.url ?? ""}${r.page_age ? ` (${r.page_age})` : ""}`);
-    return { output: lines.join("\n"), isError: false };
-  }
-  if (content && typeof content === "object") {
-    const c = content as {
-      type?: string;
-      url?: string;
-      retrieved_at?: string;
-      content?: { title?: string | null; source?: { type?: string; data?: string; media_type?: string } };
-      stdout?: string;
-      stderr?: string;
-      return_code?: number;
-    };
-    // web_fetch: documento recuperado.
-    if (c.type === "web_fetch_result") {
-      const doc = c.content;
-      const text = doc?.source?.type === "text" ? (doc.source.data ?? "") : `[${doc?.source?.media_type ?? "documento"}]`;
-      const header = [c.url, doc?.title].filter(Boolean).join("\n");
+  switch (block.type) {
+    case "web_search_tool_result": {
+      if (!Array.isArray(block.content)) break;
+      if (!block.content.length) return { output: "Nenhum resultado encontrado.", isError: false };
+      const lines = block.content.map((r, i) => `${i + 1}. ${r.title} — ${r.url}${r.page_age ? ` (${r.page_age})` : ""}`);
+      return { output: lines.join("\n"), isError: false };
+    }
+    case "web_fetch_tool_result": {
+      const { url, content: doc } = block.content;
+      const text = doc.source.type === "text" ? doc.source.data : `[${doc.source.media_type}]`;
+      const header = [url, doc.title].filter(Boolean).join("\n");
       return { output: `${header}\n\n${clip(text.trim(), 1500)}`, isError: false };
     }
     // Execução de código usada internamente pela filtragem dinâmica.
-    if (typeof c.stdout === "string" || typeof c.return_code === "number") {
-      const out = [c.stdout, c.stderr].filter(Boolean).join("\n");
-      return { output: clip(out || "(sem saída)", 1500), isError: (c.return_code ?? 0) !== 0 };
+    case "code_execution_tool_result":
+    case "bash_code_execution_tool_result": {
+      if (!("stdout" in block.content)) break;
+      const out = [block.content.stdout, block.content.stderr].filter(Boolean).join("\n");
+      return { output: clip(out || "(sem saída)", 1500), isError: block.content.return_code !== 0 };
     }
+    // Sem formatação própria: aparecem como JSON.
+    case "advisor_tool_result":
+    case "text_editor_code_execution_tool_result":
+    case "tool_search_tool_result":
+      break;
   }
-  return { output: clip(JSON.stringify(content ?? null), 1500), isError: false };
+  return { output: clip(JSON.stringify(block.content), 1500), isError: false };
 }
 
 export type Citation = {
@@ -110,25 +105,18 @@ export type Citation = {
   citedText: string;
 };
 
-/** Citações anexadas aos blocos de texto da resposta (busca e leitura de páginas). */
-export function collectCitations(content: AnyBlock[]): Citation[] {
+/** Citações de páginas da web anexadas aos blocos de texto da resposta (busca e leitura de páginas). */
+export function collectCitations(content: Anthropic.Beta.BetaContentBlockParam[]): Citation[] {
   const seen = new Set<string>();
   const out: Citation[] = [];
   for (const b of content) {
-    if (b.type !== "text" || !Array.isArray(b.citations)) continue;
-    for (const c of b.citations as {
-      type?: string;
-      url?: string;
-      title?: string | null;
-      cited_text?: string;
-      document_title?: string | null;
-    }[]) {
-      const url = c.url;
-      if (!url) continue;
-      const key = `${url}|${c.cited_text ?? ""}`;
+    if (b.type !== "text") continue;
+    for (const c of b.citations ?? []) {
+      if (c.type !== "web_search_result_location") continue;
+      const key = `${c.url}|${c.cited_text}`;
       if (seen.has(key)) continue;
       seen.add(key);
-      out.push({ url, title: c.title ?? c.document_title ?? null, citedText: clip(c.cited_text ?? "", 300) });
+      out.push({ url: c.url, title: c.title, citedText: clip(c.cited_text, 300) });
     }
   }
   return out;

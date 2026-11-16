@@ -25,7 +25,7 @@ Melhorias e novas funcionalidades planejadas, priorizadas por impacto e esforço
 | AL-13 | Busca semântica de memória com embeddings | Funcionalidade | P3 | M | a fazer |
 | AL-14 | Publicação do servidor na AWS | Infraestrutura | P3 | G | a fazer |
 | AL-15 | Servidores MCP remotos via conector da API do Claude | Funcionalidade | P2 | M | concluído |
-| AL-16 | Adequar o núcleo às diretrizes de código | Qualidade | P1 | G | em andamento (fases 1 e 2 concluídas) |
+| AL-16 | Adequar o núcleo às diretrizes de código | Qualidade | P1 | G | em andamento (fases 1 a 3 concluídas) |
 
 Sequência sugerida: AL-16 → AL-11 → AL-10 → demais → AL-14 (último).
 
@@ -188,7 +188,8 @@ Sequência sugerida: AL-16 → AL-11 → AL-10 → demais → AL-14 (último).
      (concluída);
   2. adotar typescript-eslint (`strict-type-checked` e as regras da seção 9) e formatação automática no CI
      (concluída);
-  3. trocar as formas escritas à mão pelos tipos do SDK da Anthropic e eliminar `as unknown as`;
+  3. trocar as formas escritas à mão pelos tipos do SDK da Anthropic e eliminar `as unknown as` (concluída; os casts
+     restantes estão nas fronteiras de dados salvos e importados, tratadas na fase 6);
   4. dividir `loop()` em etapas (chamar a LLM, processar a resposta, executar ferramentas, registrar), com as decisões
      em funções puras testadas diretamente;
   5. separar `core/router.ts` em rotas por recurso;

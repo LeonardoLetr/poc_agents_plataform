@@ -293,6 +293,12 @@ export function seedDb(): DB {
 
 /** Converte dados da versão 1 (provedor/modelo dentro do agente) para LLMs separadas. */
 /** Servidor MCP de uma ferramenta qualificada (`mcp__<servidor>__<ferramenta>`). */
+/** Dados antigos ainda podem trazer o transporte stdio, que o tipo atual não admite mais. */
+function isLegacyStdio(s: McpServerConfig): boolean {
+  const transport: string = s.transport;
+  return transport === "stdio";
+}
+
 const serverOfTool = (tool: string) => tool.slice("mcp__".length).split("__")[0] ?? "";
 
 export function migrate(raw: Record<string, unknown>): DB {
@@ -335,8 +341,7 @@ export function migrate(raw: Record<string, unknown>): DB {
     }
     // O laboratorio agora é embutido (funciona sem processo externo).
     for (const s of out.mcpServers)
-      if (s.name === "laboratorio" && (s.transport as string) === "stdio")
-        Object.assign(s, { transport: "builtin", command: "laboratorio", args: [] });
+      if (s.name === "laboratorio" && isLegacyStdio(s)) Object.assign(s, { transport: "builtin", command: "laboratorio", args: [] });
   }
   if ((data.version ?? 1) < 3) {
     // Versão 3: multiagente. Adiciona o coordenador de exemplo quando o agente demo ainda existe.
@@ -378,10 +383,9 @@ export function migrate(raw: Record<string, unknown>): DB {
   }
   if ((data.version ?? 1) < 9) {
     // Versão 9: sem servidor local, não há mais transporte stdio. Servidores stdio e suas ferramentas saem dos dados.
-    const legacy = out.mcpServers as unknown as { name: string; transport: string }[];
-    const removed = new Set(legacy.filter((s) => s.transport === "stdio").map((s) => s.name));
+    const removed = new Set(out.mcpServers.filter(isLegacyStdio).map((s) => s.name));
     out.mcpServers = out.mcpServers.filter((s) => !removed.has(s.name));
-    for (const s of out.mcpServers as (McpServerConfig & { env?: unknown })[]) delete s.env;
+    for (const s of out.mcpServers) Reflect.deleteProperty(s, "env");
     for (const a of out.agents) a.tools = a.tools.filter((t) => !t.startsWith("mcp__") || !removed.has(serverOfTool(t)));
   }
   return out;

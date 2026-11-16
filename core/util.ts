@@ -1,3 +1,5 @@
+import type { RunEvent } from "./types.js";
+
 // Utilitários sem dependência de Node (funcionam no navegador também).
 
 export const uid = (prefix: string) => `${prefix}_${globalThis.crypto.randomUUID().replace(/-/g, "").slice(0, 12)}`;
@@ -38,3 +40,12 @@ export class Emitter {
 }
 
 export const bus = new Emitter();
+
+/** Objeto simples (não nulo nem lista), com campos ainda por verificar. */
+export const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null && !Array.isArray(value);
+
+/** Eventos de um tipo, já estreitados para a variante correspondente da união. */
+export function eventsOfType<T extends RunEvent["type"]>(events: readonly RunEvent[], type: T): Extract<RunEvent, { type: T }>[] {
+  return events.filter((e): e is Extract<RunEvent, { type: T }> => e.type === type);
+}

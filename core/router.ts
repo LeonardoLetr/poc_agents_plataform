@@ -13,7 +13,7 @@ import { SERVER_TOOLS } from "./tools/server.js";
 import { DISCOVERY_PROMPT, isRemoteMcp, mergeKnownTools, parseDiscoveredTools, serverDefinition } from "./mcp/remote.js";
 import { agentToolDefinition, agentToolName } from "./agent/delegation.js";
 import { MEMORY_KINDS, type AgentConfig, type AuditEntry, type McpServerConfig, type PromptTemplate, type RunRecord } from "./types.js";
-import { bus, clip, errorMessage, now, uid } from "./util.js";
+import { bus, clip, errorMessage, eventsOfType, now, uid } from "./util.js";
 
 /**
  * A API inteira da plataforma, independente de framework. O servidor Express
@@ -78,8 +78,8 @@ route("GET", "/api/stats", () => {
   });
   let cost = 0;
   for (const r of runs) {
-    const model = r.events.find((e) => e.type === "run.started") as { model?: string } | undefined;
-    const p = model?.model ? PRICING[model.model] : undefined;
+    const [started] = eventsOfType(r.events, "run.started");
+    const p = started ? PRICING[started.model] : undefined;
     if (p) cost += (r.usage.input * p.input + r.usage.output * p.output) / 1e6;
   }
   const toolCalls = db.audit.filter((a) => a.type === "tool.call");
@@ -288,7 +288,7 @@ route("PUT", "/api/agents/:id", ({ id }, req) => {
   const before = structuredClone(agent);
   Object.assign(agent, body, { updatedAt: now() });
   persist();
-  const changed = Object.keys(body).filter((k) => JSON.stringify((before as never)[k]) !== JSON.stringify((agent as never)[k]));
+  const changed = Object.keys(body).filter((k) => JSON.stringify(Reflect.get(before, k)) !== JSON.stringify(Reflect.get(agent, k)));
   audit({
     type: "config.changed",
     actor: "user",
@@ -468,7 +468,7 @@ route("POST", "/api/mcp/:id/discover", async ({ id }, req) => {
     signal: AbortSignal.timeout(90_000),
     emit: () => undefined,
   }).catch((err: unknown) => {
-    throw new HttpError(502, friendlyLlmError(err) ?? (err as Error).message);
+    throw new HttpError(502, friendlyLlmError(err) ?? errorMessage(err));
   });
   const text = turnText(turn.content);
   const discovered = parseDiscoveredTools(text);
@@ -571,10 +571,10 @@ route("POST", "/api/runs/:id/approve", ({ id }, req) => {
 // ───────────────────────── Comparação lado a lado ─────────────────────────
 /** Métricas de uma execução, usadas na comparação. Custo só é estimado para modelos com preço conhecido. */
 function runMetrics(r: RunRecord) {
-  const started = r.events.find((e) => e.type === "run.started") as { model?: string; llmName?: string; provider?: string } | undefined;
+  const [started] = eventsOfType(r.events, "run.started");
   const model = started?.model ?? "";
   const price = PRICING[model];
-  const toolCalls = r.events.filter((e) => e.type === "tool.call").map((e) => (e as { name: string }).name);
+  const toolCalls = eventsOfType(r.events, "tool.call").map((e) => e.name);
   return {
     runId: r.id,
     agentId: r.agentId,

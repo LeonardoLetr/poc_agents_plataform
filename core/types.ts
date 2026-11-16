@@ -1,3 +1,4 @@
+import type Anthropic from "@anthropic-ai/sdk";
 // Tipos de domínio do núcleo.
 // Campos opcionais aceitam `undefined` explícito: são preenchidos a partir de entradas validadas (Zod) e podem ser limpos.
 
@@ -234,7 +235,7 @@ export type RunRecord = {
   finishedAt: string | null;
   events: (RunEvent & { ts: string; seq: number })[];
   /** Histórico exato enviado ao LLM (a "janela de contexto"). */
-  messages: unknown[];
+  messages: Anthropic.Beta.BetaMessageParam[];
   systemPrompt: string;
   scratchpad: string[];
   /** LLM usada nesta execução (pode diferir da LLM configurada no agente, ex.: em comparações). */

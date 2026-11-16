@@ -94,7 +94,7 @@ export function createLabServer(): McpServer {
     {
       title: "Converter unidades",
       description: `Converte valores entre unidades. Conversões suportadas: ${Object.keys(UNITS).join(", ")}.`,
-      inputSchema: { valor: z.number(), conversao: z.enum(Object.keys(UNITS) as [string, ...string[]]) },
+      inputSchema: { valor: z.number(), conversao: z.enum(Object.keys(UNITS)) },
     },
     async ({ valor, conversao }) => {
       const convert = UNITS[conversao];

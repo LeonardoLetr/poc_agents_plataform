@@ -40,7 +40,11 @@ export function serverDefinition(s: RemoteMcpServer): Anthropic.Beta.BetaRequest
  * Servidores e conjuntos de ferramentas a enviar na requisição. Com `mcp__<servidor>__*` todas as ferramentas ficam
  * disponíveis; com nomes individuais, só elas (as demais ficam desligadas).
  */
-export function remoteMcpFor(agent: AgentConfig, llm: LlmConfig, servers: McpServerConfig[]) {
+export function remoteMcpFor(
+  agent: AgentConfig,
+  llm: LlmConfig,
+  servers: McpServerConfig[],
+): { servers: Anthropic.Beta.BetaRequestMCPServerURLDefinition[]; toolsets: Anthropic.Beta.BetaMCPToolset[]; ignored: string[] } {
   const wanted = servers.filter(isRemoteMcp).filter((s) => s.enabled && agent.tools.some((t) => t.startsWith(`mcp__${s.name}__`)));
   if (llm.provider !== "anthropic") return { servers: [], toolsets: [], ignored: wanted.map((s) => s.name) };
   const defs: Anthropic.Beta.BetaRequestMCPServerURLDefinition[] = [];
@@ -62,19 +66,13 @@ export function remoteMcpFor(agent: AgentConfig, llm: LlmConfig, servers: McpSer
           },
     );
   }
-  return { servers: defs, toolsets, ignored: [] as string[] };
+  return { servers: defs, toolsets, ignored: [] };
 }
 
 /** Texto do resultado de uma ferramenta MCP executada pela Anthropic. */
-export function describeMcpResult(block: { content?: unknown; is_error?: boolean }): { output: string; isError: boolean } {
-  const c = block.content;
-  const text =
-    typeof c === "string"
-      ? c
-      : Array.isArray(c)
-        ? (c as { type?: string; text?: string }[]).map((b) => b.text ?? "").join("\n")
-        : JSON.stringify(c ?? "");
-  return { output: text.length > 4000 ? `${text.slice(0, 3999)}…` : text, isError: Boolean(block.is_error) };
+export function describeMcpResult(block: Anthropic.Beta.BetaMCPToolResultBlock): { output: string; isError: boolean } {
+  const text = typeof block.content === "string" ? block.content : block.content.map((b) => b.text).join("\n");
+  return { output: text.length > 4000 ? `${text.slice(0, 3999)}…` : text, isError: block.is_error };
 }
 
 type KnownTool = NonNullable<McpServerConfig["knownTools"]>[number];
