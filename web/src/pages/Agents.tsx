@@ -9,7 +9,7 @@ import { api, type Agent, type AgentInput, type Llm, type PromptTemplate, type T
 import { toolLabel } from "../lib/format";
 import { useResource } from "../lib/hooks";
 
-const EMOJIS = ["🤖", "🔎", "📊", "🧠", "🎬", "🔌", "🛠️", "📚", "🧑‍💻", "🦉", "🚀", "🧪"];
+const EMOJIS = ["🤖", "🔎", "📊", "🧠", "🎬", "🔌", "🛠️", "📚", "🧑‍💻", "🦉", "🚀", "🧪", "✉️", "🎯", "🧭"];
 const COLORS = ["#2563eb", "#0284c7", "#16a34a", "#d97706", "#ea580c", "#7c3aed", "#71717a", "#52525b"];
 
 const blank: AgentInput = {

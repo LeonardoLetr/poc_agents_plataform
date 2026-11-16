@@ -65,6 +65,8 @@ npm run dev               # API em :8787 e interface em http://localhost:5173
   As variáveis de ambiente são usadas quando a LLM não possui chave própria.
 - O servidor MCP de exemplo (`laboratorio`) é embutido e conecta automaticamente.
 - O agente **Coordenador (offline)** demonstra o multiagente sem chave: delega a tarefa ao Agente Demo.
+- O **Assistente de E-mail** usa Claude e o servidor MCP do Resend (modelo pronto em Servidores MCP): mostra o
+  rascunho e só envia depois da confirmação do usuário na conversa.
 - O agente **Supervisor** usa Claude: divide a tarefa e delega ao Pesquisador (busca na web) e ao Analista de Dados
   (cálculos), consolidando as respostas. Requer a chave da LLM "Claude Opus 5.5".
 - O **Agente Demo** usa uma janela simulada de 4 mil tokens: ao continuar a conversa algumas vezes, o resumo automático

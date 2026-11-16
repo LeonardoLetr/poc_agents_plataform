@@ -57,7 +57,7 @@ describe("migração para a versão 3 (multiagente)", () => {
     const db = migrate(structuredClone(data), "browser");
     const coordinator = db.agents.find((a) => a.name === "Coordenador (offline)");
     expect(coordinator?.tools).toContain(`agent__${demo.id}`);
-    expect(db.version).toBe(5);
+    expect(db.version).toBe(6);
   });
 
   it("não duplica o coordenador nem o cria sem o agente demo", () => {
@@ -86,5 +86,27 @@ describe("migração para a versão 5 (supervisor)", () => {
     const supervisor = db.agents.find((a) => a.name === "Supervisor")!;
     const targets = supervisor.tools.filter((t) => t.startsWith("agent__")).map((t) => db.agents.find((a) => `agent__${a.id}` === t)?.name);
     expect(targets).toEqual(["Pesquisador", "Analista de Dados"]);
+  });
+});
+
+describe("migração para a versão 6 (assistente de e-mail)", () => {
+  it("liga o assistente ao servidor do Resend já cadastrado, pelo endereço", () => {
+    const fresh = seedDb("browser");
+    const data = {
+      ...fresh,
+      version: 5,
+      agents: fresh.agents.filter((a) => a.name !== "Assistente de E-mail"),
+      mcpServers: [...fresh.mcpServers, { id: "mcp_x", name: "meu_resend", transport: "http" as const, url: "https://mcp.resend.com/mcp", via: "anthropic" as const, enabled: true, createdAt: "" }],
+    };
+    const db = migrate(structuredClone(data), "browser");
+    const agent = db.agents.find((a) => a.name === "Assistente de E-mail")!;
+    expect(agent.llmId).toBe(SEED_LLM.opus);
+    expect(agent.tools).toContain("mcp__meu_resend__*");
+    expect(agent.systemPrompt).toMatch(/Nunca envie um e-mail sem confirmação/);
+    expect(migrate(structuredClone(db) as never, "browser").agents.filter((a) => a.name === "Assistente de E-mail")).toHaveLength(1);
+  });
+
+  it("sem servidor cadastrado, usa o nome padrão do modelo pronto (resend)", () => {
+    expect(seedDb("browser").agents.find((a) => a.name === "Assistente de E-mail")!.tools).toContain("mcp__resend__*");
   });
 });

@@ -86,6 +86,7 @@ export function seedAgents(): AgentConfig[] {
     }),
     demo,
     coordinatorAgent(demo.id),
+    emailAgent(),
   ];
 }
 
@@ -132,6 +133,35 @@ export function supervisorAgent(researcherId: string, analystId: string): AgentC
 }
 
 /** Supervisor de exemplo: delega ao agente demo, para o multiagente funcionar sem chave de API. */
+/**
+ * Assistente de e-mail com o servidor MCP do Resend (conectado pela API da Anthropic).
+ * Enviar e-mail é uma ação externa e irreversível. Ferramentas executadas pela Anthropic não passam pela aprovação
+ * humana da plataforma, então a confirmação fica nas instruções: rascunho primeiro, envio só após o "pode enviar".
+ */
+export function emailAgent(resendServer = "resend"): AgentConfig {
+  return baseAgent({
+    name: "Assistente de E-mail",
+    emoji: "✉️",
+    color: "#0f766e",
+    description: "Redige e envia e-mails pelo servidor MCP do Resend, sempre mostrando o rascunho e pedindo confirmação antes de enviar. Usa Claude (requer chave).",
+    systemPrompt:
+      "Você é um assistente que redige e envia e-mails usando as ferramentas do servidor MCP do Resend.\n\n" +
+      "Regras obrigatórias:\n" +
+      "1. Nunca envie um e-mail sem confirmação explícita do usuário nesta conversa. Primeiro mostre o rascunho completo: " +
+      "destinatário(s), remetente, assunto e corpo. Termine perguntando se pode enviar e pare.\n" +
+      "2. Só chame a ferramenta de envio depois que o usuário responder confirmando (por exemplo, \"pode enviar\"). " +
+      "Se ele pedir ajustes, mostre o novo rascunho e peça confirmação de novo.\n" +
+      "3. Se faltar o destinatário ou o assunto, pergunte antes de redigir. Não invente endereços.\n" +
+      "4. Remetente: use o que o usuário informar. Sem domínio verificado no Resend, o remetente de teste " +
+      "onboarding@resend.dev só entrega para o e-mail da própria conta do Resend; avise isso se o envio falhar por esse motivo.\n" +
+      "5. Depois de enviar, informe o resultado devolvido pela ferramenta (por exemplo, o id do envio). Se der erro, explique em linguagem simples.\n\n" +
+      "Escreva os e-mails em português, com tom profissional e cordial, a menos que o usuário peça outro tom.",
+    tools: [`mcp__${resendServer}__*`, "current_time"],
+    maxIterations: 6,
+    memory: { autoRecall: false, autoEpisode: false, recallLimit: 3 },
+  });
+}
+
 export function coordinatorAgent(demoId: string): AgentConfig {
   return baseAgent({
     name: "Coordenador (offline)",
@@ -238,7 +268,7 @@ export function seedPrompts(): PromptTemplate[] {
 
 export function seedDb(runtime: "server" | "browser"): DB {
   return {
-    version: 5,
+    version: 6,
     llms: seedLlms(),
     agents: seedAgents(),
     memories: seedMemories(),
@@ -255,7 +285,7 @@ export function migrate(raw: Record<string, unknown>, runtime: "server" | "brows
   // Dados salvos, mas sem nenhum agente nem LLM (armazenamento vazio ou corrompido): começa do conjunto inicial.
   if (!data.agents?.length && !data.llms?.length) return seedDb(runtime);
   const out: DB = {
-    version: 5,
+    version: 6,
     llms: data.llms ?? [],
     agents: data.agents ?? [],
     memories: data.memories ?? [],
@@ -301,6 +331,11 @@ export function migrate(raw: Record<string, unknown>, runtime: "server" | "brows
     if (researcher && analyst && out.llms.some((l) => l.id === SEED_LLM.opus) && !out.agents.some((a) => a.name === "Supervisor")) {
       out.agents.push(supervisorAgent(researcher.id, analyst.id));
     }
+  }
+  if ((data.version ?? 1) < 6) {
+    // Versão 6: assistente de e-mail, ligado ao servidor do Resend já cadastrado (pelo endereço), se houver.
+    const resend = out.mcpServers.find((s) => s.url?.includes("mcp.resend.com"));
+    if (out.llms.some((l) => l.id === SEED_LLM.opus) && !out.agents.some((a) => a.name === "Assistente de E-mail")) out.agents.push(emailAgent(resend?.name));
   }
   return out;
 }

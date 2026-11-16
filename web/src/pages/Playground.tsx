@@ -40,6 +40,11 @@ const EXAMPLES: Record<string, string[]> = {
     "O que você lembra sobre mim?",
     "Converta 42 km para milhas e role 3d6 usando o servidor MCP",
   ],
+  // Agentes de e-mail: o agente mostra o rascunho e só envia após a confirmação.
+  email: [
+    "Escreva um e-mail para meu-email@exemplo.com com o assunto \"Teste do Agent Lab\" dizendo que o agente de e-mail está funcionando",
+    "Redija um convite para uma reunião de alinhamento na sexta às 10h para equipe@exemplo.com",
+  ],
   // Agentes que delegam (com outros agentes como ferramentas) ganham exemplos de tarefa em equipe.
   team: [
     "Pesquise o preço médio atual do litro da gasolina no Brasil e calcule quanto custa rodar 1.200 km com um carro que faz 11 km/l",
@@ -113,7 +118,8 @@ export default function Playground() {
   }, [view.steps]);
   const agentLlm = llmOf(agent);
   const delegates = agent?.tools.some((t) => t.startsWith("agent__")) ?? false;
-  const examples = agentLlm?.provider === "demo" ? EXAMPLES.demo : delegates ? EXAMPLES.team : EXAMPLES.default;
+  const emailer = agent?.tools.some((t) => /^mcp__.*resend.*__/i.test(t)) ?? false;
+  const examples = agentLlm?.provider === "demo" ? EXAMPLES.demo : emailer ? EXAMPLES.email : delegates ? EXAMPLES.team : EXAMPLES.default;
 
   async function start(text = input) {
     if (!agent || !text.trim()) return;
