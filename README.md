@@ -15,7 +15,7 @@ OpenAI Chat Completions (OpenAI, OpenRouter, Groq, Ollama) e um modelo simulado 
 |---|---|
 | **Playground** | Execução de tarefas com visualização do loop agêntico em tempo real: grafo de interação (modelo, ferramentas e memória), linha do tempo com raciocínio, chamadas `tool_use`/`tool_result` e consumo de tokens por iteração. Inclui inspeção da janela de contexto, continuação da conversa e aprovação manual de ferramentas (*human-in-the-loop*). |
 | **Comparar** | Execução da mesma tarefa em paralelo em até quatro combinações de agente e LLM, com progresso ao vivo e tabela de tokens, custo, duração, iterações e ferramentas, exportável em JSON. |
-| **Agentes** | Configuração de agentes: LLM, prompt de sistema, ferramentas nativas e MCP, política de memória, limite de iterações e aprovação humana. |
+| **Agentes** | Configuração de agentes: LLM, prompt de sistema, ferramentas nativas, MCP e de servidor da Anthropic (busca e leitura de páginas web), política de memória, limite de iterações e aprovação humana. |
 | **LLMs** | Cadastro de modelos em tempo de execução (provedor, modelo, chave, URL base e nível de esforço). Cada agente referencia uma LLM, que pode ser trocada a qualquer momento. |
 | **Servidores MCP** | Conexão de servidores via `stdio`, HTTP ou execução embutida, listagem das ferramentas descobertas, teste manual de `tools/call` e logs de conexão. |
 | **Memória** | Quatro camadas (curto prazo, trabalho, longo prazo e episódica), visualização das memórias e simulação de recuperação com pontuação detalhada. |
@@ -42,7 +42,8 @@ armazenamento local do navegador e as chaves de API são informadas por cada usu
 
 Limitações do modo navegador:
 - servidores MCP via `stdio` não estão disponíveis (HTTP e servidores embutidos funcionam normalmente);
-- a ferramenta `http_fetch` só acessa sites que permitem requisições de outras origens (CORS).
+- a ferramenta `http_fetch` só acessa sites que permitem requisições de outras origens (CORS). Com LLMs Anthropic, use
+  `web_search` e `web_fetch`, executadas na infraestrutura da Anthropic e sem essa restrição.
 
 ## Execução local
 
@@ -80,6 +81,7 @@ flowchart LR
   Router --> Loop["Loop agêntico<br/>core/agent/runner.ts"]
   Loop -- "messages + tools" --> LLM["LLM configurada<br/>Claude · compatível com OpenAI · demo"]
   LLM -- "thinking / text / tool_use" --> Loop
+  LLM -. "web_search / web_fetch<br/>(executadas pela Anthropic)" .-> Web["Web"]
   Loop --> Nativas["Ferramentas nativas<br/>calculadora, HTTP, data e hora,<br/>memória, scratchpad"]
   Loop --> MCP["Cliente MCP"] --> Servers["Servidores MCP<br/>(stdio / HTTP / embutido)"]
   Loop --> Mem[("Memória")]
@@ -107,6 +109,7 @@ core/                  núcleo compartilhado (servidor e navegador)
   mcp/manager.ts       cliente MCP (stdio, Streamable HTTP, SSE e em memória)
   mcp/lab-server.ts    servidor MCP de exemplo
   tools/builtin.ts     ferramentas nativas
+  tools/server.ts      ferramentas de servidor da Anthropic (web_search, web_fetch)
   memory.ts            memória de longo prazo e ranking de recuperação
   router.ts            API (rotas e streams)
   seed.ts              dados iniciais e migração de versões
@@ -130,6 +133,8 @@ para novos servidores e também pode ser executado como processo stdio (`mcp-ser
 ## Segurança
 
 - `http_fetch` bloqueia endereços locais e privados; a calculadora não utiliza `eval`.
+- `web_search` e `web_fetch` têm limite de 5 usos por chamada ao modelo. A busca é cobrada à parte pela Anthropic, por
+  requisição; o conteúdo lido entra nos tokens de entrada.
 - O Markdown renderizado aceita apenas links `http(s)`.
 - Cada agente tem limite de iterações e pode exigir aprovação para cada ferramenta.
 - A API nunca retorna chaves de API, apenas os quatro últimos caracteres. No modo servidor, as chaves ficam em
@@ -148,7 +153,8 @@ para novos servidores e também pode ser executado como processo stdio (`mcp-ser
 
 - O CI verifica os tipos e o build de todos os pacotes a cada push.
 - `npm test` executa a suíte do núcleo com Vitest (`core/tests/`): calculadora, memória, provedor compatível com
-  OpenAI, rotas da API, loop agêntico com a LLM demo, aprovação humana, MCP embutido e migração de dados. A suíte
+  OpenAI, rotas da API, loop agêntico com a LLM demo, aprovação humana, MCP embutido, ferramentas de servidor da
+  Anthropic (com respostas simuladas) e migração de dados. A suíte
   roda no CI e antes de cada publicação.
 - `web/scripts/check-mobile.cjs` valida que nenhuma página excede a largura da tela em três dispositivos móveis. A
   verificação é pré-requisito para a publicação.

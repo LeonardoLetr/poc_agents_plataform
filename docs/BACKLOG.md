@@ -15,7 +15,7 @@ Melhorias e novas funcionalidades planejadas, priorizadas por impacto e esforço
 | AL-03 | Episódios de memória sem acúmulo de conteúdo | Correção | P1 | P | concluído |
 | AL-04 | Comparação de LLMs e agentes lado a lado | Funcionalidade | P1 | M | concluído |
 | AL-05 | Multiagente: agente como ferramenta e supervisor | Funcionalidade | P1 | G | a fazer |
-| AL-06 | Ferramentas de servidor do Claude (web search e web fetch) | Funcionalidade | P1 | P | a fazer |
+| AL-06 | Ferramentas de servidor do Claude (web search e web fetch) | Funcionalidade | P1 | P | concluído |
 | AL-07 | Gestão da janela de contexto (medidor e resumo) | Funcionalidade | P1 | M | a fazer |
 | AL-08 | Replay passo a passo de execuções | Funcionalidade | P2 | M | a fazer |
 | AL-09 | Exportar e importar configuração | Funcionalidade | P2 | P | a fazer |
@@ -89,6 +89,11 @@ Sequência sugerida: AL-01 → AL-02/AL-03 → AL-04 → AL-06 → AL-05 → AL-
   na infraestrutura da Anthropic; exibir buscas e páginas lidas na linha do tempo.
 - **Critérios de aceite:** disponível apenas para LLMs Anthropic; resultados e citações visíveis; tratamento de erros
   das ferramentas de servidor.
+- **Resultado:** `web_search` e `web_fetch` habilitáveis por agente (`core/tools/server.ts`), nas versões com filtragem
+  dinâmica quando o modelo suporta e nas básicas nos demais, com limite de 5 usos por chamada. Chamadas e resultados
+  aparecem ao vivo na linha do tempo e no grafo e entram na auditoria; as citações são listadas como "Fontes citadas".
+  Erros das ferramentas (devolvidos como resultado, não como exceção) e `pause_turn` são tratados. LLMs de outros
+  provedores ignoram essas ferramentas, com registro na auditoria e aviso no editor do agente.
 
 ### AL-07 · Gestão da janela de contexto
 - **Problema:** o histórico cresce a cada iteração sem visibilidade nem controle, elevando custo e degradando respostas.
