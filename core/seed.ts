@@ -39,8 +39,7 @@ const baseAgent = (a: Partial<AgentConfig> & Pick<AgentConfig, "name" | "systemP
 
 export function seedAgents(): AgentConfig[] {
   const demo = demoAgent();
-  return [
-    baseAgent({
+  const researcher = baseAgent({
       name: "Pesquisador",
       emoji: "🔎",
       color: "#0284c7",
@@ -50,8 +49,8 @@ export function seedAgents(): AgentConfig[] {
         "`web_fetch` para lê-las (ou `http_fetch` quando a LLM não for da Anthropic), cite as URLs que usou " +
         "e salve fatos importantes com `memory_save`. Responda em português.",
       tools: ["web_search", "web_fetch", "http_fetch", "memory_save", "memory_search", "scratchpad_write", "current_time"],
-    }),
-    baseAgent({
+    });
+  const analyst = baseAgent({
       name: "Analista de Dados",
       emoji: "📊",
       color: "#d97706",
@@ -60,7 +59,11 @@ export function seedAgents(): AgentConfig[] {
         "Você é um analista quantitativo. Quebre problemas em etapas, use `calculator` para TODA conta " +
         "(nunca calcule de cabeça) e registre resultados intermediários no `scratchpad_write`. Responda em português.",
       tools: ["calculator", "scratchpad_write", "scratchpad_read", "current_time"],
-    }),
+    });
+  return [
+    researcher,
+    analyst,
+    supervisorAgent(researcher.id, analyst.id),
     baseAgent({
       name: "Assistente com Memória",
       emoji: "🧠",
@@ -101,6 +104,32 @@ function demoAgent(): AgentConfig {
 }
 
 const DEMO_CONTEXT = { autoCompact: true, thresholdPct: 50 };
+
+/**
+ * Supervisor com LLM real (Claude): divide a tarefa e delega ao Pesquisador e ao Analista de Dados.
+ * Precisa de chave de API, assim como os agentes para os quais delega.
+ */
+export function supervisorAgent(researcherId: string, analystId: string): AgentConfig {
+  return baseAgent({
+    name: "Supervisor",
+    emoji: "🎯",
+    color: "#be185d",
+    description: "Divide tarefas complexas e delega ao Pesquisador e ao Analista de Dados, consolidando as respostas. Usa Claude (requer chave).",
+    systemPrompt:
+      "Você é um supervisor que coordena uma equipe de agentes especialistas. Para cada tarefa:\n" +
+      "1. Planeje: identifique as subtarefas e registre o plano com `scratchpad_write`.\n" +
+      "2. Delegue cada subtarefa ao especialista adequado, com instruções completas e autocontidas " +
+      "(eles não veem esta conversa): pesquisa na web e fontes vão para o Pesquisador; contas, " +
+      "comparações numéricas e projeções vão para o Analista de Dados. Delegue em paralelo quando as subtarefas forem independentes.\n" +
+      "3. Verifique as respostas: se algo estiver incompleto ou contraditório, delegue um ajuste específico.\n" +
+      "4. Consolide uma resposta final clara, indicando o que veio de cada especialista e citando as fontes.\n" +
+      "Não faça você mesmo o trabalho dos especialistas. Responda em português.",
+    tools: [`agent__${researcherId}`, `agent__${analystId}`, "scratchpad_write", "scratchpad_read"],
+    maxIterations: 12,
+    memory: { autoRecall: true, autoEpisode: true, recallLimit: 3 },
+    context: { autoCompact: true, thresholdPct: 60 },
+  });
+}
 
 /** Supervisor de exemplo: delega ao agente demo, para o multiagente funcionar sem chave de API. */
 export function coordinatorAgent(demoId: string): AgentConfig {
@@ -209,7 +238,7 @@ export function seedPrompts(): PromptTemplate[] {
 
 export function seedDb(runtime: "server" | "browser"): DB {
   return {
-    version: 4,
+    version: 5,
     llms: seedLlms(),
     agents: seedAgents(),
     memories: seedMemories(),
@@ -226,7 +255,7 @@ export function migrate(raw: Record<string, unknown>, runtime: "server" | "brows
   // Dados salvos, mas sem nenhum agente nem LLM (armazenamento vazio ou corrompido): começa do conjunto inicial.
   if (!data.agents?.length && !data.llms?.length) return seedDb(runtime);
   const out: DB = {
-    version: 4,
+    version: 5,
     llms: data.llms ?? [],
     agents: data.agents ?? [],
     memories: data.memories ?? [],
@@ -264,6 +293,14 @@ export function migrate(raw: Record<string, unknown>, runtime: "server" | "brows
   if ((data.version ?? 1) < 4) {
     // Versão 4: gestão de contexto. O agente demo passa a resumir o histórico automaticamente.
     for (const a of out.agents) if (a.name === "Agente Demo (offline)" && a.llmId === SEED_LLM.demo && !a.context) a.context = { ...DEMO_CONTEXT };
+  }
+  if ((data.version ?? 1) < 5) {
+    // Versão 5: supervisor com LLM real, quando os especialistas e a LLM Opus de exemplo ainda existem.
+    const researcher = out.agents.find((a) => a.name === "Pesquisador");
+    const analyst = out.agents.find((a) => a.name === "Analista de Dados");
+    if (researcher && analyst && out.llms.some((l) => l.id === SEED_LLM.opus) && !out.agents.some((a) => a.name === "Supervisor")) {
+      out.agents.push(supervisorAgent(researcher.id, analyst.id));
+    }
   }
   return out;
 }
