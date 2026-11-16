@@ -44,3 +44,27 @@ describe("migração da versão 1", () => {
     expect(migrate({}, "browser").agents.length).toBeGreaterThan(0);
   });
 });
+
+describe("migração para a versão 3 (multiagente)", () => {
+  const v2 = () => {
+    const db = seedDb("browser");
+    return { ...db, version: 2, agents: db.agents.filter((a) => a.name !== "Coordenador (offline)") };
+  };
+
+  it("adiciona o coordenador delegando ao agente demo existente", () => {
+    const data = v2();
+    const demo = data.agents.find((a) => a.name === "Agente Demo (offline)")!;
+    const db = migrate(structuredClone(data), "browser");
+    const coordinator = db.agents.find((a) => a.name === "Coordenador (offline)");
+    expect(coordinator?.tools).toContain(`agent__${demo.id}`);
+    expect(db.version).toBe(3);
+  });
+
+  it("não duplica o coordenador nem o cria sem o agente demo", () => {
+    const twice = migrate(migrate(structuredClone(v2()), "browser") as never, "browser");
+    expect(twice.agents.filter((a) => a.name === "Coordenador (offline)")).toHaveLength(1);
+    const noDemo = v2();
+    noDemo.agents = noDemo.agents.filter((a) => a.name !== "Agente Demo (offline)");
+    expect(migrate(structuredClone(noDemo), "browser").agents.some((a) => a.name === "Coordenador (offline)")).toBe(false);
+  });
+});
