@@ -32,7 +32,12 @@ describe("radicais e similaridade", () => {
 
 describe("memória de longo prazo", () => {
   it("cria, recupera por relevância e detalha a pontuação", async () => {
-    const created = await ctx.api("POST", "/api/memories", { content: "O deploy usa GitHub Actions e Pages", kind: "fact", importance: 5, tags: ["deploy"] });
+    const created = await ctx.api("POST", "/api/memories", {
+      content: "O deploy usa GitHub Actions e Pages",
+      kind: "fact",
+      importance: 5,
+      tags: ["deploy"],
+    });
     expect(created.status).toBe(201);
 
     const results = mem.searchMemories("como funciona o deploy no github");

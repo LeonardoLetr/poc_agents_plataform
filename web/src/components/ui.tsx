@@ -2,7 +2,17 @@ import { AnimatePresence, motion } from "motion/react";
 import { X } from "lucide-react";
 import type { ButtonHTMLAttributes, InputHTMLAttributes, ReactNode, SelectHTMLAttributes, TextareaHTMLAttributes } from "react";
 
-export function PageHeader({ eyebrow, title, description, actions }: { eyebrow?: string; title: ReactNode; description?: ReactNode; actions?: ReactNode }) {
+export function PageHeader({
+  eyebrow,
+  title,
+  description,
+  actions,
+}: {
+  eyebrow?: string;
+  title: ReactNode;
+  description?: ReactNode;
+  actions?: ReactNode;
+}) {
   return (
     <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
       {/* O "eyebrow" virou o breadcrumb da barra superior; aqui fica só título + subtítulo. */}
@@ -27,7 +37,13 @@ const variants: Record<Variant, string> = {
   subtle: "text-ink-400 hover:bg-ink-850 hover:text-ink-100",
 };
 
-export function Button({ variant = "ghost", size = "md", className = "", children, ...rest }: ButtonHTMLAttributes<HTMLButtonElement> & { variant?: Variant; size?: "sm" | "md" }) {
+export function Button({
+  variant = "ghost",
+  size = "md",
+  className = "",
+  children,
+  ...rest
+}: ButtonHTMLAttributes<HTMLButtonElement> & { variant?: Variant; size?: "sm" | "md" }) {
   return (
     <button
       {...rest}
@@ -40,7 +56,15 @@ export function Button({ variant = "ghost", size = "md", className = "", childre
   );
 }
 
-export function Badge({ children, color = "ink", className = "" }: { children: ReactNode; color?: "ink" | "accent" | "info" | "ok" | "warn" | "bad" | "mcp" | "memory"; className?: string }) {
+export function Badge({
+  children,
+  color = "ink",
+  className = "",
+}: {
+  children: ReactNode;
+  color?: "ink" | "accent" | "info" | "ok" | "warn" | "bad" | "mcp" | "memory";
+  className?: string;
+}) {
   const map = {
     // Etiquetas suaves: fundo claro + texto forte da mesma família, sem borda.
     // Tons derivados dos tokens: funcionam em qualquer tema (claro, bege ou escuro).
@@ -53,10 +77,17 @@ export function Badge({ children, color = "ink", className = "" }: { children: R
     mcp: "bg-mcp/10 text-mcp",
     memory: "bg-memory/10 text-memory",
   };
-  return <span className={`inline-flex items-center gap-1 whitespace-nowrap rounded-[5px] px-1.5 py-[2px] text-[11px] font-medium leading-none ${map[color]} ${className}`}>{children}</span>;
+  return (
+    <span
+      className={`inline-flex items-center gap-1 whitespace-nowrap rounded-[5px] px-1.5 py-[2px] text-[11px] font-medium leading-none ${map[color]} ${className}`}
+    >
+      {children}
+    </span>
+  );
 }
 
-const field = "w-full rounded-lg border border-ink-700 bg-surface px-3 text-[13px] text-ink-100 placeholder:text-ink-500 outline-none transition focus:border-accent focus:ring-[3px] focus:ring-accent/20";
+const field =
+  "w-full rounded-lg border border-ink-700 bg-surface px-3 text-[13px] text-ink-100 placeholder:text-ink-500 outline-none transition focus:border-accent focus:ring-[3px] focus:ring-accent/20";
 
 export function Input(props: InputHTMLAttributes<HTMLInputElement>) {
   return <input {...props} className={`${field} h-8 ${props.className ?? ""}`} />;
@@ -80,11 +111,29 @@ export function Field({ label, hint, children }: { label: string; hint?: ReactNo
   );
 }
 
-export function Toggle({ checked, onChange, label, description }: { checked: boolean; onChange: (v: boolean) => void; label: string; description?: string }) {
+export function Toggle({
+  checked,
+  onChange,
+  label,
+  description,
+}: {
+  checked: boolean;
+  onChange: (v: boolean) => void;
+  label: string;
+  description?: string;
+}) {
   return (
-    <button type="button" onClick={() => onChange(!checked)} className="flex w-full items-start gap-3 rounded-xl p-2 text-left transition hover:bg-ink-900">
+    <button
+      type="button"
+      onClick={() => onChange(!checked)}
+      className="flex w-full items-start gap-3 rounded-xl p-2 text-left transition hover:bg-ink-900"
+    >
       <span className={`relative mt-0.5 inline-flex h-5 w-9 shrink-0 rounded-full transition ${checked ? "bg-accent" : "bg-ink-600"}`}>
-        <motion.span layout transition={{ type: "spring", stiffness: 500, damping: 32 }} className={`absolute top-0.5 h-4 w-4 rounded-full bg-surface shadow ${checked ? "right-0.5" : "left-0.5"}`} />
+        <motion.span
+          layout
+          transition={{ type: "spring", stiffness: 500, damping: 32 }}
+          className={`absolute top-0.5 h-4 w-4 rounded-full bg-surface shadow ${checked ? "right-0.5" : "left-0.5"}`}
+        />
       </span>
       <span>
         <span className="block text-[13px] font-medium text-ink-100">{label}</span>
@@ -94,11 +143,28 @@ export function Toggle({ checked, onChange, label, description }: { checked: boo
   );
 }
 
-export function Modal({ open, onClose, title, children, wide }: { open: boolean; onClose: () => void; title: ReactNode; children: ReactNode; wide?: boolean }) {
+export function Modal({
+  open,
+  onClose,
+  title,
+  children,
+  wide,
+}: {
+  open: boolean;
+  onClose: () => void;
+  title: ReactNode;
+  children: ReactNode;
+  wide?: boolean;
+}) {
   return (
     <AnimatePresence>
       {open && (
-        <motion.div className="fixed inset-0 z-50 flex items-center justify-center p-4" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+        <motion.div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+        >
           <div className="absolute inset-0 bg-black/50" onClick={onClose} />
           <motion.div
             initial={{ opacity: 0, y: 24, scale: 0.97 }}
@@ -109,7 +175,11 @@ export function Modal({ open, onClose, title, children, wide }: { open: boolean;
           >
             <div className="mb-5 flex items-center justify-between gap-4">
               <h2 className="text-[15px] font-semibold text-ink-100">{title}</h2>
-              <button onClick={onClose} className="rounded-lg p-1.5 text-ink-400 transition hover:bg-ink-850 hover:text-ink-100" aria-label="Fechar">
+              <button
+                onClick={onClose}
+                className="rounded-lg p-1.5 text-ink-400 transition hover:bg-ink-850 hover:text-ink-100"
+                aria-label="Fechar"
+              >
                 <X size={18} />
               </button>
             </div>
@@ -121,7 +191,17 @@ export function Modal({ open, onClose, title, children, wide }: { open: boolean;
   );
 }
 
-export function EmptyState({ icon, title, description, action }: { icon: ReactNode; title: string; description?: string; action?: ReactNode }) {
+export function EmptyState({
+  icon,
+  title,
+  description,
+  action,
+}: {
+  icon: ReactNode;
+  title: string;
+  description?: string;
+  action?: ReactNode;
+}) {
   return (
     <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-ink-700 px-6 py-14 text-center">
       <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-ink-850 text-ink-300">{icon}</div>

@@ -95,7 +95,18 @@ describe("migração para a versão 6 (assistente de e-mail)", () => {
       ...fresh,
       version: 5,
       agents: fresh.agents.filter((a) => a.name !== "Assistente de E-mail"),
-      mcpServers: [...fresh.mcpServers, { id: "mcp_x", name: "meu_resend", transport: "http" as const, url: "https://mcp.resend.com/mcp", via: "anthropic" as const, enabled: true, createdAt: "" }],
+      mcpServers: [
+        ...fresh.mcpServers,
+        {
+          id: "mcp_x",
+          name: "meu_resend",
+          transport: "http" as const,
+          url: "https://mcp.resend.com/mcp",
+          via: "anthropic" as const,
+          enabled: true,
+          createdAt: "",
+        },
+      ],
     };
     const db = migrate(structuredClone(data));
     const agent = db.agents.find((a) => a.name === "Assistente de E-mail")!;
@@ -115,7 +126,15 @@ describe("migração para a versão 7 (assistente de e-mail para qualquer servid
   const v6Prompt = "Você é um assistente que redige e envia e-mails usando as ferramentas do servidor MCP do Resend.\n\nRegras...";
   const base = () => {
     const fresh = seedDb();
-    return { ...fresh, version: 6, agents: fresh.agents.map((a) => (a.name === "Assistente de E-mail" ? { ...a, systemPrompt: v6Prompt, description: "Redige e envia e-mails pelo servidor MCP do Resend." } : a)) };
+    return {
+      ...fresh,
+      version: 6,
+      agents: fresh.agents.map((a) =>
+        a.name === "Assistente de E-mail"
+          ? { ...a, systemPrompt: v6Prompt, description: "Redige e envia e-mails pelo servidor MCP do Resend." }
+          : a,
+      ),
+    };
   };
 
   it("atualiza as instruções que o usuário não editou", () => {
@@ -136,8 +155,25 @@ describe("migração para a versão 7 (assistente de e-mail para qualquer servid
 describe("migração para a versão 8 (referências a servidores MCP apagados)", () => {
   it("remove dos agentes ferramentas de servidores que não existem mais", () => {
     const fresh = seedDb();
-    const data = { ...fresh, version: 7, agents: fresh.agents.map((a) => (a.name === "Assistente de E-mail" ? { ...a, tools: ["mcp__resend__*", "mcp__zapier__*", "current_time"] } : a)) };
-    data.mcpServers = [...data.mcpServers, { id: "mcp_z", name: "zapier", transport: "http" as const, url: "https://mcp.zapier.com/api/v1/connect", via: "anthropic" as const, enabled: true, createdAt: "" }];
+    const data = {
+      ...fresh,
+      version: 7,
+      agents: fresh.agents.map((a) =>
+        a.name === "Assistente de E-mail" ? { ...a, tools: ["mcp__resend__*", "mcp__zapier__*", "current_time"] } : a,
+      ),
+    };
+    data.mcpServers = [
+      ...data.mcpServers,
+      {
+        id: "mcp_z",
+        name: "zapier",
+        transport: "http" as const,
+        url: "https://mcp.zapier.com/api/v1/connect",
+        via: "anthropic" as const,
+        enabled: true,
+        createdAt: "",
+      },
+    ];
     const db = migrate(structuredClone(data));
     expect(db.agents.find((a) => a.name === "Assistente de E-mail")!.tools).toEqual(["mcp__zapier__*", "current_time"]);
     expect(db.agents.find((a) => a.name === "Explorador MCP")!.tools).toContain("mcp__laboratorio__*");
@@ -150,7 +186,19 @@ describe("migração para a versão 9 (sem servidor local)", () => {
     const data = {
       ...fresh,
       version: 8,
-      mcpServers: [...fresh.mcpServers, { id: "mcp_e", name: "everything", transport: "stdio", command: "npx", args: ["-y", "x"], env: { A: "1" }, enabled: false, createdAt: "" }],
+      mcpServers: [
+        ...fresh.mcpServers,
+        {
+          id: "mcp_e",
+          name: "everything",
+          transport: "stdio",
+          command: "npx",
+          args: ["-y", "x"],
+          env: { A: "1" },
+          enabled: false,
+          createdAt: "",
+        },
+      ],
       agents: fresh.agents.map((a) => (a.name === "Explorador MCP" ? { ...a, tools: [...a.tools, "mcp__everything__*"] } : a)),
     };
     const db = migrate(structuredClone(data) as never);

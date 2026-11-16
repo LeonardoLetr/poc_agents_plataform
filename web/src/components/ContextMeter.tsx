@@ -8,18 +8,29 @@ import { Card } from "./ui";
  * Medidor da janela de contexto: quanto do limite do modelo cada iteração ocupou,
  * onde o resumo automático dispara e do que o contexto é feito.
  */
-export function ContextMeter({ points, threshold }: { points: ContextPoint[]; threshold?: { autoCompact: boolean; thresholdPct: number } | undefined }) {
+export function ContextMeter({
+  points,
+  threshold,
+}: {
+  points: ContextPoint[];
+  threshold?: { autoCompact: boolean; thresholdPct: number } | undefined;
+}) {
   const last = points[points.length - 1];
   const pct = last ? Math.min(100, (last.tokens / last.window) * 100) : 0;
   const limit = threshold?.autoCompact ? threshold.thresholdPct : null;
   const tone = pct >= 90 ? "bg-bad" : limit !== null && pct >= limit ? "bg-warn" : "bg-accent";
   const max = Math.max(1, ...points.map((p) => p.tokens));
-  const parts = last ? [
-    { label: "Sistema", value: last.breakdown.system, color: "bg-info" },
-    { label: "Ferramentas", value: last.breakdown.tools, color: "bg-mcp" },
-    { label: "Histórico", value: last.breakdown.history, color: "bg-accent" },
-  ] : [];
-  const partsTotal = Math.max(1, parts.reduce((a, p) => a + p.value, 0));
+  const parts = last
+    ? [
+        { label: "Sistema", value: last.breakdown.system, color: "bg-info" },
+        { label: "Ferramentas", value: last.breakdown.tools, color: "bg-mcp" },
+        { label: "Histórico", value: last.breakdown.history, color: "bg-accent" },
+      ]
+    : [];
+  const partsTotal = Math.max(
+    1,
+    parts.reduce((a, p) => a + p.value, 0),
+  );
 
   return (
     <Card className="p-4">
@@ -36,18 +47,33 @@ export function ContextMeter({ points, threshold }: { points: ContextPoint[]; th
         <>
           {/* Ocupação atual com o limite do resumo automático */}
           <div className="mt-3 flex items-end justify-between">
-            <span className="text-[28px] font-semibold leading-none tracking-[-0.02em] tabular-nums text-ink-100">{pct < 10 ? pct.toFixed(1) : Math.round(pct)}%</span>
-            <span className="text-[11.5px] text-ink-400">{limit !== null ? `resumo automático em ${limit}%` : "resumo automático desligado"}</span>
+            <span className="text-[28px] font-semibold leading-none tracking-[-0.02em] tabular-nums text-ink-100">
+              {pct < 10 ? pct.toFixed(1) : Math.round(pct)}%
+            </span>
+            <span className="text-[11.5px] text-ink-400">
+              {limit !== null ? `resumo automático em ${limit}%` : "resumo automático desligado"}
+            </span>
           </div>
           <div className="relative mt-2 h-2 rounded-full bg-ink-850">
-            <motion.div className={`h-full rounded-full ${tone}`} initial={false} animate={{ width: `${Math.max(pct, 0.6)}%` }} transition={{ type: "spring", stiffness: 140, damping: 22 }} />
-            {limit !== null && <div className="absolute -top-1 h-4 w-px bg-ink-300" style={{ left: `${limit}%` }} title={`Limite: ${limit}%`} />}
+            <motion.div
+              className={`h-full rounded-full ${tone}`}
+              initial={false}
+              animate={{ width: `${Math.max(pct, 0.6)}%` }}
+              transition={{ type: "spring", stiffness: 140, damping: 22 }}
+            />
+            {limit !== null && (
+              <div className="absolute -top-1 h-4 w-px bg-ink-300" style={{ left: `${limit}%` }} title={`Limite: ${limit}%`} />
+            )}
           </div>
 
           {/* Evolução por iteração; a tesoura marca onde o histórico foi resumido */}
           <div className="mt-4 flex h-16 items-end gap-1" aria-label="Tokens de entrada por iteração">
             {points.map((p) => (
-              <div key={p.iteration} className="flex h-full min-w-0 flex-1 flex-col items-center justify-end gap-1" title={`Iteração ${p.iteration}: ${fmtNumber(p.tokens)} tokens · ${p.messageCount} mensagens`}>
+              <div
+                key={p.iteration}
+                className="flex h-full min-w-0 flex-1 flex-col items-center justify-end gap-1"
+                title={`Iteração ${p.iteration}: ${fmtNumber(p.tokens)} tokens · ${p.messageCount} mensagens`}
+              >
                 {p.compactedBefore && <Scissors size={11} className="shrink-0 text-memory" />}
                 <motion.div
                   className={`w-full max-w-6 rounded-t-[3px] ${p.compactedBefore ? "bg-memory/70" : "bg-accent/70"}`}
@@ -64,7 +90,9 @@ export function ContextMeter({ points, threshold }: { points: ContextPoint[]; th
 
           {/* Composição estimada do contexto enviado na última iteração */}
           <div className="mt-3 flex h-1.5 overflow-hidden rounded-full bg-ink-850">
-            {parts.map((p) => <div key={p.label} className={p.color} style={{ width: `${(p.value / partsTotal) * 100}%` }} />)}
+            {parts.map((p) => (
+              <div key={p.label} className={p.color} style={{ width: `${(p.value / partsTotal) * 100}%` }} />
+            ))}
           </div>
           <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-[11.5px] text-ink-400">
             {parts.map((p) => (

@@ -34,7 +34,10 @@ export function exportConfig(): ExportFile {
     llms: db.llms.map(({ apiKey: _key, ...rest }) => structuredClone(rest)),
     agents: structuredClone(db.agents),
     prompts: structuredClone(db.prompts),
-    mcpServers: db.mcpServers.map((s) => ({ ...structuredClone(s), headers: Object.fromEntries(Object.keys(s.headers ?? {}).map((k) => [k, ""])) })),
+    mcpServers: db.mcpServers.map((s) => ({
+      ...structuredClone(s),
+      headers: Object.fromEntries(Object.keys(s.headers ?? {}).map((k) => [k, ""])),
+    })),
     memories: structuredClone(db.memories),
   };
 }
@@ -72,7 +75,8 @@ const label = (item: { id: string; name?: string; content?: string }) => item.na
  */
 export async function importConfig(raw: unknown, mode: "merge" | "replace"): Promise<ImportReport> {
   const parsed = ImportSchema.parse(raw);
-  if (parsed.version > db.version) throw new Error(`O arquivo é de uma versão mais nova da plataforma (${parsed.version}); atualize a página e tente de novo.`);
+  if (parsed.version > db.version)
+    throw new Error(`O arquivo é de uma versão mais nova da plataforma (${parsed.version}); atualize a página e tente de novo.`);
   // A migração normaliza arquivos de versões anteriores para o formato atual.
   const incoming = migrate({ ...parsed, audit: [], runs: [] } as unknown as Record<string, unknown>);
   const report: ImportReport = {
@@ -122,7 +126,8 @@ export async function importConfig(raw: unknown, mode: "merge" | "replace"): Pro
   }
 
   const blankHeaders = db.mcpServers.filter((s) => Object.values(s.headers ?? {}).some((v) => !v));
-  if (blankHeaders.length) report.warnings.push(`Preencha os cabeçalhos (ex.: Authorization) dos servidores MCP: ${blankHeaders.map((s) => s.name).join(", ")}.`);
+  if (blankHeaders.length)
+    report.warnings.push(`Preencha os cabeçalhos (ex.: Authorization) dos servidores MCP: ${blankHeaders.map((s) => s.name).join(", ")}.`);
 
   persist();
   // Servidores MCP: reconecta a lista atual (os removidos são desconectados).

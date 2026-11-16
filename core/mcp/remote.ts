@@ -15,13 +15,16 @@ export const isRemoteMcp = (s: McpServerConfig) => s.transport === "http" && s.v
 
 /** A API aceita um token de autorização: extraído do cabeçalho Authorization ("Bearer <token>" ou só o token). */
 export function authorizationToken(headers: Record<string, string> = {}): string | undefined {
-  const value = Object.entries(headers).find(([k]) => k.toLowerCase() === "authorization")?.[1]?.trim();
+  const value = Object.entries(headers)
+    .find(([k]) => k.toLowerCase() === "authorization")?.[1]
+    ?.trim();
   if (!value) return undefined;
   return value.replace(/^bearer\s+/i, "") || undefined;
 }
 
 /** Cabeçalhos além do Authorization não chegam ao servidor por este caminho. */
-export const ignoredHeaders = (headers: Record<string, string> = {}) => Object.keys(headers).filter((k) => k.toLowerCase() !== "authorization");
+export const ignoredHeaders = (headers: Record<string, string> = {}) =>
+  Object.keys(headers).filter((k) => k.toLowerCase() !== "authorization");
 
 /** Definição do servidor para o parâmetro `mcp_servers` da API. */
 export function serverDefinition(s: McpServerConfig): Anthropic.Beta.BetaRequestMCPServerURLDefinition {
@@ -41,11 +44,18 @@ export function remoteMcpFor(agent: AgentConfig, llm: LlmConfig, servers: McpSer
   for (const s of wanted) {
     defs.push(serverDefinition(s));
     const all = agent.tools.includes(`mcp__${s.name}__*`);
-    const only = agent.tools.filter((t) => t.startsWith(`mcp__${s.name}__`) && !t.endsWith("__*")).map((t) => t.slice(`mcp__${s.name}__`.length));
+    const only = agent.tools
+      .filter((t) => t.startsWith(`mcp__${s.name}__`) && !t.endsWith("__*"))
+      .map((t) => t.slice(`mcp__${s.name}__`.length));
     toolsets.push(
       all || !only.length
         ? { type: "mcp_toolset", mcp_server_name: s.name }
-        : { type: "mcp_toolset", mcp_server_name: s.name, default_config: { enabled: false }, configs: Object.fromEntries(only.map((t) => [t, { enabled: true }])) },
+        : {
+            type: "mcp_toolset",
+            mcp_server_name: s.name,
+            default_config: { enabled: false },
+            configs: Object.fromEntries(only.map((t) => [t, { enabled: true }])),
+          },
     );
   }
   return { servers: defs, toolsets, ignored: [] as string[] };
@@ -54,7 +64,12 @@ export function remoteMcpFor(agent: AgentConfig, llm: LlmConfig, servers: McpSer
 /** Texto do resultado de uma ferramenta MCP executada pela Anthropic. */
 export function describeMcpResult(block: { content?: unknown; is_error?: boolean }): { output: string; isError: boolean } {
   const c = block.content;
-  const text = typeof c === "string" ? c : Array.isArray(c) ? (c as { type?: string; text?: string }[]).map((b) => b.text ?? "").join("\n") : JSON.stringify(c ?? "");
+  const text =
+    typeof c === "string"
+      ? c
+      : Array.isArray(c)
+        ? (c as { type?: string; text?: string }[]).map((b) => b.text ?? "").join("\n")
+        : JSON.stringify(c ?? "");
   return { output: text.length > 4000 ? `${text.slice(0, 3999)}…` : text, isError: Boolean(block.is_error) };
 }
 
@@ -85,7 +100,10 @@ export function parseDiscoveredTools(text: string): { name: string; description?
     for (const item of data) {
       const name = typeof item === "string" ? item : (item as { name?: unknown })?.name;
       if (typeof name !== "string" || !/^[\w.-]{1,128}$/.test(name)) continue;
-      const description = typeof (item as { description?: unknown })?.description === "string" ? (item as { description: string }).description.slice(0, 240) : undefined;
+      const description =
+        typeof (item as { description?: unknown })?.description === "string"
+          ? (item as { description: string }).description.slice(0, 240)
+          : undefined;
       if (!out.some((t) => t.name === name)) out.push({ name, ...(description ? { description } : {}) });
     }
     return out;
@@ -96,7 +114,10 @@ export function parseDiscoveredTools(text: string): { name: string; description?
 
 /** Junta a lista descoberta com a atual: ferramentas já usadas continuam marcadas como usadas. */
 export function mergeKnownTools(current: KnownTool[] = [], discovered: { name: string; description?: string }[]): KnownTool[] {
-  const merged: KnownTool[] = discovered.map((d) => ({ ...d, source: current.find((c) => c.name === d.name)?.source === "used" ? "used" : "discovered" }));
+  const merged: KnownTool[] = discovered.map((d) => ({
+    ...d,
+    source: current.find((c) => c.name === d.name)?.source === "used" ? "used" : "discovered",
+  }));
   for (const c of current) if (c.source === "used" && !merged.some((m) => m.name === c.name)) merged.push(c);
   return merged;
 }

@@ -9,7 +9,14 @@ beforeAll(async () => {
   ctx = await bootCore();
   await waitFor(async () => (await ctx.api("GET", "/api/mcp")).body.some((s: any) => s.state.status === "connected"), 5000, "MCP");
   const mk = async (name: string, tools: string[]) =>
-    (await ctx.api("POST", "/api/agents", { name, llmId: "llm_demo", tools, memory: { autoRecall: false, autoEpisode: false, recallLimit: 0 } })).body.id;
+    (
+      await ctx.api("POST", "/api/agents", {
+        name,
+        llmId: "llm_demo",
+        tools,
+        memory: { autoRecall: false, autoEpisode: false, recallLimit: 0 },
+      })
+    ).body.id;
   calcAgent = await mk("Só calculadora", ["calculator"]);
   mcpAgent = await mk("Calculadora + MCP", ["calculator", "mcp__laboratorio__*"]);
 });
@@ -18,7 +25,10 @@ const finished = (id: string) => waitFor(async () => (await ctx.api("GET", `/api
 
 describe("comparação lado a lado", () => {
   it("executa todas as combinações em paralelo e consolida as métricas", async () => {
-    const start = await ctx.api("POST", "/api/compare", { input: "Quanto é 6 * 7? Role 2d6", entries: [{ agentId: calcAgent }, { agentId: mcpAgent }] });
+    const start = await ctx.api("POST", "/api/compare", {
+      input: "Quanto é 6 * 7? Role 2d6",
+      entries: [{ agentId: calcAgent }, { agentId: mcpAgent }],
+    });
     expect(start.status).toBe(201);
     expect(start.body.runIds).toHaveLength(2);
     await finished(start.body.id);
@@ -60,8 +70,17 @@ describe("comparação lado a lado", () => {
     expect((await ctx.api("POST", "/api/compare", { input: "x", entries: [{ agentId: calcAgent }] })).status).toBe(400);
     const five = Array.from({ length: 5 }, () => ({ agentId: calcAgent }));
     expect((await ctx.api("POST", "/api/compare", { input: "x", entries: five })).status).toBe(400);
-    expect((await ctx.api("POST", "/api/compare", { input: "x", entries: [{ agentId: calcAgent }, { agentId: "agt_fantasma" }] })).status).toBe(404);
-    expect((await ctx.api("POST", "/api/compare", { input: "x", entries: [{ agentId: calcAgent }, { agentId: calcAgent, llmId: "llm_fantasma" }] })).status).toBe(404);
+    expect(
+      (await ctx.api("POST", "/api/compare", { input: "x", entries: [{ agentId: calcAgent }, { agentId: "agt_fantasma" }] })).status,
+    ).toBe(404);
+    expect(
+      (
+        await ctx.api("POST", "/api/compare", {
+          input: "x",
+          entries: [{ agentId: calcAgent }, { agentId: calcAgent, llmId: "llm_fantasma" }],
+        })
+      ).status,
+    ).toBe(404);
     expect((await ctx.api("GET", "/api/compare/cmp_inexistente")).status).toBe(404);
   });
 });

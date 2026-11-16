@@ -5,13 +5,20 @@ type Boot = Awaited<ReturnType<typeof bootCore>>;
 
 async function createAgent(api: Boot["api"], name: string, tools: string[], extra: Record<string, unknown> = {}) {
   const res = await api("POST", "/api/agents", {
-    name, llmId: "llm_demo", systemPrompt: "Teste.", tools, maxIterations: 6, requireApproval: false,
-    memory: { autoRecall: false, autoEpisode: false, recallLimit: 3 }, ...extra,
+    name,
+    llmId: "llm_demo",
+    systemPrompt: "Teste.",
+    tools,
+    maxIterations: 6,
+    requireApproval: false,
+    memory: { autoRecall: false, autoEpisode: false, recallLimit: 3 },
+    ...extra,
   });
   return res.body as { id: string; tools: string[] };
 }
 
-const ofType = <T extends StreamEvent["type"]>(events: StreamEvent[], type: T) => events.filter((e) => e.type === type) as Extract<StreamEvent, { type: T }>[];
+const ofType = <T extends StreamEvent["type"]>(events: StreamEvent[], type: T) =>
+  events.filter((e) => e.type === type) as Extract<StreamEvent, { type: T }>[];
 
 describe("multiagente: agente como ferramenta", () => {
   it("o coordenador delega ao agente demo e agrega os tokens da execução filha", async () => {
@@ -105,7 +112,10 @@ describe("multiagente: agente como ferramenta", () => {
     const tools = await api<{ name: string; source: string; label?: string }[]>("GET", "/api/tools");
     expect(tools.body.find((t) => t.name === `agent__${target.id}`)).toMatchObject({ source: "agent", label: "🤖 Alvo" });
 
-    const updated = await api("PUT", `/api/agents/${owner.id}`, { ...db.agents.find((x) => x.id === owner.id)!, tools: [`agent__${owner.id}`, `agent__${target.id}`] });
+    const updated = await api("PUT", `/api/agents/${owner.id}`, {
+      ...db.agents.find((x) => x.id === owner.id)!,
+      tools: [`agent__${owner.id}`, `agent__${target.id}`],
+    });
     expect(updated.body.tools).toEqual([`agent__${target.id}`]);
 
     await api("DELETE", `/api/agents/${target.id}`);
@@ -116,9 +126,27 @@ describe("multiagente: agente como ferramenta", () => {
 describe("supervisor com LLM real (Anthropic simulada)", () => {
   afterEach(() => vi.unstubAllGlobals());
   const sse = (events: Record<string, unknown>[]) =>
-    new Response(events.map((e) => `event: ${String(e.type)}\ndata: ${JSON.stringify(e)}\n\n`).join(""), { status: 200, headers: { "content-type": "text/event-stream" } });
-  const start = { type: "message_start", message: { id: "m", type: "message", role: "assistant", model: "claude-opus-5-5", content: [], stop_reason: null, stop_sequence: null, usage: { input_tokens: 100, output_tokens: 1 } } };
-  const end = (stop: string) => [{ type: "message_delta", delta: { stop_reason: stop, stop_sequence: null }, usage: { output_tokens: 10 } }, { type: "message_stop" }];
+    new Response(events.map((e) => `event: ${String(e.type)}\ndata: ${JSON.stringify(e)}\n\n`).join(""), {
+      status: 200,
+      headers: { "content-type": "text/event-stream" },
+    });
+  const start = {
+    type: "message_start",
+    message: {
+      id: "m",
+      type: "message",
+      role: "assistant",
+      model: "claude-opus-5-5",
+      content: [],
+      stop_reason: null,
+      stop_sequence: null,
+      usage: { input_tokens: 100, output_tokens: 1 },
+    },
+  };
+  const end = (stop: string) => [
+    { type: "message_delta", delta: { stop_reason: stop, stop_sequence: null }, usage: { output_tokens: 10 } },
+    { type: "message_stop" },
+  ];
   const text = (t: string) => [
     { type: "content_block_start", index: 0, content_block: { type: "text", text: "" } },
     { type: "content_block_delta", index: 0, delta: { type: "text_delta", text: t } },
@@ -127,22 +155,42 @@ describe("supervisor com LLM real (Anthropic simulada)", () => {
 
   it("o Supervisor delega ao Analista de Dados e consolida a resposta", async () => {
     const { core, api, db } = await bootCore();
-    await api("PUT", "/api/llms/llm_claude_opus", { ...db.llms.find((l) => l.id === "llm_claude_opus")!, apiKey: "sk-ant-teste-supervisor" });
+    await api("PUT", "/api/llms/llm_claude_opus", {
+      ...db.llms.find((l) => l.id === "llm_claude_opus")!,
+      apiKey: "sk-ant-teste-supervisor",
+    });
     const supervisor = db.agents.find((a) => a.name === "Supervisor")!;
     const analyst = db.agents.find((a) => a.name === "Analista de Dados")!;
     let supervisorCalls = 0;
-    vi.stubGlobal("fetch", vi.fn(async (_url: string, init: RequestInit) => {
-      const body = JSON.parse(init.body as string) as { system: string; tools: { name: string }[] };
-      if (body.system.includes("supervisor")) {
-        supervisorCalls++;
-        if (supervisorCalls === 1) {
-          expect(body.tools.map((t) => t.name)).toContain(`agent__${analyst.id}`);
-          return sse([start, { type: "content_block_start", index: 0, content_block: { type: "tool_use", id: "toolu_s1", name: `agent__${analyst.id}`, input: {} } }, { type: "content_block_delta", index: 0, delta: { type: "input_json_delta", partial_json: '{"task":"Calcule 15% de 2400"}' } }, { type: "content_block_stop", index: 0 }, ...end("tool_use")]);
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (_url: string, init: RequestInit) => {
+        const body = JSON.parse(init.body as string) as { system: string; tools: { name: string }[] };
+        if (body.system.includes("supervisor")) {
+          supervisorCalls++;
+          if (supervisorCalls === 1) {
+            expect(body.tools.map((t) => t.name)).toContain(`agent__${analyst.id}`);
+            return sse([
+              start,
+              {
+                type: "content_block_start",
+                index: 0,
+                content_block: { type: "tool_use", id: "toolu_s1", name: `agent__${analyst.id}`, input: {} },
+              },
+              {
+                type: "content_block_delta",
+                index: 0,
+                delta: { type: "input_json_delta", partial_json: '{"task":"Calcule 15% de 2400"}' },
+              },
+              { type: "content_block_stop", index: 0 },
+              ...end("tool_use"),
+            ]);
+          }
+          return sse([start, ...text("Segundo o Analista de Dados, 15% de 2400 é 360."), ...end("end_turn")]);
         }
-        return sse([start, ...text("Segundo o Analista de Dados, 15% de 2400 é 360."), ...end("end_turn")]);
-      }
-      return sse([start, ...text("15% de 2400 = 360."), ...end("end_turn")]);
-    }));
+        return sse([start, ...text("15% de 2400 = 360."), ...end("end_turn")]);
+      }),
+    );
 
     const run = await api("POST", "/api/runs", { agentId: supervisor.id, input: "Quanto é 15% de 2400?" });
     const events = await collectRun(core, run.body.id);

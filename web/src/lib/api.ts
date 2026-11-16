@@ -165,19 +165,55 @@ export type RunEvent = { ts: string } & (
   | { type: "llm.request"; iteration: number; messageCount: number; toolCount: number; systemPrompt: string }
   | { type: "thinking.delta"; text: string }
   | { type: "text.delta"; text: string }
-  | { type: "llm.response"; iteration: number; stopReason: string | null; usage: { input: number; output: number; cacheRead?: number; cacheWrite?: number }; durationMs: number; model: string }
+  | {
+      type: "llm.response";
+      iteration: number;
+      stopReason: string | null;
+      usage: { input: number; output: number; cacheRead?: number; cacheWrite?: number };
+      durationMs: number;
+      model: string;
+    }
   | { type: "tool.call"; id: string; name: string; input: unknown; source: "builtin" | "mcp" | "server" | "agent"; server?: string }
   | { type: "tool.approval_requested"; id: string; name: string; input: unknown }
   | { type: "tool.approval_resolved"; id: string; approved: boolean }
   | { type: "tool.result"; id: string; name: string; output: string; isError: boolean; durationMs: number }
   | { type: "citations"; items: Citation[] }
-  | { type: "context.measured"; iteration: number; tokens: number; window: number; cacheRead: number; breakdown: { system: number; tools: number; history: number }; messageCount: number }
-  | { type: "context.compacted"; iteration: number; tokensBefore: number; tokensAfter: number; messagesBefore: number; summary: string; thresholdPct: number }
+  | {
+      type: "context.measured";
+      iteration: number;
+      tokens: number;
+      window: number;
+      cacheRead: number;
+      breakdown: { system: number; tools: number; history: number };
+      messageCount: number;
+    }
+  | {
+      type: "context.compacted";
+      iteration: number;
+      tokensBefore: number;
+      tokensAfter: number;
+      messagesBefore: number;
+      summary: string;
+      thresholdPct: number;
+    }
   | { type: "delegation.started"; toolUseId: string; childRunId: string; agentId: string; agentName: string; task: string }
-  | { type: "delegation.finished"; toolUseId: string; childRunId: string; status: RunStatus; iterations: number; usage: { input: number; output: number } }
+  | {
+      type: "delegation.finished";
+      toolUseId: string;
+      childRunId: string;
+      status: RunStatus;
+      iterations: number;
+      usage: { input: number; output: number };
+    }
   | { type: "memory.created"; memory: Memory }
   | { type: "user.message"; text: string }
-  | { type: "run.completed"; output: string; iterations: number; usage: { input: number; output: number }; childUsage?: { input: number; output: number } }
+  | {
+      type: "run.completed";
+      output: string;
+      iterations: number;
+      usage: { input: number; output: number };
+      childUsage?: { input: number; output: number };
+    }
   | { type: "run.failed"; error: string }
   | { type: "run.cancelled" }
 );

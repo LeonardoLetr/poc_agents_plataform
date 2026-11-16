@@ -34,7 +34,10 @@ export interface ApiResponse {
 }
 
 class HttpError extends Error {
-  constructor(public status: number, message: string) {
+  constructor(
+    public status: number,
+    message: string,
+  ) {
     super(message);
   }
 }
@@ -69,7 +72,10 @@ route("GET", "/api/health", () => ({
 
 route("GET", "/api/stats", () => {
   const runs = db.runs;
-  const tokens = runs.reduce((acc, r) => ({ input: acc.input + r.usage.input, output: acc.output + r.usage.output }), { input: 0, output: 0 });
+  const tokens = runs.reduce((acc, r) => ({ input: acc.input + r.usage.input, output: acc.output + r.usage.output }), {
+    input: 0,
+    output: 0,
+  });
   let cost = 0;
   for (const r of runs) {
     const model = r.events.find((e) => e.type === "run.started") as { model?: string } | undefined;
@@ -112,7 +118,9 @@ const LlmInput = z.object({
   contextWindow: z.number().int().min(1000).max(10_000_000).optional(),
 });
 
-route("GET", "/api/llms", () => db.llms.map((l) => ({ ...publicLlm(l), agents: db.agents.filter((a) => a.llmId === l.id).map((a) => a.id) })));
+route("GET", "/api/llms", () =>
+  db.llms.map((l) => ({ ...publicLlm(l), agents: db.agents.filter((a) => a.llmId === l.id).map((a) => a.id) })),
+);
 route("POST", "/api/llms", (_p, req) => {
   const body = LlmInput.parse(req.body);
   const { maxTokens, ...fields } = body;
@@ -120,7 +128,12 @@ route("POST", "/api/llms", (_p, req) => {
   if (maxTokens) llm.maxTokens = maxTokens;
   db.llms.push(llm);
   persist();
-  audit({ type: "config.changed", actor: "user", summary: `LLM "${llm.name}" criada (${llm.provider} · ${llm.model})`, data: publicLlm(llm) });
+  audit({
+    type: "config.changed",
+    actor: "user",
+    summary: `LLM "${llm.name}" criada (${llm.provider} · ${llm.model})`,
+    data: publicLlm(llm),
+  });
   return publicLlm(llm);
 });
 route("PUT", "/api/llms/:id", ({ id }, req) => {
@@ -151,7 +164,8 @@ route("PUT", "/api/llms/:id", ({ id }, req) => {
 route("DELETE", "/api/llms/:id", ({ id }) => {
   const removed = db.llms.find((l) => l.id === id) ?? notFound("LLM");
   const users = db.agents.filter((a) => a.llmId === id);
-  if (users.length) throw new HttpError(409, `Esta LLM é usada por: ${users.map((a) => a.name).join(", ")}. Troque a LLM desses agentes antes.`);
+  if (users.length)
+    throw new HttpError(409, `Esta LLM é usada por: ${users.map((a) => a.name).join(", ")}. Troque a LLM desses agentes antes.`);
   db.llms.splice(db.llms.indexOf(removed), 1);
   persist();
   audit({ type: "config.changed", actor: "user", summary: `LLM "${removed.name}" removida` });
@@ -219,7 +233,15 @@ route("GET", "/api/tools", () => {
   // Outros agentes como ferramentas (multiagente). O editor oculta o próprio agente.
   const agents = db.agents.map((a) => {
     const def = agentToolDefinition(a);
-    return { name: def.name, description: def.description, inputSchema: def.input_schema, source: "agent" as const, category: "agente", agentId: a.id, label: `${a.emoji} ${a.name}` };
+    return {
+      name: def.name,
+      description: def.description,
+      inputSchema: def.input_schema,
+      source: "agent" as const,
+      category: "agente",
+      agentId: a.id,
+      label: `${a.emoji} ${a.name}`,
+    };
   });
   return [...builtin, ...server, ...agents, ...mcp, ...remoteMcp];
 });
@@ -236,7 +258,12 @@ const AgentInput = z.object({
   maxIterations: z.number().int().min(1).max(50).default(10),
   requireApproval: z.boolean().default(false),
   memory: z
-    .object({ autoRecall: z.boolean(), autoEpisode: z.boolean(), recallLimit: z.number().int().min(0).max(20), recallEpisodes: z.boolean().optional() })
+    .object({
+      autoRecall: z.boolean(),
+      autoEpisode: z.boolean(),
+      recallLimit: z.number().int().min(0).max(20),
+      recallEpisodes: z.boolean().optional(),
+    })
     .default({ autoRecall: true, autoEpisode: true, recallLimit: 5 }),
   context: z.object({ autoCompact: z.boolean(), thresholdPct: z.number().int().min(5).max(95) }).optional(),
 });
@@ -262,7 +289,13 @@ route("PUT", "/api/agents/:id", ({ id }, req) => {
   Object.assign(agent, body, { updatedAt: now() });
   persist();
   const changed = Object.keys(body).filter((k) => JSON.stringify((before as never)[k]) !== JSON.stringify((agent as never)[k]));
-  audit({ type: "config.changed", actor: "user", agentId: agent.id, summary: `Agente "${agent.name}" atualizado (${changed.join(", ") || "sem mudanças"})`, data: { before, after: agent } });
+  audit({
+    type: "config.changed",
+    actor: "user",
+    agentId: agent.id,
+    summary: `Agente "${agent.name}" atualizado (${changed.join(", ") || "sem mudanças"})`,
+    data: { before, after: agent },
+  });
   return agent;
 });
 route("DELETE", "/api/agents/:id", ({ id }) => {
@@ -313,22 +346,35 @@ const MemoryInput = z.object({
   importance: z.number().min(1).max(5).default(3),
   agentId: z.string().nullable().default(null),
 });
-route("GET", "/api/memories", (_p, req) => (req.query.agentId ? db.memories.filter((m) => m.agentId === req.query.agentId || m.agentId === null) : db.memories));
-route("GET", "/api/memories/search", (_p, req) => searchMemories(req.query.q ?? "", { agentId: req.query.agentId || undefined, limit: 20 }));
+route("GET", "/api/memories", (_p, req) =>
+  req.query.agentId ? db.memories.filter((m) => m.agentId === req.query.agentId || m.agentId === null) : db.memories,
+);
+route("GET", "/api/memories/search", (_p, req) =>
+  searchMemories(req.query.q ?? "", { agentId: req.query.agentId || undefined, limit: 20 }),
+);
 route("POST", "/api/memories", (_p, req) => createMemory({ ...MemoryInput.parse(req.body), source: "user" }));
 route("PUT", "/api/memories/:id", ({ id }, req) => {
   const memory = db.memories.find((m) => m.id === id) ?? notFound("Memória");
   const before = structuredClone(memory);
   Object.assign(memory, MemoryInput.parse(req.body));
   persist();
-  audit({ type: "memory.updated", actor: "user", summary: `Memória editada: ${memory.content.slice(0, 80)}`, data: { before, after: memory } });
+  audit({
+    type: "memory.updated",
+    actor: "user",
+    summary: `Memória editada: ${memory.content.slice(0, 80)}`,
+    data: { before, after: memory },
+  });
   return memory;
 });
 route("DELETE", "/api/memories/:id", ({ id }) => (deleteMemory(id, "user") ? { ok: true } : notFound("Memória")));
 
 // ───────────────────────── MCP ─────────────────────────
 const McpInput = z.object({
-  name: z.string().min(1).max(32).regex(/^[a-zA-Z0-9_-]+$/, "Use apenas letras, números, _ e -"),
+  name: z
+    .string()
+    .min(1)
+    .max(32)
+    .regex(/^[a-zA-Z0-9_-]+$/, "Use apenas letras, números, _ e -"),
   transport: z.enum(["http", "builtin"]),
   command: z.string().optional(),
   args: z.array(z.string()).default([]),
@@ -353,7 +399,12 @@ route("POST", "/api/mcp", async (_p, req) => {
   const server: McpServerConfig = { id: uid("mcp"), ...body, createdAt: now() };
   db.mcpServers.push(server);
   persist();
-  audit({ type: "config.changed", actor: "user", summary: `Servidor MCP "${server.name}" adicionado`, data: { ...server, headers: Object.keys(server.headers ?? {}) } });
+  audit({
+    type: "config.changed",
+    actor: "user",
+    summary: `Servidor MCP "${server.name}" adicionado`,
+    data: { ...server, headers: Object.keys(server.headers ?? {}) },
+  });
   if (server.enabled) await connect(server);
   return mcpView(server);
 });
@@ -361,7 +412,8 @@ route("POST", "/api/mcp", async (_p, req) => {
 route("PUT", "/api/mcp/:id", async ({ id }, req) => {
   const server = findServer(id);
   const body = McpInput.parse(req.body);
-  if (body.name !== server.name && db.mcpServers.some((s) => s.name === body.name)) throw new HttpError(409, "Já existe um servidor com esse nome");
+  if (body.name !== server.name && db.mcpServers.some((s) => s.name === body.name))
+    throw new HttpError(409, "Já existe um servidor com esse nome");
   const keepMasked = (next: Record<string, string>, prev: Record<string, string> = {}) =>
     Object.fromEntries(Object.entries(next).map(([k, v]) => [k, v === MASK ? (prev[k] ?? "") : v]));
   const oldName = server.name;
@@ -380,7 +432,12 @@ route("PUT", "/api/mcp/:id", async ({ id }, req) => {
     for (const a of db.agents) a.tools = a.tools.map((t) => (t.startsWith(prefix) ? `mcp__${server.name}__${t.slice(prefix.length)}` : t));
   }
   persist();
-  audit({ type: "config.changed", actor: "user", summary: `Servidor MCP "${server.name}" atualizado`, data: { ...server, headers: Object.keys(server.headers ?? {}) } });
+  audit({
+    type: "config.changed",
+    actor: "user",
+    summary: `Servidor MCP "${server.name}" atualizado`,
+    data: { ...server, headers: Object.keys(server.headers ?? {}) },
+  });
   await disconnect(server.id, false);
   if (server.enabled) await connect(server);
   return mcpView(server);
@@ -391,7 +448,11 @@ route("PUT", "/api/mcp/:id", async ({ id }, req) => {
  */
 route("POST", "/api/mcp/:id/discover", async ({ id }, req) => {
   const server = findServer(id);
-  if (!isRemoteMcp(server)) throw new HttpError(400, "Só servidores conectados pela API da Anthropic precisam de descoberta; os demais listam as ferramentas ao conectar.");
+  if (!isRemoteMcp(server))
+    throw new HttpError(
+      400,
+      "Só servidores conectados pela API da Anthropic precisam de descoberta; os demais listam as ferramentas ao conectar.",
+    );
   const wanted = (req.body as { llmId?: string })?.llmId;
   const llm = db.llms.find((l) => l.provider === "anthropic" && llmHasCredentials(l) && (!wanted || l.id === wanted));
   if (!llm) throw new HttpError(400, "Para descobrir as ferramentas é preciso uma LLM Anthropic com chave. Cadastre a chave em “LLMs”.");
@@ -412,7 +473,8 @@ route("POST", "/api/mcp/:id/discover", async ({ id }, req) => {
   });
   const text = turnText(turn.content as { type: string; text?: string }[]);
   const discovered = parseDiscoveredTools(text);
-  if (!discovered.length) throw new HttpError(502, `O modelo não devolveu uma lista de ferramentas. Resposta: ${clip(text || "(vazia)", 300)}`);
+  if (!discovered.length)
+    throw new HttpError(502, `O modelo não devolveu uma lista de ferramentas. Resposta: ${clip(text || "(vazia)", 300)}`);
   server.knownTools = mergeKnownTools(server.knownTools, discovered);
   persist();
   audit({
@@ -457,7 +519,13 @@ route("POST", "/api/mcp/:id/tools/:tool/call", async ({ id, tool }, req) => {
   const args = ((req.body as { arguments?: unknown })?.arguments ?? {}) as Record<string, unknown>;
   try {
     const result = await callMcpTool(server.id, decodeURIComponent(tool), args);
-    audit({ type: "tool.call", actor: "user", summary: `Chamou mcp__${server.name}__${tool} (teste manual)`, durationMs: Date.now() - started, data: { args, result } });
+    audit({
+      type: "tool.call",
+      actor: "user",
+      summary: `Chamou mcp__${server.name}__${tool} (teste manual)`,
+      durationMs: Date.now() - started,
+      data: { args, result },
+    });
     return { ...result, durationMs: Date.now() - started };
   } catch (err) {
     throw new HttpError(400, errorMessage(err));
@@ -526,7 +594,10 @@ function runMetrics(r: RunRecord) {
 
 const CompareInput = z.object({
   input: z.string().min(1),
-  entries: z.array(z.object({ agentId: z.string(), llmId: z.string().optional() })).min(2, "Escolha ao menos 2 combinações").max(4, "No máximo 4 combinações"),
+  entries: z
+    .array(z.object({ agentId: z.string(), llmId: z.string().optional() }))
+    .min(2, "Escolha ao menos 2 combinações")
+    .max(4, "No máximo 4 combinações"),
 });
 
 route("POST", "/api/compare", (_p, req) => {
@@ -544,7 +615,12 @@ route("POST", "/api/compare", (_p, req) => {
       throw new HttpError(400, errorMessage(err));
     }
   });
-  audit({ type: "config.changed", actor: "user", summary: `Comparação iniciada com ${runIds.length} combinações`, data: { comparisonId, input: body.input, entries: body.entries } });
+  audit({
+    type: "config.changed",
+    actor: "user",
+    summary: `Comparação iniciada com ${runIds.length} combinações`,
+    data: { comparisonId, input: body.input, entries: body.entries },
+  });
   return { id: comparisonId, runIds };
 });
 route("GET", "/api/compare", () => {
@@ -552,7 +628,11 @@ route("GET", "/api/compare", () => {
   for (const r of db.runs) if (r.comparisonId) groups.set(r.comparisonId, [...(groups.get(r.comparisonId) ?? []), r]);
   // Cada grupo tem ao menos uma execução: ele só é criado ao encontrar uma.
   return [...groups.entries()]
-    .flatMap(([id, runs]) => (runs[0] ? [{ id, input: runs[0].input, startedAt: runs[0].startedAt, count: runs.length, done: runs.every((r) => r.finishedAt) }] : []))
+    .flatMap(([id, runs]) =>
+      runs[0]
+        ? [{ id, input: runs[0].input, startedAt: runs[0].startedAt, count: runs.length, done: runs.every((r) => r.finishedAt) }]
+        : [],
+    )
     .sort((a, b) => b.startedAt.localeCompare(a.startedAt))
     .slice(0, 20);
 });
@@ -591,7 +671,11 @@ export async function handle(req: ApiRequest): Promise<ApiResponse> {
     const params = Object.fromEntries(r.keys.map((k, i) => [k, decodeURIComponent(m[i + 1] ?? "")]));
     try {
       const body = await r.handler(params, req);
-      return { status: req.method === "POST" && !req.path.match(/\/(connect|disconnect|cancel|approve|messages|call|discover|import)$/) ? 201 : 200, body };
+      return {
+        status:
+          req.method === "POST" && !req.path.match(/\/(connect|disconnect|cancel|approve|messages|call|discover|import)$/) ? 201 : 200,
+        body,
+      };
     } catch (err) {
       if (err instanceof z.ZodError) return { status: 400, body: { error: "Dados inválidos", issues: err.issues } };
       if (err instanceof HttpError) return { status: err.status, body: { error: err.message } };

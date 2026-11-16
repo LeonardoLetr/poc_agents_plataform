@@ -24,7 +24,11 @@ const CSP = [
 const contentSecurityPolicy = (): Plugin => ({
   name: "agent-lab-csp",
   apply: "build",
-  transformIndexHtml: (html) => html.replace("<head>", `<head>\n    <meta http-equiv="Content-Security-Policy" content="${CSP}" />\n    <meta name="referrer" content="no-referrer" />`),
+  transformIndexHtml: (html) =>
+    html.replace(
+      "<head>",
+      `<head>\n    <meta http-equiv="Content-Security-Policy" content="${CSP}" />\n    <meta name="referrer" content="no-referrer" />`,
+    ),
 });
 
 export default defineConfig({

@@ -8,9 +8,27 @@ import { useResource } from "../lib/hooks";
 import { getRememberKeys, setRememberKeys } from "../lib/runtime";
 
 const PROVIDERS: { id: Provider; label: string; color: string; rgb: string; text: string }[] = [
-  { id: "anthropic", label: "Anthropic (Claude)", color: "accent", rgb: "234 88 12", text: "SDK oficial, pensamento adaptativo, cache de prompt e fallback em recusas." },
-  { id: "openai", label: "Compatível com OpenAI", color: "info", rgb: "37 99 235", text: "Qualquer API no formato Chat Completions: OpenAI, OpenRouter, Groq, Ollama…" },
-  { id: "demo", label: "Demo (offline)", color: "ok", rgb: "113 113 122", text: "LLM simulado: segue palavras-chave, sem chave e sem custo." },
+  {
+    id: "anthropic",
+    label: "Anthropic (Claude)",
+    color: "accent",
+    rgb: "234 88 12",
+    text: "SDK oficial, pensamento adaptativo, cache de prompt e fallback em recusas.",
+  },
+  {
+    id: "openai",
+    label: "Compatível com OpenAI",
+    color: "info",
+    rgb: "37 99 235",
+    text: "Qualquer API no formato Chat Completions: OpenAI, OpenRouter, Groq, Ollama…",
+  },
+  {
+    id: "demo",
+    label: "Demo (offline)",
+    color: "ok",
+    rgb: "113 113 122",
+    text: "LLM simulado: segue palavras-chave, sem chave e sem custo.",
+  },
 ];
 
 const EFFORT_HINT: Record<Effort, string> = {
@@ -46,21 +64,26 @@ export default function Llms({ health, onChange }: { health: Health | null; onCh
         title="LLMs"
         description="Cadastre quantas LLMs quiser (provedor, modelo e chave) e escolha qual cada agente usa. Tudo muda na hora, sem reiniciar nada."
         actions={
-          <Button variant="primary" onClick={() => setEditing({ data: { name: "", provider: "anthropic", model: "claude-opus-5-5", effort: "medium", refusalFallback: true } })}>
+          <Button
+            variant="primary"
+            onClick={() =>
+              setEditing({ data: { name: "", provider: "anthropic", model: "claude-opus-5-5", effort: "medium", refusalFallback: true } })
+            }
+          >
             <Plus size={16} /> Nova LLM
           </Button>
         }
       />
 
-      {(
+      {
         <div className="mb-6 rounded-2xl border border-ink-700 bg-surface p-4 text-[13px] leading-relaxed text-ink-300">
           <div className="flex items-start gap-3">
             <ShieldAlert size={18} className="mt-0.5 shrink-0 text-warn" />
             <div>
-              <b className="font-medium text-ink-100">Onde fica a sua chave.</b> Fica apenas neste navegador: não é enviada ao GitHub nem a servidores intermediários
-              e é enviada direto do seu browser para o provedor (HTTPS). Por padrão ela fica só nesta sessão e{" "}
-              <b className="font-medium text-ink-200">some quando você fecha o navegador</b>. Use uma chave dedicada, com limite de gastos, e revogue quando
-              terminar de testar.
+              <b className="font-medium text-ink-100">Onde fica a sua chave.</b> Fica apenas neste navegador: não é enviada ao GitHub nem a
+              servidores intermediários e é enviada direto do seu browser para o provedor (HTTPS). Por padrão ela fica só nesta sessão e{" "}
+              <b className="font-medium text-ink-200">some quando você fecha o navegador</b>. Use uma chave dedicada, com limite de gastos,
+              e revogue quando terminar de testar.
             </div>
           </div>
           <div className="mt-2 border-t border-ink-700 pt-2">
@@ -75,7 +98,7 @@ export default function Llms({ health, onChange }: { health: Health | null; onCh
             />
           </div>
         </div>
-      )}
+      }
       <ErrorNote message={error} />
 
       <div className="mt-2 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
@@ -86,7 +109,10 @@ export default function Llms({ health, onChange }: { health: Health | null; onCh
             <motion.div key={l.id} initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}>
               <SpotlightCard className="h-full p-5" color={p.rgb}>
                 <div className="flex items-start gap-3">
-                  <div className="flex h-11 w-11 items-center justify-center rounded-xl" style={{ background: `rgb(${p.rgb} / 0.1)`, color: `rgb(${p.rgb})` }}>
+                  <div
+                    className="flex h-11 w-11 items-center justify-center rounded-xl"
+                    style={{ background: `rgb(${p.rgb} / 0.1)`, color: `rgb(${p.rgb})` }}
+                  >
                     <Cpu size={19} />
                   </div>
                   <div className="min-w-0 flex-1">
@@ -127,7 +153,16 @@ export default function Llms({ health, onChange }: { health: Health | null; onCh
                       setEditing({
                         id: l.id,
                         llm: l,
-                        data: { name: l.name, provider: l.provider, model: l.model, baseUrl: l.baseUrl, effort: l.effort, refusalFallback: l.refusalFallback, maxTokens: l.maxTokens, contextWindow: l.contextWindow },
+                        data: {
+                          name: l.name,
+                          provider: l.provider,
+                          model: l.model,
+                          baseUrl: l.baseUrl,
+                          effort: l.effort,
+                          refusalFallback: l.refusalFallback,
+                          maxTokens: l.maxTokens,
+                          contextWindow: l.contextWindow,
+                        },
                       })
                     }
                   >
@@ -161,7 +196,21 @@ export default function Llms({ health, onChange }: { health: Health | null; onCh
   );
 }
 
-function LlmEditor({ initial, id, existing, health, onClose, onSaved }: { initial: LlmInput; id?: string | undefined; existing?: Llm | undefined; health: Health | null; onClose: () => void; onSaved: () => void }) {
+function LlmEditor({
+  initial,
+  id,
+  existing,
+  health,
+  onClose,
+  onSaved,
+}: {
+  initial: LlmInput;
+  id?: string | undefined;
+  existing?: Llm | undefined;
+  health: Health | null;
+  onClose: () => void;
+  onSaved: () => void;
+}) {
   const [form, setForm] = useState<LlmInput>(initial);
   const [key, setKey] = useState("");
   const [clearKey, setClearKey] = useState(false);
@@ -203,7 +252,9 @@ function LlmEditor({ initial, id, existing, health, onClose, onSaved }: { initia
               className={`rounded-xl border p-3 text-left transition ${form.provider === p.id ? "border-ink-600 bg-ink-850" : "border-ink-700 hover:bg-ink-900"}`}
               style={form.provider === p.id ? { boxShadow: `inset 0 0 0 1px rgb(${p.rgb} / 0.5)` } : undefined}
             >
-              <div className="text-[13px] font-medium" style={{ color: `rgb(${p.rgb})` }}>{p.label}</div>
+              <div className="text-[13px] font-medium" style={{ color: `rgb(${p.rgb})` }}>
+                {p.label}
+              </div>
               <div className="mt-0.5 text-[11.5px] leading-snug text-ink-400">{p.text}</div>
             </button>
           ))}
@@ -214,7 +265,11 @@ function LlmEditor({ initial, id, existing, health, onClose, onSaved }: { initia
             <div className="mb-1.5 text-[12px] text-ink-400">Atalhos</div>
             <div className="flex flex-wrap gap-1.5">
               {health?.catalog.openai.map((p) => (
-                <button key={p.id} onClick={() => setForm((f) => ({ ...f, baseUrl: p.baseUrl, model: p.model, name: f.name || p.label }))} className="rounded-full border border-ink-700 px-2.5 py-1 text-[12px] text-ink-300 hover:border-info/40 hover:text-ink-100">
+                <button
+                  key={p.id}
+                  onClick={() => setForm((f) => ({ ...f, baseUrl: p.baseUrl, model: p.model, name: f.name || p.label }))}
+                  className="rounded-full border border-ink-700 px-2.5 py-1 text-[12px] text-ink-300 hover:border-info/40 hover:text-ink-100"
+                >
                   {p.label}
                 </button>
               ))}
@@ -227,10 +282,26 @@ function LlmEditor({ initial, id, existing, health, onClose, onSaved }: { initia
             <Input value={form.name} onChange={(e) => set("name", e.target.value)} placeholder="ex.: Claude rápido" />
           </Field>
           <Field label="Modelo" hint={form.provider === "demo" ? "fixo" : "escolha ou digite qualquer id"}>
-            <Input list="model-options" value={form.model} disabled={form.provider === "demo"} onChange={(e) => set("model", e.target.value)} className="font-mono" />
+            <Input
+              list="model-options"
+              value={form.model}
+              disabled={form.provider === "demo"}
+              onChange={(e) => set("model", e.target.value)}
+              className="font-mono"
+            />
             <datalist id="model-options">
-              {form.provider === "anthropic" && health?.catalog.anthropic.map((m) => <option key={m.id} value={m.id}>{m.label} — {m.note}</option>)}
-              {form.provider === "openai" && health?.catalog.openai.map((m) => <option key={m.id} value={m.model}>{m.label}</option>)}
+              {form.provider === "anthropic" &&
+                health?.catalog.anthropic.map((m) => (
+                  <option key={m.id} value={m.id}>
+                    {m.label} — {m.note}
+                  </option>
+                ))}
+              {form.provider === "openai" &&
+                health?.catalog.openai.map((m) => (
+                  <option key={m.id} value={m.model}>
+                    {m.label}
+                  </option>
+                ))}
             </datalist>
           </Field>
         </div>
@@ -241,15 +312,29 @@ function LlmEditor({ initial, id, existing, health, onClose, onSaved }: { initia
               label="Chave da API"
               hint={existing?.apiKeySet ? `atual: ${existing.apiKeyHint} — deixe vazio para manter` : "obrigatória"}
             >
-              <Input type="password" autoComplete="off" value={key} onChange={(e) => setKey(e.target.value)} placeholder={form.provider === "anthropic" ? "sk-ant-..." : "sk-..."} />
+              <Input
+                type="password"
+                autoComplete="off"
+                value={key}
+                onChange={(e) => setKey(e.target.value)}
+                placeholder={form.provider === "anthropic" ? "sk-ant-..." : "sk-..."}
+              />
             </Field>
             {existing?.apiKeySet && (
               <label className="-mt-3 flex items-center gap-2 text-[12px] text-ink-400">
                 <input type="checkbox" checked={clearKey} onChange={(e) => setClearKey(e.target.checked)} /> remover a chave salva
               </label>
             )}
-            <Field label="URL base" hint={form.provider === "anthropic" ? "opcional (proxy/gateway)" : "endpoint compatível com /chat/completions"}>
-              <Input value={form.baseUrl ?? ""} onChange={(e) => set("baseUrl", e.target.value)} className="font-mono" placeholder={form.provider === "anthropic" ? "https://api.anthropic.com" : "https://api.openai.com/v1"} />
+            <Field
+              label="URL base"
+              hint={form.provider === "anthropic" ? "opcional (proxy/gateway)" : "endpoint compatível com /chat/completions"}
+            >
+              <Input
+                value={form.baseUrl ?? ""}
+                onChange={(e) => set("baseUrl", e.target.value)}
+                className="font-mono"
+                placeholder={form.provider === "anthropic" ? "https://api.anthropic.com" : "https://api.openai.com/v1"}
+              />
             </Field>
           </>
         )}
@@ -258,24 +343,43 @@ function LlmEditor({ initial, id, existing, health, onClose, onSaved }: { initia
           <div className="grid gap-4 md:grid-cols-2">
             <Field label="Esforço (effort)" hint={EFFORT_HINT[form.effort]}>
               <Select value={form.effort} onChange={(e) => set("effort", e.target.value as Effort)}>
-                {(Object.keys(EFFORT_HINT) as Effort[]).map((k) => <option key={k}>{k}</option>)}
+                {(Object.keys(EFFORT_HINT) as Effort[]).map((k) => (
+                  <option key={k}>{k}</option>
+                ))}
               </Select>
             </Field>
             <div className="pt-5">
-              <Toggle checked={form.refusalFallback} onChange={(v) => set("refusalFallback", v)} label="Fallback em recusas" description="Se o modelo recusar, a API tenta outro modelo automaticamente (Opus/Sonnet/Fable)." />
+              <Toggle
+                checked={form.refusalFallback}
+                onChange={(v) => set("refusalFallback", v)}
+                label="Fallback em recusas"
+                description="Se o modelo recusar, a API tenta outro modelo automaticamente (Opus/Sonnet/Fable)."
+              />
             </div>
           </div>
         )}
         {form.provider !== "demo" && (
           <Field label="Máximo de tokens de saída" hint="por resposta">
-            <Input type="number" min={256} max={128000} value={form.maxTokens ?? (form.provider === "openai" ? 4096 : 64000)} onChange={(e) => set("maxTokens", Number(e.target.value))} />
+            <Input
+              type="number"
+              min={256}
+              max={128000}
+              value={form.maxTokens ?? (form.provider === "openai" ? 4096 : 64000)}
+              onChange={(e) => set("maxTokens", Number(e.target.value))}
+            />
           </Field>
         )}
         <Field label="Janela de contexto (tokens)" hint="opcional · usado no medidor e no resumo automático">
           <Input
             type="number"
             min={1000}
-            placeholder={form.provider === "anthropic" ? "catálogo (1.000.000 nos modelos Claude atuais)" : form.provider === "openai" ? "padrão: 128.000" : "padrão: 4.000 (simulado)"}
+            placeholder={
+              form.provider === "anthropic"
+                ? "catálogo (1.000.000 nos modelos Claude atuais)"
+                : form.provider === "openai"
+                  ? "padrão: 128.000"
+                  : "padrão: 4.000 (simulado)"
+            }
             value={form.contextWindow ?? ""}
             onChange={(e) => set("contextWindow", e.target.value ? Number(e.target.value) : undefined)}
           />

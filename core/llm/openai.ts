@@ -28,18 +28,42 @@ function toOpenAi(system: string, messages: Msg[]): OaMessage[] {
       out.push({ role: m.role, content: m.content });
       continue;
     }
-    const blocks = m.content as { type: string; text?: string; id?: string; name?: string; input?: unknown; tool_use_id?: string; content?: unknown }[];
+    const blocks = m.content as {
+      type: string;
+      text?: string;
+      id?: string;
+      name?: string;
+      input?: unknown;
+      tool_use_id?: string;
+      content?: unknown;
+    }[];
     if (m.role === "assistant") {
-      const text = blocks.filter((b) => b.type === "text").map((b) => b.text).join("");
+      const text = blocks
+        .filter((b) => b.type === "text")
+        .map((b) => b.text)
+        .join("");
       const calls = blocks.filter((b) => b.type === "tool_use");
       out.push({
         role: "assistant",
         content: text || null,
-        ...(calls.length ? { tool_calls: calls.map((c) => ({ id: c.id!, type: "function" as const, function: { name: c.name!, arguments: JSON.stringify(c.input ?? {}) } })) } : {}),
+        ...(calls.length
+          ? {
+              tool_calls: calls.map((c) => ({
+                id: c.id!,
+                type: "function" as const,
+                function: { name: c.name!, arguments: JSON.stringify(c.input ?? {}) },
+              })),
+            }
+          : {}),
       });
     } else {
       for (const b of blocks) {
-        if (b.type === "tool_result") out.push({ role: "tool", tool_call_id: b.tool_use_id!, content: typeof b.content === "string" ? b.content : JSON.stringify(b.content) });
+        if (b.type === "tool_result")
+          out.push({
+            role: "tool",
+            tool_call_id: b.tool_use_id!,
+            content: typeof b.content === "string" ? b.content : JSON.stringify(b.content),
+          });
         else if (b.type === "text") out.push({ role: "user", content: b.text ?? "" });
       }
     }
@@ -54,23 +78,30 @@ export async function callOpenAi(call: LlmCall): Promise<AssistantTurn> {
   let res: Response;
   try {
     res = await fetch(url, {
-    method: "POST",
-    signal: call.signal,
-    headers: { "content-type": "application/json", ...(key ? { authorization: `Bearer ${key}` } : {}) },
-    body: JSON.stringify({
-      model: llm.model,
-      max_tokens: llm.maxTokens || 4096,
-      stream: true,
-      stream_options: { include_usage: true },
-      messages: toOpenAi(call.system, call.messages),
-      ...(call.tools.length
-        ? { tools: call.tools.map((t) => ({ type: "function", function: { name: t.name, description: t.description ?? "", parameters: t.input_schema } })) }
-        : {}),
-    }),
+      method: "POST",
+      signal: call.signal,
+      headers: { "content-type": "application/json", ...(key ? { authorization: `Bearer ${key}` } : {}) },
+      body: JSON.stringify({
+        model: llm.model,
+        max_tokens: llm.maxTokens || 4096,
+        stream: true,
+        stream_options: { include_usage: true },
+        messages: toOpenAi(call.system, call.messages),
+        ...(call.tools.length
+          ? {
+              tools: call.tools.map((t) => ({
+                type: "function",
+                function: { name: t.name, description: t.description ?? "", parameters: t.input_schema },
+              })),
+            }
+          : {}),
+      }),
     });
   } catch (err) {
     if ((err as Error).name === "AbortError") throw err;
-    throw new Error(`Não foi possível conectar a ${url} (${(err as Error).message}). Verifique a URL base da LLM e se o provedor permite chamadas do navegador (CORS).`);
+    throw new Error(
+      `Não foi possível conectar a ${url} (${(err as Error).message}). Verifique a URL base da LLM e se o provedor permite chamadas do navegador (CORS).`,
+    );
   }
   if (!res.ok || !res.body) {
     const detail = await res.text().catch(() => "");
@@ -99,7 +130,15 @@ export async function callOpenAi(call: LlmCall): Promise<AssistantTurn> {
       let chunk: {
         model?: string;
         usage?: { prompt_tokens?: number; completion_tokens?: number };
-        choices?: { delta?: { content?: string; reasoning?: string; reasoning_content?: string; tool_calls?: { index: number; id?: string; function?: { name?: string; arguments?: string } }[] }; finish_reason?: string | null }[];
+        choices?: {
+          delta?: {
+            content?: string;
+            reasoning?: string;
+            reasoning_content?: string;
+            tool_calls?: { index: number; id?: string; function?: { name?: string; arguments?: string } }[];
+          };
+          finish_reason?: string | null;
+        }[];
       };
       try {
         chunk = JSON.parse(data);

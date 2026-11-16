@@ -41,7 +41,17 @@ export function KpiCard({
 const pad = (values: number[], length: number) => [...Array(Math.max(0, length - values.length)).fill(0), ...values.slice(-length)];
 
 /** Barras finas verticais (ex.: tokens por execução). */
-export function BarSpark({ values, color = "#3b82f6", height = 28, length = 40 }: { values: number[]; color?: string; height?: number; length?: number }) {
+export function BarSpark({
+  values,
+  color = "#3b82f6",
+  height = 28,
+  length = 40,
+}: {
+  values: number[];
+  color?: string;
+  height?: number;
+  length?: number;
+}) {
   const max = Math.max(1, ...values);
   const data = pad(values, length);
   return (
@@ -50,7 +60,11 @@ export function BarSpark({ values, color = "#3b82f6", height = 28, length = 40 }
         <span
           key={i}
           className="w-[3px] rounded-full"
-          style={{ height: `${Math.max(8, (v / max) * 100)}%`, background: v ? color : "var(--color-ink-700)", opacity: v ? 0.35 + 0.65 * (v / max) : 1 }}
+          style={{
+            height: `${Math.max(8, (v / max) * 100)}%`,
+            background: v ? color : "var(--color-ink-700)",
+            opacity: v ? 0.35 + 0.65 * (v / max) : 1,
+          }}
         />
       ))}
     </div>
@@ -58,7 +72,17 @@ export function BarSpark({ values, color = "#3b82f6", height = 28, length = 40 }
 }
 
 /** Histograma de pontos (ex.: iterações por execução). */
-export function DotHistogram({ values, color = "#f97316", rows = 5, length = 28 }: { values: number[]; color?: string; rows?: number; length?: number }) {
+export function DotHistogram({
+  values,
+  color = "#f97316",
+  rows = 5,
+  length = 28,
+}: {
+  values: number[];
+  color?: string;
+  rows?: number;
+  length?: number;
+}) {
   const max = Math.max(1, ...values);
   const data = pad(values, length);
   return (
@@ -81,7 +105,10 @@ export function DotHistogram({ values, color = "#f97316", rows = 5, length = 28 
 export function Progress({ value, color = "#22c55e", height = 6 }: { value: number; color?: string; height?: number }) {
   return (
     <div className="w-full overflow-hidden rounded-full bg-ink-850" style={{ height }}>
-      <div className="h-full rounded-full transition-[width] duration-500" style={{ width: `${Math.min(100, Math.max(0, value * 100))}%`, background: color }} />
+      <div
+        className="h-full rounded-full transition-[width] duration-500"
+        style={{ width: `${Math.min(100, Math.max(0, value * 100))}%`, background: color }}
+      />
     </div>
   );
 }

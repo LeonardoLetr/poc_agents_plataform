@@ -60,10 +60,12 @@ export default function Agents() {
                 </div>
                 <div className="min-w-0 flex-1">
                   <div className="font-semibold">{a.name}</div>
-                  <div className="mt-0.5 text-[12px] text-ink-400">{(() => {
+                  <div className="mt-0.5 text-[12px] text-ink-400">
+                    {(() => {
                       const l = llms.data?.find((x) => x.id === a.llmId);
                       return l ? `${l.name}${l.ready ? "" : " · sem chave"}` : "sem LLM";
-                    })()}</div>
+                    })()}
+                  </div>
                 </div>
               </div>
               <p className="mt-3 line-clamp-2 min-h-[2.5em] text-[13px] text-ink-300">{a.description || a.systemPrompt}</p>
@@ -72,9 +74,17 @@ export default function Agents() {
                   const { label, server } = toolLabel(t);
                   if (t.startsWith("agent__")) {
                     const target = agents.data?.find((x) => `agent__${x.id}` === t);
-                    return <Badge key={t} color="memory">→ {target?.name ?? "agente removido"}</Badge>;
+                    return (
+                      <Badge key={t} color="memory">
+                        → {target?.name ?? "agente removido"}
+                      </Badge>
+                    );
                   }
-                  return <Badge key={t} color={server ? "mcp" : "ink"}>{server ? `${server}:${label}` : label}</Badge>;
+                  return (
+                    <Badge key={t} color={server ? "mcp" : "ink"}>
+                      {server ? `${server}:${label}` : label}
+                    </Badge>
+                  );
                 })}
                 {a.tools.length > 6 && <Badge>+{a.tools.length - 6}</Badge>}
               </div>
@@ -91,7 +101,12 @@ export default function Agents() {
                 <Button size="sm" onClick={() => setEditing({ id: a.id, data: strip(a) })}>
                   <Pencil size={13} /> Editar
                 </Button>
-                <Button size="sm" variant="subtle" onClick={() => setEditing({ data: { ...strip(a), name: `${a.name} (cópia)` } })} aria-label="Duplicar">
+                <Button
+                  size="sm"
+                  variant="subtle"
+                  onClick={() => setEditing({ data: { ...strip(a), name: `${a.name} (cópia)` } })}
+                  aria-label="Duplicar"
+                >
                   <Copy size={13} />
                 </Button>
                 <Button size="sm" variant="subtle" className="ml-auto hover:text-bad" onClick={() => remove(a)} aria-label="Remover">
@@ -127,20 +142,33 @@ function hexToRgb(hex: string) {
   return `${(n >> 16) & 255} ${(n >> 8) & 255} ${n & 255}`;
 }
 
-function AgentEditor({ initial, id, onClose, onSaved }: { initial: AgentInput; id?: string | undefined; onClose: () => void; onSaved: () => void }) {
+function AgentEditor({
+  initial,
+  id,
+  onClose,
+  onSaved,
+}: {
+  initial: AgentInput;
+  id?: string | undefined;
+  onClose: () => void;
+  onSaved: () => void;
+}) {
   const [form, setForm] = useState<AgentInput>(initial);
   const [error, setError] = useState<string | null>(null);
   const tools = useResource<ToolInfo[]>("/api/tools");
   const prompts = useResource<PromptTemplate[]>("/api/prompts");
   const llms = useResource<Llm[]>("/api/llms");
   const set = <K extends keyof AgentInput>(k: K, v: AgentInput[K]) => setForm((f) => ({ ...f, [k]: v }));
-  const toggleTool = (name: string) => set("tools", form.tools.includes(name) ? form.tools.filter((t) => t !== name) : [...form.tools, name]);
+  const toggleTool = (name: string) =>
+    set("tools", form.tools.includes(name) ? form.tools.filter((t) => t !== name) : [...form.tools, name]);
 
   const builtin = tools.data?.filter((t) => t.source === "builtin") ?? [];
   const serverTools = tools.data?.filter((t) => t.source === "server") ?? [];
   const delegates = tools.data?.filter((t) => t.source === "agent" && t.agentId !== id) ?? [];
   const selectedLlm = llms.data?.find((l) => l.id === form.llmId);
-  const serverToolsUnsupported = Boolean(selectedLlm && selectedLlm.provider !== "anthropic" && serverTools.some((t) => form.tools.includes(t.name)));
+  const serverToolsUnsupported = Boolean(
+    selectedLlm && selectedLlm.provider !== "anthropic" && serverTools.some((t) => form.tools.includes(t.name)),
+  );
   const mcpServers = [...new Set(tools.data?.filter((t) => t.source === "mcp").map((t) => t.server!) ?? [])];
 
   async function save() {
@@ -163,11 +191,18 @@ function AgentEditor({ initial, id, onClose, onSaved }: { initial: AgentInput; i
           <Field label="Aparência">
             <div className="flex items-center gap-2">
               <Select value={form.emoji} onChange={(e) => set("emoji", e.target.value)} className="!w-16">
-                {EMOJIS.map((e) => <option key={e}>{e}</option>)}
+                {EMOJIS.map((e) => (
+                  <option key={e}>{e}</option>
+                ))}
               </Select>
               <div className="flex gap-1">
                 {COLORS.map((c) => (
-                  <button key={c} onClick={() => set("color", c)} className={`h-6 w-6 rounded-full transition ${form.color === c ? "ring-2 ring-ink-100 ring-offset-2 ring-offset-white" : ""}`} style={{ background: c }} />
+                  <button
+                    key={c}
+                    onClick={() => set("color", c)}
+                    className={`h-6 w-6 rounded-full transition ${form.color === c ? "ring-2 ring-ink-100 ring-offset-2 ring-offset-white" : ""}`}
+                    style={{ background: c }}
+                  />
                 ))}
               </div>
             </div>
@@ -220,20 +255,39 @@ function AgentEditor({ initial, id, onClose, onSaved }: { initial: AgentInput; i
                 }}
               >
                 <option value="">escolher…</option>
-                {prompts.data?.filter((p) => p.category === "system").map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+                {prompts.data
+                  ?.filter((p) => p.category === "system")
+                  .map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.name}
+                    </option>
+                  ))}
               </select>
             </span>
           }
         >
-          <Textarea rows={6} value={form.systemPrompt} onChange={(e) => set("systemPrompt", e.target.value)} className="font-mono text-[12.5px]" />
+          <Textarea
+            rows={6}
+            value={form.systemPrompt}
+            onChange={(e) => set("systemPrompt", e.target.value)}
+            className="font-mono text-[12.5px]"
+          />
         </Field>
 
         <div>
           <div className="mb-2 text-[13px] font-medium text-ink-200">Ferramentas</div>
           <div className="grid gap-2 md:grid-cols-2">
             {builtin.map((t) => (
-              <label key={t.name} className={`flex cursor-pointer gap-2.5 rounded-lg border p-2.5 transition ${form.tools.includes(t.name) ? "border-ink-400/50 bg-ink-950" : "border-ink-700 hover:bg-ink-950"}`}>
-                <input type="checkbox" className="mt-0.5 accent-[#2563eb]" checked={form.tools.includes(t.name)} onChange={() => toggleTool(t.name)} />
+              <label
+                key={t.name}
+                className={`flex cursor-pointer gap-2.5 rounded-lg border p-2.5 transition ${form.tools.includes(t.name) ? "border-ink-400/50 bg-ink-950" : "border-ink-700 hover:bg-ink-950"}`}
+              >
+                <input
+                  type="checkbox"
+                  className="mt-0.5 accent-[#2563eb]"
+                  checked={form.tools.includes(t.name)}
+                  onChange={() => toggleTool(t.name)}
+                />
                 <span className="min-w-0">
                   <span className="flex items-center gap-1.5 font-mono text-[12px] text-ink-100">
                     {t.name} <Badge>{t.category}</Badge>
@@ -246,12 +300,21 @@ function AgentEditor({ initial, id, onClose, onSaved }: { initial: AgentInput; i
           {serverTools.length > 0 && (
             <div className="mt-3">
               <div className="mb-1.5 flex flex-wrap items-center gap-x-2 text-[12px] text-ink-400">
-                <Cloud size={12} /> Executadas pela Anthropic <span className="text-ink-500">· apenas LLMs Anthropic · até 5 usos por chamada</span>
+                <Cloud size={12} /> Executadas pela Anthropic{" "}
+                <span className="text-ink-500">· apenas LLMs Anthropic · até 5 usos por chamada</span>
               </div>
               <div className="grid gap-2 md:grid-cols-2">
                 {serverTools.map((t) => (
-                  <label key={t.name} className={`flex cursor-pointer gap-2.5 rounded-lg border p-2.5 transition ${form.tools.includes(t.name) ? "border-ink-400/50 bg-ink-950" : "border-ink-700 hover:bg-ink-950"}`}>
-                    <input type="checkbox" className="mt-0.5 accent-[#2563eb]" checked={form.tools.includes(t.name)} onChange={() => toggleTool(t.name)} />
+                  <label
+                    key={t.name}
+                    className={`flex cursor-pointer gap-2.5 rounded-lg border p-2.5 transition ${form.tools.includes(t.name) ? "border-ink-400/50 bg-ink-950" : "border-ink-700 hover:bg-ink-950"}`}
+                  >
+                    <input
+                      type="checkbox"
+                      className="mt-0.5 accent-[#2563eb]"
+                      checked={form.tools.includes(t.name)}
+                      onChange={() => toggleTool(t.name)}
+                    />
                     <span className="min-w-0">
                       <span className="flex items-center gap-1.5 font-mono text-[12px] text-ink-100">
                         {t.name} <Badge color="info">servidor</Badge>
@@ -262,14 +325,17 @@ function AgentEditor({ initial, id, onClose, onSaved }: { initial: AgentInput; i
                 ))}
               </div>
               {serverToolsUnsupported && (
-                <p className="mt-1.5 text-[11.5px] text-warn">A LLM selecionada não é da Anthropic: as ferramentas de servidor serão ignoradas nas execuções.</p>
+                <p className="mt-1.5 text-[11.5px] text-warn">
+                  A LLM selecionada não é da Anthropic: as ferramentas de servidor serão ignoradas nas execuções.
+                </p>
               )}
             </div>
           )}
           {delegates.length > 0 && (
             <div className="mt-3">
               <div className="mb-1.5 flex flex-wrap items-center gap-x-2 text-[12px] text-ink-400">
-                <Users size={12} /> Delegar para agentes <span className="text-ink-500">· cada um roda o próprio loop e devolve a resposta · até 2 níveis</span>
+                <Users size={12} /> Delegar para agentes{" "}
+                <span className="text-ink-500">· cada um roda o próprio loop e devolve a resposta · até 2 níveis</span>
               </div>
               <div className="flex flex-wrap gap-1.5">
                 {delegates.map((t) => (
@@ -294,24 +360,43 @@ function AgentEditor({ initial, id, onClose, onSaved }: { initial: AgentInput; i
                 return (
                   <div key={server} className="rounded-xl border border-mcp/20 bg-mcp/[0.03] p-3">
                     <label className="flex cursor-pointer items-center gap-2 text-[13px]">
-                      <input type="checkbox" className="accent-[#2563eb]" checked={form.tools.includes(wildcard)} onChange={() => toggleTool(wildcard)} />
+                      <input
+                        type="checkbox"
+                        className="accent-[#2563eb]"
+                        checked={form.tools.includes(wildcard)}
+                        onChange={() => toggleTool(wildcard)}
+                      />
                       <span className="font-medium text-mcp">MCP: {server}</span>{" "}
-                      <span className="text-ink-400">{viaAnthropic
+                      <span className="text-ink-400">
+                        {viaAnthropic
                           ? serverTools.length > 1
                             ? `— via Anthropic: todas as ferramentas (${serverTools.length - 1} conhecidas)`
                             : "— via Anthropic: ferramentas descobertas na execução"
-                          : `— todas as ${serverTools.length} ferramentas`}</span>
+                          : `— todas as ${serverTools.length} ferramentas`}
+                      </span>
                     </label>
-                    {viaAnthropic && serverTools.length > 0 && form.tools.includes(wildcard) && selectedLlm && selectedLlm.provider !== "anthropic" && (
-                      <p className="mt-1.5 text-[11.5px] text-warn">Este servidor é conectado pela API da Anthropic: com a LLM selecionada, ele será ignorado.</p>
-                    )}
+                    {viaAnthropic &&
+                      serverTools.length > 0 &&
+                      form.tools.includes(wildcard) &&
+                      selectedLlm &&
+                      selectedLlm.provider !== "anthropic" && (
+                        <p className="mt-1.5 text-[11.5px] text-warn">
+                          Este servidor é conectado pela API da Anthropic: com a LLM selecionada, ele será ignorado.
+                        </p>
+                      )}
                     {!form.tools.includes(wildcard) && serverTools.some((t) => t.name !== wildcard) && (
                       <div className="mt-2 flex flex-wrap gap-1.5">
-                        {serverTools.filter((t) => t.name !== wildcard).map((t) => (
-                          <button key={t.name} onClick={() => toggleTool(t.name)} className={`rounded-full border px-2 py-0.5 font-mono text-[11px] ${form.tools.includes(t.name) ? "border-mcp/50 bg-mcp/15 text-mcp" : "border-ink-700 text-ink-400"}`}>
-                            {toolLabel(t.name).label}
-                          </button>
-                        ))}
+                        {serverTools
+                          .filter((t) => t.name !== wildcard)
+                          .map((t) => (
+                            <button
+                              key={t.name}
+                              onClick={() => toggleTool(t.name)}
+                              className={`rounded-full border px-2 py-0.5 font-mono text-[11px] ${form.tools.includes(t.name) ? "border-mcp/50 bg-mcp/15 text-mcp" : "border-ink-700 text-ink-400"}`}
+                            >
+                              {toolLabel(t.name).label}
+                            </button>
+                          ))}
                       </div>
                     )}
                   </div>
@@ -319,14 +404,26 @@ function AgentEditor({ initial, id, onClose, onSaved }: { initial: AgentInput; i
               })}
             </div>
           )}
-          {mcpServers.length === 0 && <p className="mt-2 text-[12px] text-ink-500">Conecte um servidor MCP para ver ferramentas externas aqui.</p>}
+          {mcpServers.length === 0 && (
+            <p className="mt-2 text-[12px] text-ink-500">Conecte um servidor MCP para ver ferramentas externas aqui.</p>
+          )}
         </div>
 
         <div className="grid gap-4 md:grid-cols-2">
           <div className="rounded-xl border border-ink-700 p-2">
             <div className="px-2 pt-1 text-[12px] font-medium text-ink-400">Memória</div>
-            <Toggle checked={form.memory.autoRecall} onChange={(v) => set("memory", { ...form.memory, autoRecall: v })} label="Recall automático" description="Busca memórias relevantes e injeta no prompt de sistema antes de rodar." />
-            <Toggle checked={form.memory.autoEpisode} onChange={(v) => set("memory", { ...form.memory, autoEpisode: v })} label="Memória episódica" description="Salva um resumo de cada execução concluída." />
+            <Toggle
+              checked={form.memory.autoRecall}
+              onChange={(v) => set("memory", { ...form.memory, autoRecall: v })}
+              label="Recall automático"
+              description="Busca memórias relevantes e injeta no prompt de sistema antes de rodar."
+            />
+            <Toggle
+              checked={form.memory.autoEpisode}
+              onChange={(v) => set("memory", { ...form.memory, autoEpisode: v })}
+              label="Memória episódica"
+              description="Salva um resumo de cada execução concluída."
+            />
             <Toggle
               checked={Boolean(form.memory.recallEpisodes)}
               onChange={(v) => set("memory", { ...form.memory, recallEpisodes: v })}
@@ -336,10 +433,21 @@ function AgentEditor({ initial, id, onClose, onSaved }: { initial: AgentInput; i
           </div>
           <div className="rounded-xl border border-ink-700 p-2">
             <div className="px-2 pt-1 text-[12px] font-medium text-ink-400">Controle e segurança</div>
-            <Toggle checked={form.requireApproval} onChange={(v) => set("requireApproval", v)} label="Aprovação humana" description="Pausa antes de cada ferramenta e pede sua autorização." />
+            <Toggle
+              checked={form.requireApproval}
+              onChange={(v) => set("requireApproval", v)}
+              label="Aprovação humana"
+              description="Pausa antes de cada ferramenta e pede sua autorização."
+            />
             <div className="px-2 pt-1">
               <Field label="Máximo de iterações" hint="evita loops infinitos">
-                <Input type="number" min={1} max={50} value={form.maxIterations} onChange={(e) => set("maxIterations", Number(e.target.value))} />
+                <Input
+                  type="number"
+                  min={1}
+                  max={50}
+                  value={form.maxIterations}
+                  onChange={(e) => set("maxIterations", Number(e.target.value))}
+                />
               </Field>
             </div>
             <Toggle
@@ -351,7 +459,15 @@ function AgentEditor({ initial, id, onClose, onSaved }: { initial: AgentInput; i
             {form.context?.autoCompact && (
               <div className="px-2 pt-1">
                 <Field label="Limite da janela" hint="% que dispara o resumo">
-                  <Input type="number" min={5} max={95} value={form.context.thresholdPct} onChange={(e) => set("context", { autoCompact: true, thresholdPct: Math.min(95, Math.max(5, Number(e.target.value) || 60)) })} />
+                  <Input
+                    type="number"
+                    min={5}
+                    max={95}
+                    value={form.context.thresholdPct}
+                    onChange={(e) =>
+                      set("context", { autoCompact: true, thresholdPct: Math.min(95, Math.max(5, Number(e.target.value) || 60)) })
+                    }
+                  />
                 </Field>
               </div>
             )}

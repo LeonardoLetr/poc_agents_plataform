@@ -24,7 +24,12 @@ describe("API: LLMs", () => {
   let id = "";
 
   it("cria uma LLM sem nunca devolver a chave", async () => {
-    const res = await ctx.api("POST", "/api/llms", { name: "Claude teste", provider: "anthropic", model: "claude-haiku-5-5", apiKey: secret });
+    const res = await ctx.api("POST", "/api/llms", {
+      name: "Claude teste",
+      provider: "anthropic",
+      model: "claude-haiku-5-5",
+      apiKey: secret,
+    });
     expect(res.status).toBe(201);
     id = res.body.id;
     expect(res.body.apiKeySet).toBe(true);
@@ -37,7 +42,12 @@ describe("API: LLMs", () => {
   it("mantém a chave quando a atualização não envia apiKey e remove com string vazia", async () => {
     const kept = await ctx.api("PUT", `/api/llms/${id}`, { name: "Claude renomeado", provider: "anthropic", model: "claude-haiku-5-5" });
     expect(kept.body.apiKeySet).toBe(true);
-    const removed = await ctx.api("PUT", `/api/llms/${id}`, { name: "Claude renomeado", provider: "anthropic", model: "claude-haiku-5-5", apiKey: "" });
+    const removed = await ctx.api("PUT", `/api/llms/${id}`, {
+      name: "Claude renomeado",
+      provider: "anthropic",
+      model: "claude-haiku-5-5",
+      apiKey: "",
+    });
     expect(removed.body.apiKeySet).toBe(false);
     expect(removed.body.ready).toBe(false); // sem chave própria e sem variável de ambiente
   });

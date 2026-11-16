@@ -74,11 +74,17 @@ export function TopBar() {
           placeholder="Ir para…"
           className="h-8 w-64 rounded-lg border border-ink-700 bg-ink-900 pl-8 pr-10 text-[13px] text-ink-100 outline-none transition placeholder:text-ink-500 focus:border-accent focus:bg-surface focus:ring-[3px] focus:ring-accent/20"
         />
-        <kbd className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 rounded border border-ink-700 bg-surface px-1 text-[10px] font-medium text-ink-400">⌘K</kbd>
+        <kbd className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 rounded border border-ink-700 bg-surface px-1 text-[10px] font-medium text-ink-400">
+          ⌘K
+        </kbd>
         {open && results.length > 0 && (
           <div className="absolute right-0 top-10 w-64 rounded-lg border border-ink-700 bg-surface p-1 shadow-[0_8px_24px_rgb(0_0_0/0.08)]">
             {results.map((p) => (
-              <button key={p.to} onMouseDown={() => go(p.to)} className="flex h-8 w-full items-center rounded-md px-2.5 text-left text-[13px] text-ink-200 hover:bg-ink-850">
+              <button
+                key={p.to}
+                onMouseDown={() => go(p.to)}
+                className="flex h-8 w-full items-center rounded-md px-2.5 text-left text-[13px] text-ink-200 hover:bg-ink-850"
+              >
                 {p.label}
               </button>
             ))}

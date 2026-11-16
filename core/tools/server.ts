@@ -116,7 +116,13 @@ export function collectCitations(content: AnyBlock[]): Citation[] {
   const out: Citation[] = [];
   for (const b of content) {
     if (b.type !== "text" || !Array.isArray(b.citations)) continue;
-    for (const c of b.citations as { type?: string; url?: string; title?: string | null; cited_text?: string; document_title?: string | null }[]) {
+    for (const c of b.citations as {
+      type?: string;
+      url?: string;
+      title?: string | null;
+      cited_text?: string;
+      document_title?: string | null;
+    }[]) {
       const url = c.url;
       if (!url) continue;
       const key = `${url}|${c.cited_text ?? ""}`;

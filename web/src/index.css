@@ -38,16 +38,28 @@
   --animate-spin-slow: spin 2.4s linear infinite;
 
   @keyframes shimmer {
-    from { background-position: 200% 0; }
-    to { background-position: -200% 0; }
+    from {
+      background-position: 200% 0;
+    }
+    to {
+      background-position: -200% 0;
+    }
   }
   @keyframes pulse-ring {
-    0% { transform: scale(0.95); opacity: 0.7; }
-    100% { transform: scale(1.6); opacity: 0; }
+    0% {
+      transform: scale(0.95);
+      opacity: 0.7;
+    }
+    100% {
+      transform: scale(1.6);
+      opacity: 0;
+    }
   }
 }
 
-:root { color-scheme: light; }
+:root {
+  color-scheme: light;
+}
 
 /*
  * Tema escuro (grafite quente). A estrutura e os componentes são os mesmos; só os tokens mudam.
@@ -76,13 +88,23 @@
   --color-memory: #a78bfa;
 }
 
-html, body, #root { height: 100%; }
+html,
+body,
+#root {
+  height: 100%;
+}
 
 /* Trava contra rolagem lateral no celular: nada pode ser mais largo que a tela.
    (clip, ao contrário de hidden, não quebra o position: sticky da sidebar.) */
-html, body { overflow-x: clip; max-width: 100%; }
+html,
+body {
+  overflow-x: clip;
+  max-width: 100%;
+}
 /* Itens de grid/flex podem encolher abaixo do conteúdo (senão um texto longo alarga a coluna). */
-.grid > * { min-width: 0; }
+.grid > * {
+  min-width: 0;
+}
 
 body {
   background: var(--color-ink-950);
@@ -93,9 +115,14 @@ body {
   font-feature-settings: "cv11", "ss01";
 }
 
-::selection { background: color-mix(in oklab, var(--color-accent) 22%, transparent); }
+::selection {
+  background: color-mix(in oklab, var(--color-accent) 22%, transparent);
+}
 
-* { scrollbar-width: thin; scrollbar-color: var(--color-ink-700) transparent; }
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-ink-700) transparent;
+}
 
 /* Cartão: branco, borda fina, sombra quase imperceptível. */
 .glass {
@@ -129,16 +156,35 @@ body {
   color: var(--color-accent);
   animation: blink 1s steps(2) infinite;
 }
-@keyframes blink { 50% { opacity: 0; } }
+@keyframes blink {
+  50% {
+    opacity: 0;
+  }
+}
 
-.react-flow { --xy-background-color: transparent; }
-.react-flow__attribution { display: none; }
-.react-flow__handle { opacity: 0; }
+.react-flow {
+  --xy-background-color: transparent;
+}
+.react-flow__attribution {
+  display: none;
+}
+.react-flow__handle {
+  opacity: 0;
+}
 
-.tabular-nums, .num { font-variant-numeric: tabular-nums; }
+.tabular-nums,
+.num {
+  font-variant-numeric: tabular-nums;
+}
 
 @media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after { animation-duration: 0.001ms !important; animation-iteration-count: 1 !important; transition-duration: 0.001ms !important; }
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
 }
 
 /* Barra de rolagem discreta para áreas internas (colunas do quadro, painéis). */

@@ -39,7 +39,10 @@ export default function Compare() {
   useEffect(() => {
     const demo = agents.data?.find((a) => a.llmId === "llm_demo") ?? agents.data?.[0];
     if (entries.length || !agents.data || !demo || !llms.data) return;
-    const other = agents.data.find((a) => a.id !== demo.id && a.tools.some((t) => t.startsWith("mcp__"))) ?? agents.data.find((a) => a.id !== demo.id) ?? demo;
+    const other =
+      agents.data.find((a) => a.id !== demo.id && a.tools.some((t) => t.startsWith("mcp__"))) ??
+      agents.data.find((a) => a.id !== demo.id) ??
+      demo;
     const otherReady = llms.data.find((l) => l.id === other.llmId)?.ready;
     setEntries([
       { agentId: demo.id, llmId: "" },
@@ -95,21 +98,50 @@ export default function Compare() {
       />
 
       <Card className="mb-5 p-4">
-        <Textarea rows={2} value={input} onChange={(e) => setInput(e.target.value)} placeholder="Tarefa a ser executada por todas as combinações" className="resize-none" />
+        <Textarea
+          rows={2}
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          placeholder="Tarefa a ser executada por todas as combinações"
+          className="resize-none"
+        />
         <div className="mt-3 grid gap-2 md:grid-cols-2">
           {entries.map((entry, i) => {
             const agent = agentOf(entry.agentId);
             return (
               <div key={i} className="flex items-center gap-2 rounded-lg border border-ink-700 bg-ink-900 p-2">
                 <span className="w-5 text-center text-[11px] font-medium tabular-nums text-ink-400">{i + 1}</span>
-                <Select value={entry.agentId} onChange={(e) => setEntries(entries.map((x, j) => (j === i ? { ...x, agentId: e.target.value } : x)))} className="min-w-0 flex-1">
-                  {agents.data?.map((a) => <option key={a.id} value={a.id}>{a.emoji} {a.name}</option>)}
+                <Select
+                  value={entry.agentId}
+                  onChange={(e) => setEntries(entries.map((x, j) => (j === i ? { ...x, agentId: e.target.value } : x)))}
+                  className="min-w-0 flex-1"
+                >
+                  {agents.data?.map((a) => (
+                    <option key={a.id} value={a.id}>
+                      {a.emoji} {a.name}
+                    </option>
+                  ))}
                 </Select>
-                <Select value={entry.llmId} onChange={(e) => setEntries(entries.map((x, j) => (j === i ? { ...x, llmId: e.target.value } : x)))} className="min-w-0 flex-1">
+                <Select
+                  value={entry.llmId}
+                  onChange={(e) => setEntries(entries.map((x, j) => (j === i ? { ...x, llmId: e.target.value } : x)))}
+                  className="min-w-0 flex-1"
+                >
                   <option value="">LLM do agente ({llmOf(agent?.llmId)?.name ?? "—"})</option>
-                  {llms.data?.map((l) => <option key={l.id} value={l.id}>{l.name}{l.ready ? "" : " · sem chave"}</option>)}
+                  {llms.data?.map((l) => (
+                    <option key={l.id} value={l.id}>
+                      {l.name}
+                      {l.ready ? "" : " · sem chave"}
+                    </option>
+                  ))}
                 </Select>
-                <Button size="sm" variant="subtle" disabled={entries.length <= 2} onClick={() => setEntries(entries.filter((_, j) => j !== i))} aria-label="Remover combinação">
+                <Button
+                  size="sm"
+                  variant="subtle"
+                  disabled={entries.length <= 2}
+                  onClick={() => setEntries(entries.filter((_, j) => j !== i))}
+                  aria-label="Remover combinação"
+                >
                   <Trash2 size={13} />
                 </Button>
               </div>
@@ -117,7 +149,11 @@ export default function Compare() {
           })}
         </div>
         <div className="mt-3 flex flex-wrap items-center gap-2">
-          <Button size="sm" disabled={entries.length >= 4} onClick={() => setEntries([...entries, { agentId: entries[0]?.agentId ?? "", llmId: "" }])}>
+          <Button
+            size="sm"
+            disabled={entries.length >= 4}
+            onClick={() => setEntries([...entries, { agentId: entries[0]?.agentId ?? "", llmId: "" }])}
+          >
             <Plus size={13} /> Combinação
           </Button>
           <span className="text-[12px] text-ink-400">{entries.length} de 4</span>
@@ -140,7 +176,9 @@ export default function Compare() {
             </Button>
           </div>
           <div className={`grid gap-3 md:grid-cols-2 ${data.results.length > 2 ? "xl:grid-cols-4" : ""}`}>
-            {data.results.map((r, i) => <LiveRunCard key={r.runId} index={i + 1} result={r} />)}
+            {data.results.map((r, i) => (
+              <LiveRunCard key={r.runId} index={i + 1} result={r} />
+            ))}
           </div>
           {data.done && <MetricsTable data={data} />}
         </>
@@ -151,14 +189,22 @@ export default function Compare() {
 
 /** Cartão de uma combinação, com progresso ao vivo pelo stream da execução. */
 function LiveRunCard({ index, result }: { index: number; result: Comparison["results"][number] }) {
-  const [view, dispatch] = useReducer((s: typeof emptyRun, e: RunEvent | { type: "snapshot"; events: RunEvent[] }) => (e.type === "snapshot" ? (e as { events: RunEvent[] }).events.reduce(reduceRun, emptyRun) : reduceRun(s, e as RunEvent)), emptyRun);
+  const [view, dispatch] = useReducer(
+    (s: typeof emptyRun, e: RunEvent | { type: "snapshot"; events: RunEvent[] }) =>
+      e.type === "snapshot" ? (e as { events: RunEvent[] }).events.reduce(reduceRun, emptyRun) : reduceRun(s, e as RunEvent),
+    emptyRun,
+  );
   useEventStream<RunEvent | { type: "snapshot"; events: RunEvent[] }>(`/api/runs/${result.runId}/stream`, dispatch);
   const status = STATUS[view.status === "idle" ? result.status : view.status];
   const final = [...view.steps].reverse().find((s) => s.kind === "final" || s.kind === "error");
   const tools = Object.values(view.callCounts).reduce((a, b) => a + b, 0);
 
   return (
-    <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="flex flex-col rounded-xl border border-ink-700 bg-surface p-3">
+    <motion.div
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="flex flex-col rounded-xl border border-ink-700 bg-surface p-3"
+    >
       <div className="flex items-center gap-1.5 text-[10.5px] font-medium uppercase tracking-[0.04em] text-ink-400">
         Combinação {index}
         <span className="ml-auto normal-case tracking-normal">
@@ -168,7 +214,9 @@ function LiveRunCard({ index, result }: { index: number; result: Comparison["res
         </span>
       </div>
       <div className="mt-2 truncate text-[13px] font-medium text-ink-100">{result.agentName}</div>
-      <div className="truncate text-[12px] text-ink-400">{result.llmName} · {result.model}</div>
+      <div className="truncate text-[12px] text-ink-400">
+        {result.llmName} · {result.model}
+      </div>
       <div className="mt-3 grid grid-cols-3 gap-2 border-y border-ink-850 py-2 text-center">
         {[
           ["Iterações", view.iteration],
@@ -183,12 +231,19 @@ function LiveRunCard({ index, result }: { index: number; result: Comparison["res
       </div>
       <div className="mt-2 max-h-48 min-h-[60px] flex-1 overflow-y-auto text-[12.5px]">
         {final ? (
-          final.kind === "error" ? <p className="text-bad">{final.text}</p> : <Markdown text={final.text} className="!text-[12.5px]" />
+          final.kind === "error" ? (
+            <p className="text-bad">{final.text}</p>
+          ) : (
+            <Markdown text={final.text} className="!text-[12.5px]" />
+          )
         ) : (
           <p className="text-ink-400">Aguardando resposta…</p>
         )}
       </div>
-      <Link to={`/playground/${result.runId}`} className="mt-2 inline-flex items-center gap-1 self-start text-[12px] text-accent hover:underline">
+      <Link
+        to={`/playground/${result.runId}`}
+        className="mt-2 inline-flex items-center gap-1 self-start text-[12px] text-accent hover:underline"
+      >
         Ver execução completa <ArrowUpRight size={12} />
       </Link>
     </motion.div>
@@ -202,12 +257,36 @@ function MetricsTable({ data }: { data: Comparison }) {
     () =>
       [
         { label: "Iterações", get: (r: Comparison["results"][number]) => r.iterations, fmt: (v: number | null) => fmtNumber(v ?? 0) },
-        { label: "Tokens de entrada", get: (r: Comparison["results"][number]) => r.tokens.input, fmt: (v: number | null) => fmtNumber(v ?? 0) },
-        { label: "Tokens de saída", get: (r: Comparison["results"][number]) => r.tokens.output, fmt: (v: number | null) => fmtNumber(v ?? 0) },
-        { label: "Tokens no total", get: (r: Comparison["results"][number]) => r.tokens.total, fmt: (v: number | null) => fmtNumber(v ?? 0) },
-        { label: "Custo estimado", get: (r: Comparison["results"][number]) => r.costUsd, fmt: (v: number | null) => (v === null ? "não estimado" : fmtUsd(v)) },
-        { label: "Duração", get: (r: Comparison["results"][number]) => r.durationMs, fmt: (v: number | null) => (v === null ? "—" : fmtMs(v)) },
-        { label: "Chamadas de ferramenta", get: (r: Comparison["results"][number]) => r.toolCalls, fmt: (v: number | null) => fmtNumber(v ?? 0) },
+        {
+          label: "Tokens de entrada",
+          get: (r: Comparison["results"][number]) => r.tokens.input,
+          fmt: (v: number | null) => fmtNumber(v ?? 0),
+        },
+        {
+          label: "Tokens de saída",
+          get: (r: Comparison["results"][number]) => r.tokens.output,
+          fmt: (v: number | null) => fmtNumber(v ?? 0),
+        },
+        {
+          label: "Tokens no total",
+          get: (r: Comparison["results"][number]) => r.tokens.total,
+          fmt: (v: number | null) => fmtNumber(v ?? 0),
+        },
+        {
+          label: "Custo estimado",
+          get: (r: Comparison["results"][number]) => r.costUsd,
+          fmt: (v: number | null) => (v === null ? "não estimado" : fmtUsd(v)),
+        },
+        {
+          label: "Duração",
+          get: (r: Comparison["results"][number]) => r.durationMs,
+          fmt: (v: number | null) => (v === null ? "—" : fmtMs(v)),
+        },
+        {
+          label: "Chamadas de ferramenta",
+          get: (r: Comparison["results"][number]) => r.toolCalls,
+          fmt: (v: number | null) => fmtNumber(v ?? 0),
+        },
       ] as const,
     [],
   );
@@ -260,7 +339,13 @@ function MetricsTable({ data }: { data: Comparison }) {
             <td className="px-4 py-2 text-ink-400">Ferramentas usadas</td>
             {data.results.map((r) => (
               <td key={r.runId} className="px-4 py-2">
-                <div className="flex flex-wrap gap-1">{r.tools.length ? r.tools.map((t) => <Badge key={t}>{t.replace(/^mcp__(.+?)__/, "$1/")}</Badge>) : <span className="text-ink-400">nenhuma</span>}</div>
+                <div className="flex flex-wrap gap-1">
+                  {r.tools.length ? (
+                    r.tools.map((t) => <Badge key={t}>{t.replace(/^mcp__(.+?)__/, "$1/")}</Badge>)
+                  ) : (
+                    <span className="text-ink-400">nenhuma</span>
+                  )}
+                </div>
               </td>
             ))}
           </tr>
@@ -281,9 +366,16 @@ function RecentComparisons({ items, current }: { items: ComparisonSummary[]; cur
         <div className="absolute right-0 z-30 mt-2 max-h-80 w-72 overflow-y-auto rounded-lg border border-ink-700 bg-surface p-1 shadow-[0_8px_24px_rgb(0_0_0/0.08)]">
           {items.length === 0 && <div className="p-3 text-[12px] text-ink-400">Nenhuma comparação ainda.</div>}
           {items.map((c) => (
-            <Link key={c.id} to={`/compare/${c.id}`} onClick={() => setOpen(false)} className={`block rounded-md px-2.5 py-2 hover:bg-ink-850 ${c.id === current ? "bg-ink-850" : ""}`}>
+            <Link
+              key={c.id}
+              to={`/compare/${c.id}`}
+              onClick={() => setOpen(false)}
+              className={`block rounded-md px-2.5 py-2 hover:bg-ink-850 ${c.id === current ? "bg-ink-850" : ""}`}
+            >
               <div className="truncate text-[12.5px] text-ink-100">{c.input}</div>
-              <div className="text-[11px] text-ink-400">{c.count} combinações · {timeAgo(c.startedAt)}</div>
+              <div className="text-[11px] text-ink-400">
+                {c.count} combinações · {timeAgo(c.startedAt)}
+              </div>
             </Link>
           ))}
         </div>

@@ -48,7 +48,7 @@ jobs:
           enablement: true
         continue-on-error: true
 
-      - name: Build da interface 
+      - name: Build da interface
         working-directory: web
         env:
           BASE_PATH: /${{ github.event.repository.name }}/

@@ -12,7 +12,16 @@ export function Aurora() {
 }
 
 /** Cartão branco que só escurece a borda ao passar o mouse. */
-export function SpotlightCard({ children, className = "", onClick }: { children: ReactNode; className?: string; color?: string; onClick?: () => void }) {
+export function SpotlightCard({
+  children,
+  className = "",
+  onClick,
+}: {
+  children: ReactNode;
+  className?: string;
+  color?: string;
+  onClick?: () => void;
+}) {
   return (
     <motion.div
       onClick={onClick}
@@ -26,7 +35,17 @@ export function SpotlightCard({ children, className = "", onClick }: { children:
 }
 
 /** Contador que anima até o valor (estilo "number ticker"). */
-export function NumberTicker({ value, decimals = 0, prefix = "", suffix = "" }: { value: number; decimals?: number; prefix?: string; suffix?: string }) {
+export function NumberTicker({
+  value,
+  decimals = 0,
+  prefix = "",
+  suffix = "",
+}: {
+  value: number;
+  decimals?: number;
+  prefix?: string;
+  suffix?: string;
+}) {
   const ref = useRef<HTMLSpanElement>(null);
   const inView = useInView(ref, { once: true });
   const mv = useMotionValue(0);
@@ -37,16 +56,35 @@ export function NumberTicker({ value, decimals = 0, prefix = "", suffix = "" }: 
   useEffect(
     () =>
       spring.on("change", (v) => {
-        if (ref.current) ref.current.textContent = prefix + new Intl.NumberFormat("pt-BR", { minimumFractionDigits: decimals, maximumFractionDigits: decimals }).format(v) + suffix;
+        if (ref.current)
+          ref.current.textContent =
+            prefix +
+            new Intl.NumberFormat("pt-BR", { minimumFractionDigits: decimals, maximumFractionDigits: decimals }).format(v) +
+            suffix;
       }),
     [spring, decimals, prefix, suffix],
   );
-  const initial = prefix + new Intl.NumberFormat("pt-BR", { minimumFractionDigits: decimals, maximumFractionDigits: decimals }).format(0) + suffix;
-  return <span ref={ref} className="tabular-nums">{initial}</span>;
+  const initial =
+    prefix + new Intl.NumberFormat("pt-BR", { minimumFractionDigits: decimals, maximumFractionDigits: decimals }).format(0) + suffix;
+  return (
+    <span ref={ref} className="tabular-nums">
+      {initial}
+    </span>
+  );
 }
 
 /** Texto que aparece palavra por palavra com desfoque (estilo "blur fade"). */
-export function BlurText({ text, className = "", wordClassName = "", delay = 0 }: { text: string; className?: string; wordClassName?: string; delay?: number }) {
+export function BlurText({
+  text,
+  className = "",
+  wordClassName = "",
+  delay = 0,
+}: {
+  text: string;
+  className?: string;
+  wordClassName?: string;
+  delay?: number;
+}) {
   return (
     <span className={className}>
       {text.split(" ").map((w, i) => (

@@ -32,7 +32,10 @@ export function ReplayBar({ events, state, onChange }: { events: RunEvent[]; sta
       onChange({ ...state, playing: false });
       return;
     }
-    const timer = setTimeout(() => onChange({ ...state, position: (state.position ?? 0) + 1 }), replayDelay(events, state.position, state.speed));
+    const timer = setTimeout(
+      () => onChange({ ...state, position: (state.position ?? 0) + 1 }),
+      replayDelay(events, state.position, state.speed),
+    );
     return () => clearTimeout(timer);
   }, [state, events, total, onChange]);
 
@@ -53,8 +56,13 @@ export function ReplayBar({ events, state, onChange }: { events: RunEvent[]; sta
   if (state.position === null) {
     return (
       <Card className="mb-4 flex flex-wrap items-center gap-3 px-4 py-2.5">
-        <span className="text-[13px] text-ink-300">Reveja esta execução evento por evento, com o grafo e a linha do tempo acompanhando.</span>
-        <button onClick={() => onChange({ ...state, position: 0, playing: true })} className="ml-auto inline-flex h-8 items-center gap-1.5 rounded-lg bg-accent px-3 text-[13px] font-medium text-white transition-colors hover:opacity-90">
+        <span className="text-[13px] text-ink-300">
+          Reveja esta execução evento por evento, com o grafo e a linha do tempo acompanhando.
+        </span>
+        <button
+          onClick={() => onChange({ ...state, position: 0, playing: true })}
+          className="ml-auto inline-flex h-8 items-center gap-1.5 rounded-lg bg-accent px-3 text-[13px] font-medium text-white transition-colors hover:opacity-90"
+        >
           <Play size={13} /> Reproduzir
         </button>
       </Card>
@@ -67,10 +75,22 @@ export function ReplayBar({ events, state, onChange }: { events: RunEvent[]; sta
     <Card className="mb-4 px-4 py-3">
       <div className="flex flex-wrap items-center gap-2">
         <span className="mr-1 text-[13px] font-medium text-ink-100">Replay</span>
-        <button className={iconButton} onClick={() => set(jumpIteration(events, position, -1), { playing: false })} disabled={position === 0} aria-label="Iteração anterior" title="Iteração anterior (Shift + ←)">
+        <button
+          className={iconButton}
+          onClick={() => set(jumpIteration(events, position, -1), { playing: false })}
+          disabled={position === 0}
+          aria-label="Iteração anterior"
+          title="Iteração anterior (Shift + ←)"
+        >
           <ChevronsLeft size={15} />
         </button>
-        <button className={iconButton} onClick={() => set(position - 1, { playing: false })} disabled={position === 0} aria-label="Evento anterior" title="Evento anterior (←)">
+        <button
+          className={iconButton}
+          onClick={() => set(position - 1, { playing: false })}
+          disabled={position === 0}
+          aria-label="Evento anterior"
+          title="Evento anterior (←)"
+        >
           <ChevronLeft size={15} />
         </button>
         <button
@@ -81,20 +101,39 @@ export function ReplayBar({ events, state, onChange }: { events: RunEvent[]; sta
         >
           {state.playing ? <Pause size={14} /> : <Play size={14} />}
         </button>
-        <button className={iconButton} onClick={() => set(position + 1, { playing: false })} disabled={position >= total} aria-label="Próximo evento" title="Próximo evento (→)">
+        <button
+          className={iconButton}
+          onClick={() => set(position + 1, { playing: false })}
+          disabled={position >= total}
+          aria-label="Próximo evento"
+          title="Próximo evento (→)"
+        >
           <ChevronRight size={15} />
         </button>
-        <button className={iconButton} onClick={() => set(jumpIteration(events, position, 1), { playing: false })} disabled={position >= total} aria-label="Próxima iteração" title="Próxima iteração (Shift + →)">
+        <button
+          className={iconButton}
+          onClick={() => set(jumpIteration(events, position, 1), { playing: false })}
+          disabled={position >= total}
+          aria-label="Próxima iteração"
+          title="Próxima iteração (Shift + →)"
+        >
           <ChevronsRight size={15} />
         </button>
         <div className="ml-1 flex rounded-lg border border-ink-700 p-0.5" role="group" aria-label="Velocidade">
           {REPLAY_SPEEDS.map((s) => (
-            <button key={s} onClick={() => onChange({ ...state, speed: s })} className={`h-6 rounded-md px-2 text-[11.5px] tabular-nums transition-colors ${state.speed === s ? "bg-ink-850 font-medium text-ink-100" : "text-ink-400 hover:text-ink-100"}`}>
+            <button
+              key={s}
+              onClick={() => onChange({ ...state, speed: s })}
+              className={`h-6 rounded-md px-2 text-[11.5px] tabular-nums transition-colors ${state.speed === s ? "bg-ink-850 font-medium text-ink-100" : "text-ink-400 hover:text-ink-100"}`}
+            >
               {s}×
             </button>
           ))}
         </div>
-        <button onClick={() => onChange({ ...state, position: null, playing: false })} className="ml-auto inline-flex h-8 items-center gap-1 rounded-lg px-2 text-[12.5px] text-ink-400 hover:bg-ink-850 hover:text-ink-100">
+        <button
+          onClick={() => onChange({ ...state, position: null, playing: false })}
+          className="ml-auto inline-flex h-8 items-center gap-1 rounded-lg px-2 text-[12.5px] text-ink-400 hover:bg-ink-850 hover:text-ink-100"
+        >
           <X size={13} /> Sair do replay
         </button>
       </div>
@@ -112,7 +151,11 @@ export function ReplayBar({ events, state, onChange }: { events: RunEvent[]; sta
         />
         <div className="pointer-events-none relative h-3">
           {starts.map((s, i) => (
-            <span key={s} className="absolute top-0 -translate-x-1/2 text-[10px] tabular-nums text-ink-500" style={{ left: `${(s / Math.max(1, total)) * 100}%` }}>
+            <span
+              key={s}
+              className="absolute top-0 -translate-x-1/2 text-[10px] tabular-nums text-ink-500"
+              style={{ left: `${(s / Math.max(1, total)) * 100}%` }}
+            >
               {i + 1}
             </span>
           ))}

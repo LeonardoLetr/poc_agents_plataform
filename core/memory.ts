@@ -12,7 +12,9 @@ import { now, uid } from "./util.js";
  */
 
 const STOP = new Set(
-  "a o as os de da do das dos e é em um uma para por com que no na nos nas se ao à the of and to in is for on what qual quais como".split(" "),
+  "a o as os de da do das dos e é em um uma para por com que no na nos nas se ao à the of and to in is for on what qual quais como".split(
+    " ",
+  ),
 );
 
 export function tokenize(text: string): string[] {
@@ -26,10 +28,52 @@ export function tokenize(text: string): string[] {
 
 /** Sufixos removidos pelo radicalizador, do mais longo ao mais curto (aplicado uma única vez por palavra). */
 const SUFFIXES = [
-  "amentos", "imentos", "amento", "imento", "mente", "acoes", "icoes", "idades", "idade", "acao", "icao",
-  "ismos", "ismo", "istas", "ista", "aveis", "iveis", "avel", "ivel", "ando", "endo", "indo",
-  "adas", "idas", "ados", "idos", "ada", "ida", "ado", "ido", "aram", "eram", "iram", "ava", "ia",
-  "ar", "er", "ir", "es", "as", "os", "is", "a", "e", "o", "s",
+  "amentos",
+  "imentos",
+  "amento",
+  "imento",
+  "mente",
+  "acoes",
+  "icoes",
+  "idades",
+  "idade",
+  "acao",
+  "icao",
+  "ismos",
+  "ismo",
+  "istas",
+  "ista",
+  "aveis",
+  "iveis",
+  "avel",
+  "ivel",
+  "ando",
+  "endo",
+  "indo",
+  "adas",
+  "idas",
+  "ados",
+  "idos",
+  "ada",
+  "ida",
+  "ado",
+  "ido",
+  "aram",
+  "eram",
+  "iram",
+  "ava",
+  "ia",
+  "ar",
+  "er",
+  "ir",
+  "es",
+  "as",
+  "os",
+  "is",
+  "a",
+  "e",
+  "o",
+  "s",
 ];
 
 /** Radical simplificado em português: reduz flexões comuns (plural, gênero, conjugações). */
@@ -64,7 +108,12 @@ export interface ScoredMemory {
 
 export function searchMemories(
   query: string,
-  opts: { agentId?: string | null | undefined; limit?: number | undefined; touch?: boolean | undefined; excludeKinds?: MemoryKind[] | undefined } = {},
+  opts: {
+    agentId?: string | null | undefined;
+    limit?: number | undefined;
+    touch?: boolean | undefined;
+    excludeKinds?: MemoryKind[] | undefined;
+  } = {},
 ): ScoredMemory[] {
   const queryTerms = [...new Set(tokenize(query).map(stem))];
   const pool = db.memories.filter(
@@ -150,7 +199,11 @@ export function createMemory(input: {
  * Remove uma memória. O usuário pode remover qualquer uma; um agente só remove as próprias:
  * memórias globais e de outros agentes ficam protegidas.
  */
-export function deleteMemory(id: string, actor: "user" | "agent", ctx: { agentId?: string | undefined; runId?: string | undefined } = {}): boolean {
+export function deleteMemory(
+  id: string,
+  actor: "user" | "agent",
+  ctx: { agentId?: string | undefined; runId?: string | undefined } = {},
+): boolean {
   const target = db.memories.find((m) => m.id === id);
   if (!target) return false;
   if (actor === "agent" && target.agentId !== ctx.agentId) {

@@ -46,7 +46,9 @@ export async function callAnthropic(call: LlmCall): Promise<AssistantTurn> {
     ...(mcp.length ? { mcp_servers: mcp } : {}),
     ...(betas.length ? { betas } : {}),
   };
-  const stream = clientFor(llm).beta.messages.stream(params as Parameters<Anthropic["beta"]["messages"]["stream"]>[0], { signal: call.signal });
+  const stream = clientFor(llm).beta.messages.stream(params as Parameters<Anthropic["beta"]["messages"]["stream"]>[0], {
+    signal: call.signal,
+  });
   // Texto que volta depois de um bloco de ferramenta de servidor começa em novo parágrafo.
   let lastBlock: string | null = null;
   let emittedText = false;
@@ -62,8 +64,7 @@ export async function callAnthropic(call: LlmCall): Promise<AssistantTurn> {
     if (d.type === "text_delta" && d.text) {
       emittedText = true;
       emit({ type: "text.delta", text: d.text });
-    }
-    else if (d.type === "thinking_delta" && d.thinking) emit({ type: "thinking.delta", text: d.thinking });
+    } else if (d.type === "thinking_delta" && d.thinking) emit({ type: "thinking.delta", text: d.thinking });
   });
   // Ferramentas de servidor: a chamada e o resultado chegam como blocos completos durante o streaming.
   const serverCalls = new Map<string, { name: string; started: number }>();
@@ -77,7 +78,14 @@ export async function callAnthropic(call: LlmCall): Promise<AssistantTurn> {
     } else if (b.type === "mcp_tool_result" && b.tool_use_id) {
       const info = serverCalls.get(b.tool_use_id);
       const { output, isError } = describeMcpResult(block as unknown as { content?: unknown; is_error?: boolean });
-      emit({ type: "tool.result", id: b.tool_use_id, name: info?.name ?? "mcp", output, isError, durationMs: info ? Date.now() - info.started : 0 });
+      emit({
+        type: "tool.result",
+        id: b.tool_use_id,
+        name: info?.name ?? "mcp",
+        output,
+        isError,
+        durationMs: info ? Date.now() - info.started : 0,
+      });
     } else if (b.type === "server_tool_use" && b.id && b.name) {
       serverCalls.set(b.id, { name: b.name, started: Date.now() });
       emit({ type: "tool.call", id: b.id, name: b.name, input: b.input ?? {}, source: "server" });
@@ -85,14 +93,26 @@ export async function callAnthropic(call: LlmCall): Promise<AssistantTurn> {
       const id = b.tool_use_id!;
       const callInfo = serverCalls.get(id);
       const { output, isError } = describeServerResult(b as { type: string });
-      emit({ type: "tool.result", id, name: callInfo?.name ?? b.type.replace(/_tool_result$/, ""), output, isError, durationMs: callInfo ? Date.now() - callInfo.started : 0 });
+      emit({
+        type: "tool.result",
+        id,
+        name: callInfo?.name ?? b.type.replace(/_tool_result$/, ""),
+        output,
+        isError,
+        durationMs: callInfo ? Date.now() - callInfo.started : 0,
+      });
     }
   });
   const msg = await stream.finalMessage();
   return {
     content: msg.content as unknown as Block[],
     stopReason: msg.stop_reason,
-    usage: { input: msg.usage.input_tokens, output: msg.usage.output_tokens, cacheRead: msg.usage.cache_read_input_tokens ?? undefined, cacheWrite: msg.usage.cache_creation_input_tokens ?? undefined },
+    usage: {
+      input: msg.usage.input_tokens,
+      output: msg.usage.output_tokens,
+      cacheRead: msg.usage.cache_read_input_tokens ?? undefined,
+      cacheWrite: msg.usage.cache_creation_input_tokens ?? undefined,
+    },
     model: msg.model,
   };
 }

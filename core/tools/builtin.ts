@@ -182,7 +182,13 @@ export const builtinTools: Record<string, BuiltinTool> = {
         touch: true,
       });
       return JSON.stringify(
-        results.map((r) => ({ id: r.memory.id, kind: r.memory.kind, scope: r.memory.agentId === null ? "global" : "agente", content: r.memory.content, score: +r.score.toFixed(3) })),
+        results.map((r) => ({
+          id: r.memory.id,
+          kind: r.memory.kind,
+          scope: r.memory.agentId === null ? "global" : "agente",
+          content: r.memory.content,
+          score: +r.score.toFixed(3),
+        })),
       );
     },
   },
@@ -192,8 +198,8 @@ export const builtinTools: Record<string, BuiltinTool> = {
     definition: {
       name: "memory_forget",
       description:
-        "Remove uma memória sua pelo id (obtido via memory_search, campo scope \"agente\"). Use quando uma informação estiver errada ou desatualizada. " +
-        "Memórias globais (scope \"global\") são do usuário e não podem ser removidas.",
+        'Remove uma memória sua pelo id (obtido via memory_search, campo scope "agente"). Use quando uma informação estiver errada ou desatualizada. ' +
+        'Memórias globais (scope "global") são do usuário e não podem ser removidas.',
       input_schema: { type: "object", properties: { id: { type: "string" } }, required: ["id"] },
     },
     run: async (input, ctx) => {

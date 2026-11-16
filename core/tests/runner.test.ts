@@ -5,7 +5,12 @@ import { bootCore, collectRun, types, waitFor, type StreamEvent } from "./helper
 let ctx: Awaited<ReturnType<typeof bootCore>>;
 
 async function agent(fields: Record<string, unknown>) {
-  const res = await ctx.api("POST", "/api/agents", { name: "Agente de teste", llmId: "llm_demo", memory: { autoRecall: false, autoEpisode: false, recallLimit: 0 }, ...fields });
+  const res = await ctx.api("POST", "/api/agents", {
+    name: "Agente de teste",
+    llmId: "llm_demo",
+    memory: { autoRecall: false, autoEpisode: false, recallLimit: 0 },
+    ...fields,
+  });
   expect(res.status).toBe(201);
   return res.body.id as string;
 }
@@ -18,12 +23,17 @@ async function run(agentId: string, input: string, opts?: Parameters<typeof coll
 }
 
 const toolCalls = (events: StreamEvent[]) => events.filter((e): e is Extract<StreamEvent, { type: "tool.call" }> => e.type === "tool.call");
-const toolResults = (events: StreamEvent[]) => events.filter((e): e is Extract<StreamEvent, { type: "tool.result" }> => e.type === "tool.result");
+const toolResults = (events: StreamEvent[]) =>
+  events.filter((e): e is Extract<StreamEvent, { type: "tool.result" }> => e.type === "tool.result");
 
 beforeAll(async () => {
   ctx = await bootCore();
   // O servidor MCP embutido conecta de forma assíncrona na inicialização.
-  await waitFor(async () => (await ctx.api("GET", "/api/mcp")).body.some((s: any) => s.name === "laboratorio" && s.state.status === "connected"), 5000, "MCP laboratorio");
+  await waitFor(
+    async () => (await ctx.api("GET", "/api/mcp")).body.some((s: any) => s.name === "laboratorio" && s.state.status === "connected"),
+    5000,
+    "MCP laboratorio",
+  );
 });
 
 describe("loop agêntico com a LLM demo", () => {
@@ -49,7 +59,9 @@ describe("loop agêntico com a LLM demo", () => {
 
   it("registra a execução na auditoria", async () => {
     const auditTypes = ctx.db.audit.map((a) => a.type);
-    expect(auditTypes).toEqual(expect.arrayContaining(["run.started", "llm.request", "llm.response", "tool.call", "tool.result", "run.completed"]));
+    expect(auditTypes).toEqual(
+      expect.arrayContaining(["run.started", "llm.request", "llm.response", "tool.call", "tool.result", "run.completed"]),
+    );
   });
 
   it("salva memória episódica e recupera memórias relevantes quando configurado", async () => {
@@ -77,7 +89,10 @@ describe("loop agêntico com a LLM demo", () => {
   });
 
   it("inclui episódios no recall quando o agente pede", async () => {
-    const id = await agent({ tools: ["calculator"], memory: { autoRecall: true, autoEpisode: true, recallLimit: 5, recallEpisodes: true } });
+    const id = await agent({
+      tools: ["calculator"],
+      memory: { autoRecall: true, autoEpisode: true, recallLimit: 5, recallEpisodes: true },
+    });
     await run(id, "Quanto é 15 * 3 no estoque?");
     const { events } = await run(id, "Quanto é 15 * 3 no estoque?");
     const recalled = events.find((e) => e.type === "memory.recalled");
@@ -126,7 +141,9 @@ describe("loop agêntico com a LLM demo", () => {
     expect(types(second)[0]).toBe("user.message");
     expect(toolResults(second)[0]?.output).toContain('"result":9');
     const record = (await ctx.api("GET", `/api/runs/${first.id}`)).body;
-    expect(record.messages.filter((m: { role: string; content: unknown }) => m.role === "user" && typeof m.content === "string")).toHaveLength(2);
+    expect(
+      record.messages.filter((m: { role: string; content: unknown }) => m.role === "user" && typeof m.content === "string"),
+    ).toHaveLength(2);
   });
 
   it("cancela uma execução em andamento", async () => {

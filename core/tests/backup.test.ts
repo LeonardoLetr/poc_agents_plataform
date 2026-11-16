@@ -5,7 +5,13 @@ describe("exportar e importar configuração", () => {
   it("exporta sem chaves de API, sem valores de cabeçalhos e sem execuções", async () => {
     const { api, db } = await bootCore();
     await api("PUT", "/api/llms/llm_claude_opus", { ...db.llms.find((l) => l.id === "llm_claude_opus")!, apiKey: "sk-ant-segredo" });
-    await api("POST", "/api/mcp", { name: "zapier", transport: "http", url: "https://mcp.zapier.com/api/v1/connect", headers: { Authorization: "Bearer token-secreto" }, via: "anthropic" });
+    await api("POST", "/api/mcp", {
+      name: "zapier",
+      transport: "http",
+      url: "https://mcp.zapier.com/api/v1/connect",
+      headers: { Authorization: "Bearer token-secreto" },
+      via: "anthropic",
+    });
 
     const res = await api("GET", "/api/export");
     expect(res.status).toBe(200);
@@ -28,7 +34,9 @@ describe("exportar e importar configuração", () => {
     const res = await api("POST", "/api/import", { data: file, mode: "merge" });
     expect(res.status).toBe(200);
     expect(res.body.counts.agents).toEqual({ added: 1, replaced: 0, skipped: file.agents.length - 1 });
-    expect(res.body.conflicts.some((c: { collection: string; id: string }) => c.collection === "agents" && c.id === file.agents[0]?.id)).toBe(true);
+    expect(
+      res.body.conflicts.some((c: { collection: string; id: string }) => c.collection === "agents" && c.id === file.agents[0]?.id),
+    ).toBe(true);
     expect(db.agents.some((a) => a.id === "agt_importado")).toBe(true);
     // LLMs mantidas (conflitos) não geram aviso de chave; só as que entraram pelo arquivo.
     expect(res.body.warnings.some((w: string) => w.includes("Informe a chave"))).toBe(false);

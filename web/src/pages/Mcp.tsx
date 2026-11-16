@@ -10,8 +10,22 @@ import { fmtMs } from "../lib/format";
 import { useEventStream, useResource } from "../lib/hooks";
 
 const PRESETS = [
-  { name: "resend", label: "Resend (e-mail)", transport: "http", url: "https://mcp.resend.com/mcp", headers: "Authorization: Bearer re_sua_chave", via: "anthropic", note: "Servidor oficial do Resend para enviar e-mails, conectado pela API da Anthropic. Chave em resend.com/api-keys." },
-  { name: "remoto", label: "Servidor remoto (HTTP)", transport: "http", url: "https://exemplo.com/mcp", note: "Qualquer servidor MCP via Streamable HTTP (com fallback para SSE)." },
+  {
+    name: "resend",
+    label: "Resend (e-mail)",
+    transport: "http",
+    url: "https://mcp.resend.com/mcp",
+    headers: "Authorization: Bearer re_sua_chave",
+    via: "anthropic",
+    note: "Servidor oficial do Resend para enviar e-mails, conectado pela API da Anthropic. Chave em resend.com/api-keys.",
+  },
+  {
+    name: "remoto",
+    label: "Servidor remoto (HTTP)",
+    transport: "http",
+    url: "https://exemplo.com/mcp",
+    note: "Qualquer servidor MCP via Streamable HTTP (com fallback para SSE).",
+  },
 ] as const;
 
 const statusMeta = {
@@ -38,9 +52,9 @@ export default function Mcp() {
         title="Servidores MCP"
         description={
           <>
-            MCP é um protocolo aberto: o servidor anuncia suas ferramentas (<code className="text-info">tools/list</code>) e o cliente as executa (
-            <code className="text-info">tools/call</code>). Conecte um servidor e as ferramentas dele ficam disponíveis para seus agentes como{" "}
-            <code className="text-mcp">mcp__servidor__ferramenta</code>.
+            MCP é um protocolo aberto: o servidor anuncia suas ferramentas (<code className="text-info">tools/list</code>) e o cliente as
+            executa (<code className="text-info">tools/call</code>). Conecte um servidor e as ferramentas dele ficam disponíveis para seus
+            agentes como <code className="text-mcp">mcp__servidor__ferramenta</code>.
           </>
         }
         actions={
@@ -50,16 +64,21 @@ export default function Mcp() {
         }
       />
 
-
-      {servers.data?.length === 0 && <EmptyState icon={<Plug />} title="Nenhum servidor MCP" description="Adicione um para expandir as capacidades dos seus agentes." />}
+      {servers.data?.length === 0 && (
+        <EmptyState icon={<Plug />} title="Nenhum servidor MCP" description="Adicione um para expandir as capacidades dos seus agentes." />
+      )}
       <div className="grid gap-4 lg:grid-cols-2">
-        {servers.data?.map((s) => <ServerCard key={s.id} server={s} onChange={servers.reload} onEdit={() => setEditing(s)} />)}
+        {servers.data?.map((s) => (
+          <ServerCard key={s.id} server={s} onChange={servers.reload} onEdit={() => setEditing(s)} />
+        ))}
       </div>
 
       <Card className="mt-6 p-4">
         <div className="mb-3">
           <div className="text-[13px] font-medium text-ink-100">Como o MCP funciona</div>
-          <p className="mt-0.5 text-[12px] text-ink-400">Cinco mensagens entre o modelo, o Agent Lab e o servidor, do primeiro contato ao resultado da ferramenta.</p>
+          <p className="mt-0.5 text-[12px] text-ink-400">
+            Cinco mensagens entre o modelo, o Agent Lab e o servidor, do primeiro contato ao resultado da ferramenta.
+          </p>
         </div>
         <McpDiagram />
       </Card>
@@ -106,12 +125,22 @@ function RemoteTools({ server, onChange }: { server: McpServer; onChange: () => 
     <div className="mt-3">
       <p className="text-[12.5px] leading-relaxed text-ink-300">
         A API da Anthropic conecta a este servidor durante as execuções de agentes com LLM Anthropic. Habilite{" "}
-        <code className="text-mcp">mcp__{server.name}__*</code> no editor do agente ou escolha ferramentas específicas depois de descobri-las.
+        <code className="text-mcp">mcp__{server.name}__*</code> no editor do agente ou escolha ferramentas específicas depois de
+        descobri-las.
       </p>
       <div className="mt-3 flex flex-wrap items-center gap-2">
-        <span className="font-mono text-[10.5px] uppercase tracking-wider text-ink-500">{known.length ? `${known.length} ferramentas conhecidas` : "ferramentas ainda não conhecidas"}</span>
-        <Button size="sm" className="ml-auto" onClick={discover} disabled={busy} title="Faz uma chamada curta ao Claude com o servidor anexado (usa sua chave, poucos tokens)">
-          {busy ? <Loader2 size={13} className="animate-spin" /> : <Search size={13} />} {known.length ? "Atualizar lista" : "Descobrir ferramentas"}
+        <span className="font-mono text-[10.5px] uppercase tracking-wider text-ink-500">
+          {known.length ? `${known.length} ferramentas conhecidas` : "ferramentas ainda não conhecidas"}
+        </span>
+        <Button
+          size="sm"
+          className="ml-auto"
+          onClick={discover}
+          disabled={busy}
+          title="Faz uma chamada curta ao Claude com o servidor anexado (usa sua chave, poucos tokens)"
+        >
+          {busy ? <Loader2 size={13} className="animate-spin" /> : <Search size={13} />}{" "}
+          {known.length ? "Atualizar lista" : "Descobrir ferramentas"}
         </Button>
       </div>
       <ErrorNote message={error} />
@@ -152,7 +181,9 @@ function ServerCard({ server, onChange, onEdit }: { server: McpServer; onChange:
     <motion.div layout initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
       <Card className={`p-5 ${server.state.status === "connecting" ? "beam [--beam-color:var(--color-warn)]" : ""}`}>
         <div className="flex flex-wrap items-start gap-3">
-          <div className={`flex h-11 w-11 items-center justify-center rounded-xl ${server.state.status === "connected" ? "bg-mcp/15 text-mcp" : "bg-ink-850 text-ink-400"}`}>
+          <div
+            className={`flex h-11 w-11 items-center justify-center rounded-xl ${server.state.status === "connected" ? "bg-mcp/15 text-mcp" : "bg-ink-850 text-ink-400"}`}
+          >
             {server.state.status === "connected" ? <PlugZap size={20} /> : <Plug size={20} />}
           </div>
           <div className="min-w-0 flex-1">
@@ -198,13 +229,19 @@ function ServerCard({ server, onChange, onEdit }: { server: McpServer; onChange:
           </div>
         </div>
 
-        {server.state.error && <div className="mt-3 whitespace-pre-line rounded-lg bg-bad/10 px-3 py-2 text-[12px] leading-relaxed text-bad">{server.state.error}</div>}
+        {server.state.error && (
+          <div className="mt-3 whitespace-pre-line rounded-lg bg-bad/10 px-3 py-2 text-[12px] leading-relaxed text-bad">
+            {server.state.error}
+          </div>
+        )}
         {server.via === "anthropic" && server.state.status === "connected" && <RemoteTools server={server} onChange={onChange} />}
         {server.state.instructions && <p className="mt-3 text-[12.5px] text-ink-300">📋 {server.state.instructions}</p>}
 
         {server.state.tools.length > 0 && (
           <div className="mt-4">
-            <div className="mb-2 font-mono text-[10.5px] uppercase tracking-wider text-ink-500">{server.state.tools.length} ferramentas descobertas</div>
+            <div className="mb-2 font-mono text-[10.5px] uppercase tracking-wider text-ink-500">
+              {server.state.tools.length} ferramentas descobertas
+            </div>
             <div className="grid gap-1.5 sm:grid-cols-2">
               {server.state.tools.map((t, i) => (
                 <motion.button
@@ -226,12 +263,20 @@ function ServerCard({ server, onChange, onEdit }: { server: McpServer; onChange:
           </div>
         )}
 
-        <button onClick={() => setShowLogs(!showLogs)} className="mt-4 flex items-center gap-1.5 text-[12px] text-ink-400 hover:text-ink-200">
+        <button
+          onClick={() => setShowLogs(!showLogs)}
+          className="mt-4 flex items-center gap-1.5 text-[12px] text-ink-400 hover:text-ink-200"
+        >
           <Terminal size={12} /> logs da conexão <ChevronDown size={12} className={`transition ${showLogs ? "rotate-180" : ""}`} />
         </button>
         <AnimatePresence>
           {showLogs && (
-            <motion.pre initial={{ height: 0 }} animate={{ height: "auto" }} exit={{ height: 0 }} className="mt-2 max-h-56 overflow-auto rounded-xl bg-ink-900 p-3 font-mono text-[11px] leading-relaxed text-ok/80">
+            <motion.pre
+              initial={{ height: 0 }}
+              animate={{ height: "auto" }}
+              exit={{ height: 0 }}
+              className="mt-2 max-h-56 overflow-auto rounded-xl bg-ink-900 p-3 font-mono text-[11px] leading-relaxed text-ok/80"
+            >
               {server.state.logs.join("\n") || "(sem logs)"}
             </motion.pre>
           )}
@@ -257,7 +302,14 @@ function ToolTester({ server, tool, onClose }: { server: McpServer; tool: McpSer
       for (const [k, v] of Object.entries(args)) {
         if (v === "") continue;
         const type = props[k]?.type;
-        parsed[k] = type === "number" || type === "integer" ? Number(v) : type === "boolean" ? v === "true" : type === "object" || type === "array" ? JSON.parse(v) : v;
+        parsed[k] =
+          type === "number" || type === "integer"
+            ? Number(v)
+            : type === "boolean"
+              ? v === "true"
+              : type === "object" || type === "array"
+                ? JSON.parse(v)
+                : v;
       }
       setResult(await api.post(`/api/mcp/${server.id}/tools/${tool.name}/call`, { arguments: parsed }));
     } catch (e) {
@@ -268,7 +320,16 @@ function ToolTester({ server, tool, onClose }: { server: McpServer; tool: McpSer
   }
 
   return (
-    <Modal open onClose={onClose} wide title={<span className="font-mono">{server.name} · {tool.name}</span>}>
+    <Modal
+      open
+      onClose={onClose}
+      wide
+      title={
+        <span className="font-mono">
+          {server.name} · {tool.name}
+        </span>
+      }
+    >
       <p className="mb-4 text-sm text-ink-300">{tool.description}</p>
       <div className="grid gap-4 md:grid-cols-2">
         <div className="space-y-3">
@@ -277,7 +338,9 @@ function ToolTester({ server, tool, onClose }: { server: McpServer; tool: McpSer
               {p.enum ? (
                 <Select value={args[k] ?? ""} onChange={(e) => setArgs({ ...args, [k]: e.target.value })}>
                   <option value="">—</option>
-                  {p.enum.map((o) => <option key={o}>{o}</option>)}
+                  {p.enum.map((o) => (
+                    <option key={o}>{o}</option>
+                  ))}
                 </Select>
               ) : (
                 <Input value={args[k] ?? ""} placeholder={p.description} onChange={(e) => setArgs({ ...args, [k]: e.target.value })} />
@@ -296,7 +359,10 @@ function ToolTester({ server, tool, onClose }: { server: McpServer; tool: McpSer
           {result && (
             <>
               <div className="flex items-center gap-2 font-mono text-[10.5px] uppercase tracking-wider text-ink-500">
-                resultado <Badge color={result.isError ? "bad" : "ok"}>{result.isError ? "isError" : "ok"} · {fmtMs(result.durationMs)}</Badge>
+                resultado{" "}
+                <Badge color={result.isError ? "bad" : "ok"}>
+                  {result.isError ? "isError" : "ok"} · {fmtMs(result.durationMs)}
+                </Badge>
               </div>
               <JsonView value={result.text} maxHeight={220} />
             </>
@@ -308,12 +374,32 @@ function ToolTester({ server, tool, onClose }: { server: McpServer; tool: McpSer
 }
 
 /** Cadastro e edição. Na edição, valores ocultos (••••) mantêm o que já está salvo no servidor. */
-function ServerForm({ health, initial, onClose, onSaved }: { health: Health | null; initial: McpServer | null; onClose: () => void; onSaved: () => void }) {
+function ServerForm({
+  health,
+  initial,
+  onClose,
+  onSaved,
+}: {
+  health: Health | null;
+  initial: McpServer | null;
+  onClose: () => void;
+  onSaved: () => void;
+}) {
   type T = "http" | "builtin";
-  const lines = (o?: Record<string, string>, sep = ": ") => Object.entries(o ?? {}).map(([k, v]) => `${k}${sep}${v}`).join("\n");
+  const lines = (o?: Record<string, string>, sep = ": ") =>
+    Object.entries(o ?? {})
+      .map(([k, v]) => `${k}${sep}${v}`)
+      .join("\n");
   const [form, setForm] = useState(
     initial
-      ? { name: initial.name, transport: initial.transport as T, command: initial.command ?? "", url: initial.url ?? "", headers: lines(initial.headers), via: initial.via ?? "client" }
+      ? {
+          name: initial.name,
+          transport: initial.transport as T,
+          command: initial.command ?? "",
+          url: initial.url ?? "",
+          headers: lines(initial.headers),
+          via: initial.via ?? "client",
+        }
       : { name: "", transport: "http" as T, command: "", url: "", headers: "", via: "anthropic" as "client" | "anthropic" },
   );
   const [error, setError] = useState<string | null>(null);
@@ -357,38 +443,49 @@ function ServerForm({ health, initial, onClose, onSaved }: { health: Health | nu
 
   return (
     <Modal open onClose={onClose} wide title={initial ? `Editar ${initial.name}` : "Adicionar servidor MCP"}>
-      {!initial && <div className="mb-5">
-        <div className="mb-2 text-[12px] text-ink-400">Modelos prontos</div>
-        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-          {PRESETS.map((p) => (
-            <button
-              key={p.name}
-              onClick={() =>
-                setForm({
-                  ...form,
-                  name: p.name,
-                  transport: p.transport,
-                  command: "",
-                  url: p.url,
-                  headers: "headers" in p ? p.headers : "",
-                  via: "via" in p ? p.via : form.via,
-                })
-              }
-              className="rounded-xl border border-ink-700 bg-ink-900 p-2.5 text-left transition hover:border-mcp/40 hover:bg-mcp/5"
-            >
-              <div className="text-[12.5px] font-medium text-ink-100">{p.label}</div>
-              <div className="mt-0.5 line-clamp-2 text-[11px] text-ink-400">{p.note}</div>
-            </button>
-          ))}
+      {!initial && (
+        <div className="mb-5">
+          <div className="mb-2 text-[12px] text-ink-400">Modelos prontos</div>
+          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+            {PRESETS.map((p) => (
+              <button
+                key={p.name}
+                onClick={() =>
+                  setForm({
+                    ...form,
+                    name: p.name,
+                    transport: p.transport,
+                    command: "",
+                    url: p.url,
+                    headers: "headers" in p ? p.headers : "",
+                    via: "via" in p ? p.via : form.via,
+                  })
+                }
+                className="rounded-xl border border-ink-700 bg-ink-900 p-2.5 text-left transition hover:border-mcp/40 hover:bg-mcp/5"
+              >
+                <div className="text-[12.5px] font-medium text-ink-100">{p.label}</div>
+                <div className="mt-0.5 line-clamp-2 text-[11px] text-ink-400">{p.note}</div>
+              </button>
+            ))}
+          </div>
         </div>
-      </div>}
+      )}
       <div className="space-y-4">
         <div className="grid gap-4 md:grid-cols-2">
           <Field label="Nome" hint="vira prefixo: mcp__nome__ferramenta">
             <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="ex.: zapier" />
           </Field>
           <Field label="Transporte">
-            <Select value={form.transport} onChange={(e) => setForm({ ...form, transport: e.target.value as T, command: e.target.value === "builtin" ? (health?.capabilities.builtinMcp[0] ?? "") : form.command })}>
+            <Select
+              value={form.transport}
+              onChange={(e) =>
+                setForm({
+                  ...form,
+                  transport: e.target.value as T,
+                  command: e.target.value === "builtin" ? (health?.capabilities.builtinMcp[0] ?? "") : form.command,
+                })
+              }
+            >
               <option value="http">HTTP — servidor remoto</option>
               <option value="builtin">embutido — roda em memória</option>
             </Select>
@@ -397,21 +494,38 @@ function ServerForm({ health, initial, onClose, onSaved }: { health: Health | nu
         {form.transport === "builtin" ? (
           <Field label="Servidor embutido" hint="código em core/mcp/lab-server.ts">
             <Select value={form.command} onChange={(e) => setForm({ ...form, command: e.target.value })}>
-              {health?.capabilities.builtinMcp.map((b) => <option key={b}>{b}</option>)}
+              {health?.capabilities.builtinMcp.map((b) => (
+                <option key={b}>{b}</option>
+              ))}
             </Select>
           </Field>
         ) : (
           <>
             <Field label="URL">
-              <Input value={form.url} onChange={(e) => setForm({ ...form, url: e.target.value })} className="font-mono" placeholder="https://.../mcp" />
+              <Input
+                value={form.url}
+                onChange={(e) => setForm({ ...form, url: e.target.value })}
+                className="font-mono"
+                placeholder="https://.../mcp"
+              />
             </Field>
             <div className="rounded-xl border border-ink-700 p-3">
               <div className="mb-2 text-[12.5px] font-medium text-ink-200">Quem faz a conexão</div>
               <div className="grid gap-2 sm:grid-cols-2">
-                {([
-                  ["anthropic", "API da Anthropic", "A própria API do Claude conecta ao servidor durante a execução. Funciona no site publicado (sem CORS), mas só com LLMs Anthropic e envia apenas o cabeçalho Authorization."],
-                  ["client", "Agent Lab", "O Agent Lab conecta, lista as ferramentas e as executa. Funciona com qualquer LLM; no site publicado, o servidor precisa permitir CORS."],
-                ] as const).map(([value, title, text]) => (
+                {(
+                  [
+                    [
+                      "anthropic",
+                      "API da Anthropic",
+                      "A própria API do Claude conecta ao servidor durante a execução. Funciona no site publicado (sem CORS), mas só com LLMs Anthropic e envia apenas o cabeçalho Authorization.",
+                    ],
+                    [
+                      "client",
+                      "Agent Lab",
+                      "O Agent Lab conecta, lista as ferramentas e as executa. Funciona com qualquer LLM; no site publicado, o servidor precisa permitir CORS.",
+                    ],
+                  ] as const
+                ).map(([value, title, text]) => (
                   <button
                     key={value}
                     type="button"
@@ -424,8 +538,17 @@ function ServerForm({ health, initial, onClose, onSaved }: { health: Health | nu
                 ))}
               </div>
             </div>
-            <Field label="Cabeçalhos" hint={initial ? "um por linha: Nome: valor · •••• mantém o valor salvo" : "um por linha: Nome: valor"}>
-              <Textarea rows={2} value={form.headers} onChange={(e) => setForm({ ...form, headers: e.target.value })} className="font-mono text-[12px]" placeholder="Authorization: Bearer ..." />
+            <Field
+              label="Cabeçalhos"
+              hint={initial ? "um por linha: Nome: valor · •••• mantém o valor salvo" : "um por linha: Nome: valor"}
+            >
+              <Textarea
+                rows={2}
+                value={form.headers}
+                onChange={(e) => setForm({ ...form, headers: e.target.value })}
+                className="font-mono text-[12px]"
+                placeholder="Authorization: Bearer ..."
+              />
             </Field>
           </>
         )}
@@ -433,7 +556,8 @@ function ServerForm({ health, initial, onClose, onSaved }: { health: Health | nu
         <div className="flex justify-end gap-2">
           <Button onClick={onClose}>Cancelar</Button>
           <Button variant="primary" onClick={save} disabled={busy || !form.name}>
-            {busy ? <Loader2 size={14} className="animate-spin" /> : <PlugZap size={14} />} {initial ? "Salvar e reconectar" : "Salvar e conectar"}
+            {busy ? <Loader2 size={14} className="animate-spin" /> : <PlugZap size={14} />}{" "}
+            {initial ? "Salvar e reconectar" : "Salvar e conectar"}
           </Button>
         </div>
       </div>

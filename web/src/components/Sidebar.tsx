@@ -1,5 +1,21 @@
 import { motion } from "motion/react";
-import { BookOpen, Bot, Brain, ChevronDown, Columns3, Cpu, FileText, Download, Globe, LayoutDashboard, Play, Plug, ShieldCheck, Trash2, Upload } from "lucide-react";
+import {
+  BookOpen,
+  Bot,
+  Brain,
+  ChevronDown,
+  Columns3,
+  Cpu,
+  FileText,
+  Download,
+  Globe,
+  LayoutDashboard,
+  Play,
+  Plug,
+  ShieldCheck,
+  Trash2,
+  Upload,
+} from "lucide-react";
 import { useState } from "react";
 import { NavLink, useLocation } from "react-router-dom";
 import type { Health, Stats } from "../lib/api";
@@ -44,8 +60,16 @@ export function Sidebar({ health }: { health: Health | null }) {
 
   const link = ({ to, label, icon: Icon, count, dot }: Item) => (
     <NavLink key={to} to={to} className="relative shrink-0">
-      {isActive(to) && <motion.div layoutId="nav-active" className="absolute inset-0 rounded-lg bg-ink-850" transition={{ type: "spring", stiffness: 500, damping: 40 }} />}
-      <span className={`relative flex h-8 items-center gap-2.5 rounded-lg px-2.5 text-[13px] transition-colors ${isActive(to) ? "font-medium text-ink-100" : "text-ink-300 hover:bg-ink-850/60 hover:text-ink-100"}`}>
+      {isActive(to) && (
+        <motion.div
+          layoutId="nav-active"
+          className="absolute inset-0 rounded-lg bg-ink-850"
+          transition={{ type: "spring", stiffness: 500, damping: 40 }}
+        />
+      )}
+      <span
+        className={`relative flex h-8 items-center gap-2.5 rounded-lg px-2.5 text-[13px] transition-colors ${isActive(to) ? "font-medium text-ink-100" : "text-ink-300 hover:bg-ink-850/60 hover:text-ink-100"}`}
+      >
         <Icon size={16} strokeWidth={1.6} className={isActive(to) ? "text-ink-100" : "text-ink-400"} />
         <span className="whitespace-nowrap">{label}</span>
         {stats.data && dot?.(stats.data) && <span className="ml-auto hidden h-1.5 w-1.5 rounded-full bg-bad md:block" />}
@@ -58,7 +82,10 @@ export function Sidebar({ health }: { health: Health | null }) {
     <aside className="sticky top-0 z-20 flex h-auto shrink-0 flex-col border-b border-ink-700 bg-ink-900 md:h-screen md:w-60 md:border-r md:border-b-0">
       <div className="flex items-center gap-2 px-4 py-3.5 md:pb-4">
         <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden className="text-ink-100">
-          <path fill="currentColor" d="M9 2h6v2h-1v5.2l5.6 9.3A2.3 2.3 0 0 1 17.6 22H6.4a2.3 2.3 0 0 1-2-3.5L10 9.2V4H9V2Zm3 9.3L8.3 17.5h7.4L12 11.3Z" />
+          <path
+            fill="currentColor"
+            d="M9 2h6v2h-1v5.2l5.6 9.3A2.3 2.3 0 0 1 17.6 22H6.4a2.3 2.3 0 0 1-2-3.5L10 9.2V4H9V2Zm3 9.3L8.3 17.5h7.4L12 11.3Z"
+          />
         </svg>
         <span className="text-[15px] font-semibold tracking-[-0.01em] text-ink-100">Agent Lab</span>
       </div>
@@ -87,11 +114,17 @@ export function Sidebar({ health }: { health: Health | null }) {
           </div>
           <div className="min-w-0">
             <div className="truncate text-[12px] font-medium text-ink-100">Dados neste navegador</div>
-            <div className="truncate text-[11px] text-ink-400">{health ? `${health.llmsReady}/${health.llmsTotal} LLMs prontas` : "Conectando…"}</div>
+            <div className="truncate text-[11px] text-ink-400">
+              {health ? `${health.llmsReady}/${health.llmsTotal} LLMs prontas` : "Conectando…"}
+            </div>
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1 px-1 pt-1 text-[11px] text-ink-400">
-          <button onClick={() => void downloadExport()} className="flex items-center gap-1 transition hover:text-ink-100" title="Baixa agentes, LLMs (sem chaves), prompts, servidores MCP e memórias em JSON">
+          <button
+            onClick={() => void downloadExport()}
+            className="flex items-center gap-1 transition hover:text-ink-100"
+            title="Baixa agentes, LLMs (sem chaves), prompts, servidores MCP e memórias em JSON"
+          >
             <Download size={11} /> Exportar
           </button>
           <button onClick={() => setImporting(true)} className="flex items-center gap-1 transition hover:text-ink-100">

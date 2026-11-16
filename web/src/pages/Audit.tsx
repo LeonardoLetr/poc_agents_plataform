@@ -51,14 +51,22 @@ export default function Audit() {
   }, [query]);
 
   const live = useEventStream<AuditEntry>(paused ? null : "/api/audit/stream", (e) => {
-    const matches = (!group || e.type.startsWith(group)) && (!agentId || e.agentId === agentId) && (!runId || e.runId === runId) && (!q || e.summary.toLowerCase().includes(q.toLowerCase()));
+    const matches =
+      (!group || e.type.startsWith(group)) &&
+      (!agentId || e.agentId === agentId) &&
+      (!runId || e.runId === runId) &&
+      (!q || e.summary.toLowerCase().includes(q.toLowerCase()));
     if (!matches) return;
     setEntries((list) => [e, ...list].slice(0, 400));
     setTotal((t) => t + 1);
   });
 
   const totals = useMemo(() => {
-    let input = 0, output = 0, cache = 0, tools = 0, errors = 0;
+    let input = 0,
+      output = 0,
+      cache = 0,
+      tools = 0,
+      errors = 0;
     for (const e of entries) {
       if (e.type === "llm.response" && e.tokens) {
         input += e.tokens.input;
@@ -66,7 +74,8 @@ export default function Audit() {
         cache += e.tokens.cacheRead ?? 0;
       }
       if (e.type === "tool.call") tools++;
-      if (e.type === "run.failed" || e.type === "mcp.error" || (e.type === "tool.result" && (e.data as { isError?: boolean })?.isError)) errors++;
+      if (e.type === "run.failed" || e.type === "mcp.error" || (e.type === "tool.result" && (e.data as { isError?: boolean })?.isError))
+        errors++;
     }
     return { input, output, cache, tools, errors };
   }, [entries]);
@@ -110,7 +119,11 @@ export default function Audit() {
         ].map(([label, value]) => (
           <Card key={label as string} className="p-3.5">
             <div className="text-[11px] text-ink-400">{label}</div>
-            <div className={`mt-1 text-xl font-medium tracking-tight tabular-nums text-ink-100 ${label === "Erros" && Number(value) > 0 ? "text-bad" : ""}`}>{fmtNumber(Number(value))}</div>
+            <div
+              className={`mt-1 text-xl font-medium tracking-tight tabular-nums text-ink-100 ${label === "Erros" && Number(value) > 0 ? "text-bad" : ""}`}
+            >
+              {fmtNumber(Number(value))}
+            </div>
           </Card>
         ))}
       </div>
@@ -126,7 +139,11 @@ export default function Audit() {
         </div>
         <Select value={agentId} onChange={(e) => setAgentId(e.target.value)} className="!h-8 !w-48 text-xs">
           <option value="">Todos os agentes</option>
-          {agents.data?.map((a) => <option key={a.id} value={a.id}>{a.emoji} {a.name}</option>)}
+          {agents.data?.map((a) => (
+            <option key={a.id} value={a.id}>
+              {a.emoji} {a.name}
+            </option>
+          ))}
         </Select>
         <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="buscar no resumo…" className="!h-8 !w-56 text-xs" />
         {runId && <Badge color="info">execução {runId}</Badge>}
@@ -136,15 +153,29 @@ export default function Audit() {
       </Card>
 
       <Card className="overflow-hidden">
-        {entries.length === 0 && <div className="flex flex-col items-center p-12 text-ink-400"><ShieldCheck className="mb-2" /> Nenhum evento para estes filtros.</div>}
+        {entries.length === 0 && (
+          <div className="flex flex-col items-center p-12 text-ink-400">
+            <ShieldCheck className="mb-2" /> Nenhum evento para estes filtros.
+          </div>
+        )}
         <AnimatePresence initial={false}>
           {entries.map((e) => {
             const style = TYPE_STYLE[e.type.split(".")[0] ?? ""] ?? CONFIG_STYLE;
             const Icon = style.icon;
             const open = openId === e.id;
             return (
-              <motion.div key={e.id} layout="position" initial={{ opacity: 0, backgroundColor: "rgba(139,92,246,0.15)" }} animate={{ opacity: 1, backgroundColor: "rgba(0,0,0,0)" }} transition={{ duration: 1.2 }} className="border-b border-ink-700 last:border-0">
-                <button onClick={() => setOpenId(open ? null : e.id)} className="flex w-full items-center gap-3 px-4 py-2.5 text-left transition hover:bg-ink-900">
+              <motion.div
+                key={e.id}
+                layout="position"
+                initial={{ opacity: 0, backgroundColor: "rgba(139,92,246,0.15)" }}
+                animate={{ opacity: 1, backgroundColor: "rgba(0,0,0,0)" }}
+                transition={{ duration: 1.2 }}
+                className="border-b border-ink-700 last:border-0"
+              >
+                <button
+                  onClick={() => setOpenId(open ? null : e.id)}
+                  className="flex w-full items-center gap-3 px-4 py-2.5 text-left transition hover:bg-ink-900"
+                >
                   <ChevronRight size={13} className={`shrink-0 text-ink-500 transition ${open ? "rotate-90" : ""}`} />
                   <span className="w-[68px] shrink-0 font-mono text-[11px] text-ink-500">{fmtTime(e.ts)}</span>
                   <span className="flex w-[150px] shrink-0 items-center gap-1.5 font-mono text-[11px]" style={{ color: style.color }}>
@@ -156,8 +187,14 @@ export default function Audit() {
                   </span>
                   <span className="min-w-0 flex-1 truncate text-[13px] text-ink-200">{e.summary}</span>
                   {agentName(e.agentId) && <Badge className="hidden md:inline-flex">{agentName(e.agentId)}</Badge>}
-                  {e.tokens && <span className="hidden font-mono text-[10.5px] text-ink-500 md:inline">↑{fmtNumber(e.tokens.input)} ↓{fmtNumber(e.tokens.output)}</span>}
-                  {e.durationMs !== undefined && <span className="w-14 shrink-0 text-right font-mono text-[10.5px] text-ink-500">{fmtMs(e.durationMs)}</span>}
+                  {e.tokens && (
+                    <span className="hidden font-mono text-[10.5px] text-ink-500 md:inline">
+                      ↑{fmtNumber(e.tokens.input)} ↓{fmtNumber(e.tokens.output)}
+                    </span>
+                  )}
+                  {e.durationMs !== undefined && (
+                    <span className="w-14 shrink-0 text-right font-mono text-[10.5px] text-ink-500">{fmtMs(e.durationMs)}</span>
+                  )}
                 </button>
                 <AnimatePresence>
                   {open && (
@@ -166,10 +203,21 @@ export default function Audit() {
                         <div className="space-y-1 font-mono text-[11px] text-ink-400">
                           <div>id: {e.id}</div>
                           <div>quando: {fmtDateTime(e.ts)}</div>
-                          {e.runId && <div>execução: <Link className="text-info" to={`/playground/${e.runId}`}>{e.runId}</Link></div>}
+                          {e.runId && (
+                            <div>
+                              execução:{" "}
+                              <Link className="text-info" to={`/playground/${e.runId}`}>
+                                {e.runId}
+                              </Link>
+                            </div>
+                          )}
                           {e.agentId && <div>agente: {agentName(e.agentId) ?? e.agentId}</div>}
                         </div>
-                        {e.data !== undefined ? <JsonView value={e.data} maxHeight={300} /> : <div className="text-[12px] text-ink-500">Sem dados adicionais.</div>}
+                        {e.data !== undefined ? (
+                          <JsonView value={e.data} maxHeight={300} />
+                        ) : (
+                          <div className="text-[12px] text-ink-500">Sem dados adicionais.</div>
+                        )}
                       </div>
                     </motion.div>
                   )}

@@ -3,7 +3,8 @@ import { COMPACTED_MARKER, extractSummary, shouldCompact, SUMMARY_REQUEST_MARKER
 import { contextWindowFor } from "../llm/catalog.js";
 import { bootCore, collectRun, type StreamEvent } from "./helpers.js";
 
-const ofType = <T extends StreamEvent["type"]>(events: StreamEvent[], type: T) => events.filter((e) => e.type === type) as Extract<StreamEvent, { type: T }>[];
+const ofType = <T extends StreamEvent["type"]>(events: StreamEvent[], type: T) =>
+  events.filter((e) => e.type === type) as Extract<StreamEvent, { type: T }>[];
 
 afterEach(() => vi.unstubAllGlobals());
 
@@ -48,7 +49,14 @@ describe("medição e resumo automático no loop", () => {
     await collectRun(core, run.body.id);
 
     // Cada nova mensagem aumenta o histórico até passar do limite (50% da janela simulada).
-    const followUps = ["Quanto é 12 * 12?", "E quanto é 7 * 8?", "Quanto é 99 * 3?", "Quanto é 15 * 15?", "Quanto é 21 * 4?", "Quanto é 30 * 30?"];
+    const followUps = [
+      "Quanto é 12 * 12?",
+      "E quanto é 7 * 8?",
+      "Quanto é 99 * 3?",
+      "Quanto é 15 * 15?",
+      "Quanto é 21 * 4?",
+      "Quanto é 30 * 30?",
+    ];
     let events: StreamEvent[] = [];
     let last = "";
     for (const text of followUps) {
@@ -98,9 +106,27 @@ describe("medição e resumo automático no loop", () => {
 
 describe("resumo com a API da Anthropic", () => {
   const sse = (events: Record<string, unknown>[]) =>
-    new Response(events.map((e) => `event: ${String(e.type)}\ndata: ${JSON.stringify(e)}\n\n`).join(""), { status: 200, headers: { "content-type": "text/event-stream" } });
-  const start = (input: number) => ({ type: "message_start", message: { id: "m", type: "message", role: "assistant", model: "claude-opus-5-5", content: [], stop_reason: null, stop_sequence: null, usage: { input_tokens: input, output_tokens: 1 } } });
-  const end = (stop: string) => [{ type: "message_delta", delta: { stop_reason: stop, stop_sequence: null }, usage: { output_tokens: 20 } }, { type: "message_stop" }];
+    new Response(events.map((e) => `event: ${String(e.type)}\ndata: ${JSON.stringify(e)}\n\n`).join(""), {
+      status: 200,
+      headers: { "content-type": "text/event-stream" },
+    });
+  const start = (input: number) => ({
+    type: "message_start",
+    message: {
+      id: "m",
+      type: "message",
+      role: "assistant",
+      model: "claude-opus-5-5",
+      content: [],
+      stop_reason: null,
+      stop_sequence: null,
+      usage: { input_tokens: input, output_tokens: 1 },
+    },
+  });
+  const end = (stop: string) => [
+    { type: "message_delta", delta: { stop_reason: stop, stop_sequence: null }, usage: { output_tokens: 20 } },
+    { type: "message_stop" },
+  ];
   const thinking = (i: number) => [
     { type: "content_block_start", index: i, content_block: { type: "thinking", thinking: "", signature: "" } },
     { type: "content_block_delta", index: i, delta: { type: "thinking_delta", thinking: "planejando" } },
@@ -118,26 +144,53 @@ describe("resumo com a API da Anthropic", () => {
     const bodies: { messages: { role: string; content: unknown }[]; tools: { name: string }[] }[] = [];
     const responses = [
       // 1: chama a calculadora com o contexto já em 70% da janela de 1M.
-      () => sse([start(700_000), ...thinking(0), { type: "content_block_start", index: 1, content_block: { type: "tool_use", id: "toolu_1", name: "calculator", input: {} } }, { type: "content_block_delta", index: 1, delta: { type: "input_json_delta", partial_json: '{"expression":"6*7"}' } }, { type: "content_block_stop", index: 1 }, ...end("tool_use")]),
+      () =>
+        sse([
+          start(700_000),
+          ...thinking(0),
+          { type: "content_block_start", index: 1, content_block: { type: "tool_use", id: "toolu_1", name: "calculator", input: {} } },
+          { type: "content_block_delta", index: 1, delta: { type: "input_json_delta", partial_json: '{"expression":"6*7"}' } },
+          { type: "content_block_stop", index: 1 },
+          ...end("tool_use"),
+        ]),
       // 2: pedido de resumo.
       () => sse([start(700_100), ...text(0, "<summary>Calculado 6*7 = 42. Falta responder.</summary>"), ...end("end_turn")]),
       // 3: continuação a partir do resumo.
       () => sse([start(2_000), ...text(0, "A resposta é 42."), ...end("end_turn")]),
     ];
-    vi.stubGlobal("fetch", vi.fn(async (_url: string, init: RequestInit) => {
-      bodies.push(JSON.parse(init.body as string));
-      const respond = responses[bodies.length - 1];
-      if (!respond) throw new Error("requisição inesperada");
-      return respond();
-    }));
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (_url: string, init: RequestInit) => {
+        bodies.push(JSON.parse(init.body as string));
+        const respond = responses[bodies.length - 1];
+        if (!respond) throw new Error("requisição inesperada");
+        return respond();
+      }),
+    );
 
-    const llm = await api("POST", "/api/llms", { name: "Opus contexto", provider: "anthropic", model: "claude-opus-5-5", apiKey: "sk-ant-teste-contexto", effort: "medium", refusalFallback: false });
+    const llm = await api("POST", "/api/llms", {
+      name: "Opus contexto",
+      provider: "anthropic",
+      model: "claude-opus-5-5",
+      apiKey: "sk-ant-teste-contexto",
+      effort: "medium",
+      refusalFallback: false,
+    });
     const agent = await api("POST", "/api/agents", {
-      name: "Longo", llmId: llm.body.id, systemPrompt: "Calcule.", tools: ["calculator"], maxIterations: 5, requireApproval: false,
-      memory: { autoRecall: false, autoEpisode: false, recallLimit: 3 }, context: { autoCompact: true, thresholdPct: 60 },
+      name: "Longo",
+      llmId: llm.body.id,
+      systemPrompt: "Calcule.",
+      tools: ["calculator"],
+      maxIterations: 5,
+      requireApproval: false,
+      memory: { autoRecall: false, autoEpisode: false, recallLimit: 3 },
+      context: { autoCompact: true, thresholdPct: 60 },
     });
     // Tarefa longa: o histórico precisa ser uma parte relevante do contexto para o resumo compensar.
-    const run = await api("POST", "/api/runs", { agentId: agent.body.id, input: `quanto é 6*7? Contexto: ${"dados do relatório ".repeat(150)}` });
+    const run = await api("POST", "/api/runs", {
+      agentId: agent.body.id,
+      input: `quanto é 6*7? Contexto: ${"dados do relatório ".repeat(150)}`,
+    });
     const events = await collectRun(core, run.body.id);
 
     expect(events.at(-1)).toMatchObject({ type: "run.completed", output: "A resposta é 42." });

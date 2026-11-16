@@ -1,4 +1,18 @@
-import { Background, BackgroundVariant, BaseEdge, Handle, Position, ReactFlow, getBezierPath, useEdgesState, useNodesState, type Edge, type EdgeProps, type Node, type NodeProps } from "@xyflow/react";
+import {
+  Background,
+  BackgroundVariant,
+  BaseEdge,
+  Handle,
+  Position,
+  ReactFlow,
+  getBezierPath,
+  useEdgesState,
+  useNodesState,
+  type Edge,
+  type EdgeProps,
+  type Node,
+  type NodeProps,
+} from "@xyflow/react";
 import { motion } from "motion/react";
 import { Bot, Brain, Calculator, Clock, Globe, NotebookPen, Plug, User, Wrench } from "lucide-react";
 import { useEffect, useMemo } from "react";
@@ -34,14 +48,21 @@ const handles = (
 
 function AgentNode({ data }: NodeProps<Node<{ agent: Agent; view: RunView; llmLabel: string }>>) {
   const { agent, view, llmLabel } = data;
-  const thinking = view.active === "llm" && (view.status === "running");
+  const thinking = view.active === "llm" && view.status === "running";
   const label =
-    view.status === "idle" ? "Aguardando tarefa" :
-    view.status === "completed" ? "Tarefa concluída" :
-    view.status === "failed" ? "Falhou" :
-    view.status === "cancelled" ? "Cancelado" :
-    view.status === "awaiting_approval" ? "Aguardando aprovação" :
-    thinking ? "Pensando…" : "Usando ferramentas";
+    view.status === "idle"
+      ? "Aguardando tarefa"
+      : view.status === "completed"
+        ? "Tarefa concluída"
+        : view.status === "failed"
+          ? "Falhou"
+          : view.status === "cancelled"
+            ? "Cancelado"
+            : view.status === "awaiting_approval"
+              ? "Aguardando aprovação"
+              : thinking
+                ? "Pensando…"
+                : "Usando ferramentas";
   return (
     <div className="relative flex w-[210px] flex-col items-center">
       {handles}
@@ -49,14 +70,25 @@ function AgentNode({ data }: NodeProps<Node<{ agent: Agent; view: RunView; llmLa
         {/* Anel fino girando enquanto o LLM pensa — o único movimento contínuo do grafo. */}
         {thinking && (
           <svg className="absolute -inset-[5px] h-[102px] w-[102px] animate-spin-slow" viewBox="0 0 102 102" aria-hidden>
-            <circle cx="51" cy="51" r="49" fill="none" stroke="var(--color-accent)" strokeWidth="1.6" strokeLinecap="round" strokeDasharray="70 238" />
+            <circle
+              cx="51"
+              cy="51"
+              r="49"
+              fill="none"
+              stroke="var(--color-accent)"
+              strokeWidth="1.6"
+              strokeLinecap="round"
+              strokeDasharray="70 238"
+            />
           </svg>
         )}
         <div className="absolute inset-0 flex items-center justify-center rounded-full border border-ink-700 bg-surface text-[38px] shadow-[0_1px_3px_rgb(31_30_28/0.08)]">
           {agent.emoji}
         </div>
         {view.iteration > 0 && (
-          <div className="absolute -right-1 -top-1 rounded-full border border-ink-700 bg-surface px-1.5 py-0.5 font-mono text-[10px] text-ink-300">#{view.iteration}</div>
+          <div className="absolute -right-1 -top-1 rounded-full border border-ink-700 bg-surface px-1.5 py-0.5 font-mono text-[10px] text-ink-300">
+            #{view.iteration}
+          </div>
         )}
       </div>
       <div className="mt-2 text-center">
@@ -68,7 +100,9 @@ function AgentNode({ data }: NodeProps<Node<{ agent: Agent; view: RunView; llmLa
   );
 }
 
-function ToolNode({ data }: NodeProps<Node<{ label: string; sub?: string; icon: typeof Wrench; active: boolean; count: number; color: string; dim?: boolean }>>) {
+function ToolNode({
+  data,
+}: NodeProps<Node<{ label: string; sub?: string; icon: typeof Wrench; active: boolean; count: number; color: string; dim?: boolean }>>) {
   const Icon = data.icon;
   return (
     <div className="relative">
@@ -82,7 +116,10 @@ function ToolNode({ data }: NodeProps<Node<{ label: string; sub?: string; icon: 
           boxShadow: data.active ? `0 0 0 3px color-mix(in oklab, ${data.color} 14%, transparent)` : "0 1px 2px rgb(0 0 0 / 0.05)",
         }}
       >
-        <div className="flex h-7 w-7 items-center justify-center rounded-md" style={{ background: `color-mix(in oklab, ${data.color} 12%, var(--color-surface))`, color: data.color }}>
+        <div
+          className="flex h-7 w-7 items-center justify-center rounded-md"
+          style={{ background: `color-mix(in oklab, ${data.color} 12%, var(--color-surface))`, color: data.color }}
+        >
           <Icon size={14} strokeWidth={1.8} />
         </div>
         <div className="min-w-0">
@@ -90,7 +127,12 @@ function ToolNode({ data }: NodeProps<Node<{ label: string; sub?: string; icon: 
           {data.sub && <div className="truncate font-mono text-[9.5px] text-ink-400">{data.sub}</div>}
         </div>
         {data.count > 0 && (
-          <motion.span key={data.count} initial={{ scale: 1.6 }} animate={{ scale: 1 }} className="ml-auto rounded-full bg-ink-900 px-1.5 font-mono text-[10px] text-ink-300">
+          <motion.span
+            key={data.count}
+            initial={{ scale: 1.6 }}
+            animate={{ scale: 1 }}
+            className="ml-auto rounded-full bg-ink-900 px-1.5 font-mono text-[10px] text-ink-300"
+          >
             {data.count}×
           </motion.span>
         )}
@@ -99,18 +141,39 @@ function ToolNode({ data }: NodeProps<Node<{ label: string; sub?: string; icon: 
   );
 }
 
-function BeamEdge({ id, sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition, data }: EdgeProps<Edge<{ flow: Flow; color: string }>>) {
+function BeamEdge({
+  id,
+  sourceX,
+  sourceY,
+  targetX,
+  targetY,
+  sourcePosition,
+  targetPosition,
+  data,
+}: EdgeProps<Edge<{ flow: Flow; color: string }>>) {
   const [path] = getBezierPath({ sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition });
   const flow = data?.flow ?? null;
   const color = data?.color ?? "#2563eb";
   return (
     <>
-      <BaseEdge id={id} path={path} style={{ stroke: flow ? color : "var(--color-ink-600)", strokeWidth: flow ? 1.6 : 1.1, transition: "all .3s" }} />
+      <BaseEdge
+        id={id}
+        path={path}
+        style={{ stroke: flow ? color : "var(--color-ink-600)", strokeWidth: flow ? 1.6 : 1.1, transition: "all .3s" }}
+      />
       {flow && (
         <>
           {[0, 0.45].map((offset) => (
             <circle key={offset} r={3} fill={color}>
-              <animateMotion dur="1.1s" repeatCount="indefinite" path={path} begin={`${offset}s`} keyPoints={flow === "back" ? "1;0" : "0;1"} keyTimes="0;1" calcMode="linear" />
+              <animateMotion
+                dur="1.1s"
+                repeatCount="indefinite"
+                path={path}
+                begin={`${offset}s`}
+                keyPoints={flow === "back" ? "1;0" : "0;1"}
+                keyTimes="0;1"
+                calcMode="linear"
+              />
             </circle>
           ))}
         </>
@@ -156,13 +219,15 @@ function GraphInner({ agent, tools, view, llmLabel }: { agent: Agent; tools: Too
     if (view.status === "running" || view.status === "awaiting_approval") {
       if (last && last.kind === "iteration") {
         if (last.phase === "tools") {
-          for (const t of last.tools) if (t.status === "running" || t.status === "awaiting_approval") flows.set(graphTarget(t.name, t.server), "out");
+          for (const t of last.tools)
+            if (t.status === "running" || t.status === "awaiting_approval") flows.set(graphTarget(t.name, t.server), "out");
         } else if (last.phase === "llm" && last.tools.some((t) => t.status === "running")) {
           // Ferramentas de servidor rodam durante a própria chamada ao modelo.
           for (const t of last.tools) if (t.status === "running") flows.set(graphTarget(t.name, t.server), "out");
         } else if (last.phase === "llm") {
           const prev = [...view.steps].reverse().filter((s) => s.kind === "iteration")[1];
-          if (prev && prev.kind === "iteration" && prev.tools.length) for (const t of prev.tools) flows.set(graphTarget(t.name, t.server), "back");
+          if (prev && prev.kind === "iteration" && prev.tools.length)
+            for (const t of prev.tools) flows.set(graphTarget(t.name, t.server), "back");
           else flows.set("user", "out");
         }
       } else flows.set("user", "out");
@@ -173,23 +238,42 @@ function GraphInner({ agent, tools, view, llmLabel }: { agent: Agent; tools: Too
     const toolNodes: { id: string; label: string; sub?: string; icon: typeof Wrench; color: string; dim?: boolean }[] = [
       ...builtin.map((t) =>
         t.startsWith("agent__")
-          ? { id: `tool:${t}`, label: tools.find((x) => x.name === t)?.label ?? "agente", sub: "agente · delegação", icon: Bot, color: "#7c3aed", dim: !tools.some((x) => x.name === t) }
+          ? {
+              id: `tool:${t}`,
+              label: tools.find((x) => x.name === t)?.label ?? "agente",
+              sub: "agente · delegação",
+              icon: Bot,
+              color: "#7c3aed",
+              dim: !tools.some((x) => x.name === t),
+            }
           : SERVER_TOOL_NAMES.includes(t)
-          ? { id: `tool:${t}`, label: t, sub: "servidor Anthropic", icon: ICONS[t] ?? Globe, color: "#0891b2" }
-          : { id: `tool:${t}`, label: t, sub: "ferramenta nativa", icon: ICONS[t] ?? Wrench, color: "#d97706" },
+            ? { id: `tool:${t}`, label: t, sub: "servidor Anthropic", icon: ICONS[t] ?? Globe, color: "#0891b2" }
+            : { id: `tool:${t}`, label: t, sub: "ferramenta nativa", icon: ICONS[t] ?? Wrench, color: "#d97706" },
       ),
       ...[...mcpServers].map((s) => {
         const serverTools = tools.filter((t) => t.server === s);
         const available = serverTools.length;
         const via = serverTools.some((t) => t.viaAnthropic);
-        return { id: `mcp:${s}`, label: s, sub: via ? "MCP · via Anthropic" : available ? `MCP · ${available} ferramentas` : "MCP · desconectado", icon: Plug, color: "#ea580c", dim: !available };
+        return {
+          id: `mcp:${s}`,
+          label: s,
+          sub: via ? "MCP · via Anthropic" : available ? `MCP · ${available} ferramentas` : "MCP · desconectado",
+          icon: Plug,
+          color: "#ea580c",
+          dim: !available,
+        };
       }),
     ];
 
     const gap = 78;
     const startY = 150 - ((toolNodes.length - 1) * gap) / 2;
     const nodes: Node[] = [
-      { id: "user", type: "tool", position: { x: 0, y: 130 }, data: { label: "Usuário", sub: "tarefa / resposta", icon: User, active: view.active === "user", count: 0, color: "#0284c7" } },
+      {
+        id: "user",
+        type: "tool",
+        position: { x: 0, y: 130 },
+        data: { label: "Usuário", sub: "tarefa / resposta", icon: User, active: view.active === "user", count: 0, color: "#0284c7" },
+      },
       { id: "llm", type: "agent", position: { x: 250, y: 80 }, data: { agent, view, llmLabel } },
       ...toolNodes.map((t, i) => ({
         id: t.id,
@@ -198,8 +282,34 @@ function GraphInner({ agent, tools, view, llmLabel }: { agent: Agent; tools: Too
         data: { ...t, active: view.active === t.id, count: view.callCounts[t.id] ?? 0 },
       })),
     ];
-    if (hasMemory) nodes.push({ id: "memory", type: "tool", position: { x: 280, y: 330 }, data: { label: "Memória longo prazo", sub: "fatos · episódios", icon: Brain, active: view.active === "memory", count: view.callCounts.memory ?? 0, color: "#7c3aed" } });
-    if (hasScratch) nodes.push({ id: "scratchpad", type: "tool", position: { x: 280, y: -70 }, data: { label: "Scratchpad", sub: "memória de trabalho", icon: NotebookPen, active: view.active === "scratchpad", count: view.callCounts.scratchpad ?? 0, color: "#16a34a" } });
+    if (hasMemory)
+      nodes.push({
+        id: "memory",
+        type: "tool",
+        position: { x: 280, y: 330 },
+        data: {
+          label: "Memória longo prazo",
+          sub: "fatos · episódios",
+          icon: Brain,
+          active: view.active === "memory",
+          count: view.callCounts.memory ?? 0,
+          color: "#7c3aed",
+        },
+      });
+    if (hasScratch)
+      nodes.push({
+        id: "scratchpad",
+        type: "tool",
+        position: { x: 280, y: -70 },
+        data: {
+          label: "Scratchpad",
+          sub: "memória de trabalho",
+          icon: NotebookPen,
+          active: view.active === "scratchpad",
+          count: view.callCounts.scratchpad ?? 0,
+          color: "#16a34a",
+        },
+      });
 
     const edge = (id: string, source: string, target: string, sh: string, th: string, color: string): Edge => ({
       id,
@@ -222,10 +332,12 @@ function GraphInner({ agent, tools, view, llmLabel }: { agent: Agent; tools: Too
   const [edges, setEdges] = useEdgesState<Edge>(computed.edges);
   useEffect(() => {
     // Atualiza só os dados, preservando posição e medidas já calculadas (e o que o usuário arrastou).
-    setNodes((prev) => computed.nodes.map((n) => {
-      const old = prev.find((p) => p.id === n.id);
-      return old ? { ...old, data: n.data } : n;
-    }));
+    setNodes((prev) =>
+      computed.nodes.map((n) => {
+        const old = prev.find((p) => p.id === n.id);
+        return old ? { ...old, data: n.data } : n;
+      }),
+    );
     setEdges(computed.edges);
   }, [computed, setNodes, setEdges]);
 

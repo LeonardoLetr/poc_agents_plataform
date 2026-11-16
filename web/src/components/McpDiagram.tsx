@@ -28,7 +28,12 @@ interface Step {
 }
 
 const STEPS: [Step, ...Step[]] = [
-  { title: "Conectar", label: "initialize", text: "O Agent Lab abre a conexão e os dois lados combinam a versão do protocolo e o que cada um suporta.", path: [["client", "server"]] },
+  {
+    title: "Conectar",
+    label: "initialize",
+    text: "O Agent Lab abre a conexão e os dois lados combinam a versão do protocolo e o que cada um suporta.",
+    path: [["client", "server"]],
+  },
   {
     title: "Descobrir",
     label: "tools/list",
@@ -36,16 +41,40 @@ const STEPS: [Step, ...Step[]] = [
     path: [["server", "client"]],
     tool: "all",
   },
-  { title: "Decidir", label: "tool_use", text: "O Agent Lab envia as ferramentas ao modelo junto com a tarefa; o modelo escolhe uma e gera os argumentos.", path: [["client", "llm"], ["llm", "client"]] },
-  { title: "Chamar", label: "tools/call", text: "O Agent Lab repassa a chamada ao servidor, que executa a ferramenta escolhida.", path: [["client", "server"]], tool: 0 },
-  { title: "Responder", label: "tool_result", text: "O resultado volta ao Agent Lab e segue para o modelo, que decide o próximo passo ou responde.", path: [["server", "client"], ["client", "llm"]], tool: 0 },
+  {
+    title: "Decidir",
+    label: "tool_use",
+    text: "O Agent Lab envia as ferramentas ao modelo junto com a tarefa; o modelo escolhe uma e gera os argumentos.",
+    path: [
+      ["client", "llm"],
+      ["llm", "client"],
+    ],
+  },
+  {
+    title: "Chamar",
+    label: "tools/call",
+    text: "O Agent Lab repassa a chamada ao servidor, que executa a ferramenta escolhida.",
+    path: [["client", "server"]],
+    tool: 0,
+  },
+  {
+    title: "Responder",
+    label: "tool_result",
+    text: "O resultado volta ao Agent Lab e segue para o modelo, que decide o próximo passo ou responde.",
+    path: [
+      ["server", "client"],
+      ["client", "llm"],
+    ],
+    tool: 0,
+  },
 ];
 
 const STEP_MS = 4200;
 const HOP_S = 1.1;
 
 /** Posição de cada ferramenta: em leque abaixo do servidor; em telas estreitas, em coluna. */
-const toolPos = (i: number, narrow: boolean) => (narrow ? { x: NODES.server.x, y: 66 + i * 11 } : { x: NODES.server.x + (i - 1) * 9, y: 78 });
+const toolPos = (i: number, narrow: boolean) =>
+  narrow ? { x: NODES.server.x, y: 66 + i * 11 } : { x: NODES.server.x + (i - 1) * 9, y: 78 };
 
 export function McpDiagram() {
   const [step, setStep] = useState(0);
@@ -93,7 +122,18 @@ export function McpDiagram() {
           {/* Servidor → ferramentas */}
           {TOOLS.map((_, i) => {
             const p = toolPos(i, narrow);
-            return <line key={i} x1={NODES.server.x} y1={NODE_Y + 8} x2={p.x} y2={p.y} stroke="var(--color-ink-700)" strokeWidth={0.3} vectorEffect="non-scaling-stroke" />;
+            return (
+              <line
+                key={i}
+                x1={NODES.server.x}
+                y1={NODE_Y + 8}
+                x2={p.x}
+                y2={p.y}
+                stroke="var(--color-ink-700)"
+                strokeWidth={0.3}
+                vectorEffect="non-scaling-stroke"
+              />
+            );
           })}
         </svg>
         <Packet key={step} path={current.path} />
@@ -104,7 +144,10 @@ export function McpDiagram() {
           initial={{ opacity: 0, y: 4 }}
           animate={{ opacity: 1, y: 0 }}
           className="absolute -translate-x-1/2 rounded-full border border-accent/40 bg-surface px-2 py-0.5 font-mono text-[11px] text-accent"
-          style={{ left: `${(NODES[current.path[0][0]].x + NODES[current.path[0][1]].x) / 2}%`, top: `calc(${NODE_Y}% - ${narrow ? 58 : 34}px)` }}
+          style={{
+            left: `${(NODES[current.path[0][0]].x + NODES[current.path[0][1]].x) / 2}%`,
+            top: `calc(${NODE_Y}% - ${narrow ? 58 : 34}px)`,
+          }}
         >
           {current.label}
         </motion.div>
@@ -114,13 +157,23 @@ export function McpDiagram() {
           const Icon = n.icon;
           const on = activeNodes.has(id);
           return (
-            <div key={id} className="absolute flex -translate-x-1/2 -translate-y-1/2 flex-col items-center" style={{ left: `${n.x}%`, top: `${NODE_Y}%` }}>
+            <div
+              key={id}
+              className="absolute flex -translate-x-1/2 -translate-y-1/2 flex-col items-center"
+              style={{ left: `${n.x}%`, top: `${NODE_Y}%` }}
+            >
               <motion.div
                 className="flex items-center gap-2 rounded-xl border bg-surface px-2.5 py-2 sm:px-3"
-                animate={{ boxShadow: on ? `0 0 0 4px color-mix(in oklab, ${n.color} 22%, transparent)` : "0 0 0 0px transparent", borderColor: on ? n.color : "var(--color-ink-700)" }}
+                animate={{
+                  boxShadow: on ? `0 0 0 4px color-mix(in oklab, ${n.color} 22%, transparent)` : "0 0 0 0px transparent",
+                  borderColor: on ? n.color : "var(--color-ink-700)",
+                }}
                 transition={{ duration: 0.4 }}
               >
-                <span className="flex h-7 w-7 items-center justify-center rounded-lg" style={{ color: n.color, background: `color-mix(in oklab, ${n.color} 14%, transparent)` }}>
+                <span
+                  className="flex h-7 w-7 items-center justify-center rounded-lg"
+                  style={{ color: n.color, background: `color-mix(in oklab, ${n.color} 14%, transparent)` }}
+                >
                   <Icon size={15} />
                 </span>
                 <span className="hidden min-w-0 sm:block">
@@ -142,7 +195,10 @@ export function McpDiagram() {
               key={t}
               className="absolute flex -translate-x-1/2 items-center gap-1 rounded-full border bg-surface px-1.5 py-0.5 font-mono text-[10px] sm:px-2 sm:text-[10.5px]"
               style={{ left: `${narrow ? Math.min(p.x, 82) : p.x}%`, top: `${p.y}%` }}
-              animate={{ borderColor: on ? "var(--color-mcp)" : "var(--color-ink-700)", color: on ? "var(--color-mcp)" : "var(--color-ink-400)" }}
+              animate={{
+                borderColor: on ? "var(--color-mcp)" : "var(--color-ink-700)",
+                color: on ? "var(--color-mcp)" : "var(--color-ink-400)",
+              }}
             >
               <Wrench size={9} className="hidden sm:block" /> {t.split("_")[0]}
             </motion.div>
@@ -168,15 +224,26 @@ export function McpDiagram() {
             }}
             className={`flex h-7 items-center gap-1.5 rounded-lg px-2 text-[12px] transition-colors ${i === step ? "bg-ink-850 font-medium text-ink-100" : "text-ink-400 hover:text-ink-100"}`}
           >
-            <span className={`flex h-4 w-4 items-center justify-center rounded-full text-[10px] ${i === step ? "bg-accent text-white" : "bg-ink-850 text-ink-400"}`}>{i + 1}</span>
+            <span
+              className={`flex h-4 w-4 items-center justify-center rounded-full text-[10px] ${i === step ? "bg-accent text-white" : "bg-ink-850 text-ink-400"}`}
+            >
+              {i + 1}
+            </span>
             {s.title}
           </button>
         ))}
       </div>
-      <motion.p key={`text-${step}`} initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mt-2 min-h-[40px] text-[13px] leading-relaxed text-ink-300">
+      <motion.p
+        key={`text-${step}`}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        className="mt-2 min-h-[40px] text-[13px] leading-relaxed text-ink-300"
+      >
         {current.text}
       </motion.p>
-      <p className="text-[11.5px] text-ink-500">Nos servidores conectados pela API da Anthropic, a própria API faz o papel do cliente MCP nas etapas 1, 2, 4 e 5.</p>
+      <p className="text-[11.5px] text-ink-500">
+        Nos servidores conectados pela API da Anthropic, a própria API faz o papel do cliente MCP nas etapas 1, 2, 4 e 5.
+      </p>
     </div>
   );
 }

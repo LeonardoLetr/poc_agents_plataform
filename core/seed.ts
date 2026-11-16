@@ -18,7 +18,14 @@ export const SEED_LLM = { opus: "llm_claude_opus", haiku: "llm_claude_haiku", de
 export function seedLlms(): LlmConfig[] {
   return [
     newLlm({ id: SEED_LLM.opus, name: "Claude Opus 5.5", provider: "anthropic", model: "claude-opus-5-5", effort: "medium" }),
-    newLlm({ id: SEED_LLM.haiku, name: "Claude Haiku 5.5 (rápido)", provider: "anthropic", model: "claude-haiku-5-5", effort: "low", refusalFallback: false }),
+    newLlm({
+      id: SEED_LLM.haiku,
+      name: "Claude Haiku 5.5 (rápido)",
+      provider: "anthropic",
+      model: "claude-haiku-5-5",
+      effort: "low",
+      refusalFallback: false,
+    }),
     newLlm({ id: SEED_LLM.demo, name: "Demo (offline)", provider: "demo", model: "demo-simulado" }),
   ];
 }
@@ -40,26 +47,26 @@ const baseAgent = (a: Partial<AgentConfig> & Pick<AgentConfig, "name" | "systemP
 export function seedAgents(): AgentConfig[] {
   const demo = demoAgent();
   const researcher = baseAgent({
-      name: "Pesquisador",
-      emoji: "🔎",
-      color: "#0284c7",
-      description: "Busca páginas na web, extrai fatos e guarda o que aprendeu na memória.",
-      systemPrompt:
-        "Você é um pesquisador meticuloso. Planeje antes de agir, use `web_search` para encontrar fontes e " +
-        "`web_fetch` para lê-las (ou `http_fetch` quando a LLM não for da Anthropic), cite as URLs que usou " +
-        "e salve fatos importantes com `memory_save`. Responda em português.",
-      tools: ["web_search", "web_fetch", "http_fetch", "memory_save", "memory_search", "scratchpad_write", "current_time"],
-    });
+    name: "Pesquisador",
+    emoji: "🔎",
+    color: "#0284c7",
+    description: "Busca páginas na web, extrai fatos e guarda o que aprendeu na memória.",
+    systemPrompt:
+      "Você é um pesquisador meticuloso. Planeje antes de agir, use `web_search` para encontrar fontes e " +
+      "`web_fetch` para lê-las (ou `http_fetch` quando a LLM não for da Anthropic), cite as URLs que usou " +
+      "e salve fatos importantes com `memory_save`. Responda em português.",
+    tools: ["web_search", "web_fetch", "http_fetch", "memory_save", "memory_search", "scratchpad_write", "current_time"],
+  });
   const analyst = baseAgent({
-      name: "Analista de Dados",
-      emoji: "📊",
-      color: "#d97706",
-      description: "Resolve problemas numéricos passo a passo com a calculadora e anota o raciocínio.",
-      systemPrompt:
-        "Você é um analista quantitativo. Quebre problemas em etapas, use `calculator` para TODA conta " +
-        "(nunca calcule de cabeça) e registre resultados intermediários no `scratchpad_write`. Responda em português.",
-      tools: ["calculator", "scratchpad_write", "scratchpad_read", "current_time"],
-    });
+    name: "Analista de Dados",
+    emoji: "📊",
+    color: "#d97706",
+    description: "Resolve problemas numéricos passo a passo com a calculadora e anota o raciocínio.",
+    systemPrompt:
+      "Você é um analista quantitativo. Quebre problemas em etapas, use `calculator` para TODA conta " +
+      "(nunca calcule de cabeça) e registre resultados intermediários no `scratchpad_write`. Responda em português.",
+    tools: ["calculator", "scratchpad_write", "scratchpad_read", "current_time"],
+  });
   return [
     researcher,
     analyst,
@@ -115,7 +122,8 @@ export function supervisorAgent(researcherId: string, analystId: string): AgentC
     name: "Supervisor",
     emoji: "🎯",
     color: "#be185d",
-    description: "Divide tarefas complexas e delega ao Pesquisador e ao Analista de Dados, consolidando as respostas. Usa Claude (requer chave).",
+    description:
+      "Divide tarefas complexas e delega ao Pesquisador e ao Analista de Dados, consolidando as respostas. Usa Claude (requer chave).",
     systemPrompt:
       "Você é um supervisor que coordena uma equipe de agentes especialistas. Para cada tarefa:\n" +
       "1. Planeje: identifique as subtarefas e registre o plano com `scratchpad_write`.\n" +
@@ -142,7 +150,7 @@ const EMAIL_PROMPT =
   "Regras obrigatórias:\n" +
   "1. Nunca envie um e-mail sem confirmação explícita do usuário nesta conversa. Primeiro mostre o rascunho completo: " +
   "destinatário(s), assunto e corpo (e o remetente, se a ferramenta permitir escolher). Termine perguntando se pode enviar e pare.\n" +
-  "2. Só chame a ferramenta de envio depois que o usuário responder confirmando (por exemplo, \"pode enviar\"). " +
+  '2. Só chame a ferramenta de envio depois que o usuário responder confirmando (por exemplo, "pode enviar"). ' +
   "Se ele pedir ajustes, mostre o novo rascunho e peça confirmação de novo.\n" +
   "3. Se faltar o destinatário ou o assunto, pergunte antes de redigir. Não invente endereços.\n" +
   "4. Prefira ferramentas que enviem de fato. Se a ferramenta disponível só criar rascunhos, diga isso ao usuário.\n" +
@@ -160,7 +168,8 @@ export function emailAgent(server = "resend"): AgentConfig {
     name: "Assistente de E-mail",
     emoji: "✉️",
     color: "#0f766e",
-    description: "Redige e envia e-mails pelo servidor MCP de e-mail habilitado, sempre mostrando o rascunho e pedindo confirmação antes de enviar. Usa Claude (requer chave).",
+    description:
+      "Redige e envia e-mails pelo servidor MCP de e-mail habilitado, sempre mostrando o rascunho e pedindo confirmação antes de enviar. Usa Claude (requer chave).",
     systemPrompt: EMAIL_PROMPT,
     tools: [`mcp__${server}__*`, "current_time"],
     maxIterations: 6,
@@ -198,8 +207,18 @@ export function seedMemories(): Memory[] {
   });
   return [
     m("O usuário prefere respostas em português, objetivas e com exemplos práticos.", "preference", ["usuário", "estilo"], 5),
-    m("Um agente autônomo é um loop: o LLM decide, chama ferramentas, observa o resultado e repete até concluir.", "fact", ["agentes", "conceito"], 4),
-    m("MCP (Model Context Protocol) padroniza como agentes descobrem e chamam ferramentas de servidores externos.", "fact", ["mcp", "conceito"], 4),
+    m(
+      "Um agente autônomo é um loop: o LLM decide, chama ferramentas, observa o resultado e repete até concluir.",
+      "fact",
+      ["agentes", "conceito"],
+      4,
+    ),
+    m(
+      "MCP (Model Context Protocol) padroniza como agentes descobrem e chamam ferramentas de servidores externos.",
+      "fact",
+      ["mcp", "conceito"],
+      4,
+    ),
     m("Para cálculos, sempre usar a ferramenta calculator em vez de calcular mentalmente.", "procedure", ["cálculo", "boas práticas"], 3),
   ];
 }
@@ -299,7 +318,13 @@ export function migrate(raw: Record<string, unknown>): DB {
       else {
         let llm = out.llms.find((l) => l.provider === "anthropic" && l.model === agent.model && l.effort === (agent.effort ?? "medium"));
         if (!llm) {
-          llm = newLlm({ name: `${agent.model} (${agent.effort})`, provider: "anthropic", model: agent.model ?? "claude-opus-5-5", effort: agent.effort ?? "medium", apiKey: legacyKey });
+          llm = newLlm({
+            name: `${agent.model} (${agent.effort})`,
+            provider: "anthropic",
+            model: agent.model ?? "claude-opus-5-5",
+            effort: agent.effort ?? "medium",
+            apiKey: legacyKey,
+          });
           out.llms.push(llm);
         }
         agent.llmId = llm.id;
@@ -309,16 +334,20 @@ export function migrate(raw: Record<string, unknown>): DB {
       delete agent.effort;
     }
     // O laboratorio agora é embutido (funciona sem processo externo).
-    for (const s of out.mcpServers) if (s.name === "laboratorio" && (s.transport as string) === "stdio") Object.assign(s, { transport: "builtin", command: "laboratorio", args: [] });
+    for (const s of out.mcpServers)
+      if (s.name === "laboratorio" && (s.transport as string) === "stdio")
+        Object.assign(s, { transport: "builtin", command: "laboratorio", args: [] });
   }
   if ((data.version ?? 1) < 3) {
     // Versão 3: multiagente. Adiciona o coordenador de exemplo quando o agente demo ainda existe.
     const demo = out.agents.find((a) => a.llmId === SEED_LLM.demo && a.name === "Agente Demo (offline)");
-    if (demo && out.llms.some((l) => l.id === SEED_LLM.demo) && !out.agents.some((a) => a.name === "Coordenador (offline)")) out.agents.push(coordinatorAgent(demo.id));
+    if (demo && out.llms.some((l) => l.id === SEED_LLM.demo) && !out.agents.some((a) => a.name === "Coordenador (offline)"))
+      out.agents.push(coordinatorAgent(demo.id));
   }
   if ((data.version ?? 1) < 4) {
     // Versão 4: gestão de contexto. O agente demo passa a resumir o histórico automaticamente.
-    for (const a of out.agents) if (a.name === "Agente Demo (offline)" && a.llmId === SEED_LLM.demo && !a.context) a.context = { ...DEMO_CONTEXT };
+    for (const a of out.agents)
+      if (a.name === "Agente Demo (offline)" && a.llmId === SEED_LLM.demo && !a.context) a.context = { ...DEMO_CONTEXT };
   }
   if ((data.version ?? 1) < 5) {
     // Versão 5: supervisor com LLM real, quando os especialistas e a LLM Opus de exemplo ainda existem.
@@ -331,7 +360,8 @@ export function migrate(raw: Record<string, unknown>): DB {
   if ((data.version ?? 1) < 6) {
     // Versão 6: assistente de e-mail, ligado ao servidor do Resend já cadastrado (pelo endereço), se houver.
     const resend = out.mcpServers.find((s) => s.url?.includes("mcp.resend.com"));
-    if (out.llms.some((l) => l.id === SEED_LLM.opus) && !out.agents.some((a) => a.name === "Assistente de E-mail")) out.agents.push(emailAgent(resend?.name));
+    if (out.llms.some((l) => l.id === SEED_LLM.opus) && !out.agents.some((a) => a.name === "Assistente de E-mail"))
+      out.agents.push(emailAgent(resend?.name));
   }
   if ((data.version ?? 1) < 7) {
     // Versão 7: o assistente de e-mail deixa de ser exclusivo do Resend. Só atualiza instruções e descrição não editadas.

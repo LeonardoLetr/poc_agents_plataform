@@ -52,11 +52,13 @@ export interface AgentConfig {
     recallEpisodes?: boolean | undefined;
   };
   /** Gestão da janela de contexto: resumo automático do histórico ao passar do limite. */
-  context?: {
-    autoCompact: boolean;
-    /** Percentual da janela que dispara o resumo. */
-    thresholdPct: number;
-  } | undefined;
+  context?:
+    | {
+        autoCompact: boolean;
+        /** Percentual da janela que dispara o resumo. */
+        thresholdPct: number;
+      }
+    | undefined;
   createdAt: string;
   updatedAt: string;
 }
@@ -162,7 +164,14 @@ export type RunEvent =
   | { type: "thinking.delta"; text: string }
   | { type: "text.delta"; text: string }
   | { type: "llm.response"; iteration: number; stopReason: string | null; usage: Usage; durationMs: number; model: string }
-  | { type: "tool.call"; id: string; name: string; input: unknown; source: "builtin" | "mcp" | "server" | "agent"; server?: string | undefined }
+  | {
+      type: "tool.call";
+      id: string;
+      name: string;
+      input: unknown;
+      source: "builtin" | "mcp" | "server" | "agent";
+      server?: string | undefined;
+    }
   | { type: "tool.approval_requested"; id: string; name: string; input: unknown }
   | { type: "tool.approval_resolved"; id: string; approved: boolean }
   | { type: "tool.result"; id: string; name: string; output: string; isError: boolean; durationMs: number }
@@ -186,11 +195,25 @@ export type RunEvent =
       breakdown: { system: number; tools: number; history: number };
       messageCount: number;
     }
-  | { type: "context.compacted"; iteration: number; tokensBefore: number; tokensAfter: number; messagesBefore: number; summary: string; thresholdPct: number }
+  | {
+      type: "context.compacted";
+      iteration: number;
+      tokensBefore: number;
+      tokensAfter: number;
+      messagesBefore: number;
+      summary: string;
+      thresholdPct: number;
+    }
   | { type: "citations"; items: { url: string; title: string | null; citedText: string }[] }
   | { type: "memory.created"; memory: Memory }
   | { type: "user.message"; text: string }
-  | { type: "run.completed"; output: string; iterations: number; usage: { input: number; output: number }; childUsage?: { input: number; output: number } | undefined }
+  | {
+      type: "run.completed";
+      output: string;
+      iterations: number;
+      usage: { input: number; output: number };
+      childUsage?: { input: number; output: number } | undefined;
+    }
   | { type: "run.failed"; error: string }
   | { type: "run.cancelled" };
 

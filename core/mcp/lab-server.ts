@@ -17,7 +17,9 @@ export function createLabServer(): McpServer {
   );
 
   const notes: { id: number; text: string; createdAt: string }[] = [];
-  const text = (value: unknown) => ({ content: [{ type: "text" as const, text: typeof value === "string" ? value : JSON.stringify(value, null, 2) }] });
+  const text = (value: unknown) => ({
+    content: [{ type: "text" as const, text: typeof value === "string" ? value : JSON.stringify(value, null, 2) }],
+  });
 
   server.registerTool(
     "notas_adicionar",
@@ -44,7 +46,12 @@ export function createLabServer(): McpServer {
     {
       title: "Rolar dados",
       description: "Rola dados no formato RPG, ex.: 2d6, 1d20. Útil para demonstrar aleatoriedade/ferramentas não determinísticas.",
-      inputSchema: { notacao: z.string().regex(/^\d{1,2}d\d{1,3}$/).describe("Ex.: 3d6") },
+      inputSchema: {
+        notacao: z
+          .string()
+          .regex(/^\d{1,2}d\d{1,3}$/)
+          .describe("Ex.: 3d6"),
+      },
     },
     async ({ notacao }) => {
       const [n = 1, faces = 6] = notacao.split("d").map(Number);
@@ -74,8 +81,8 @@ export function createLabServer(): McpServer {
   );
 
   const UNITS: Record<string, (v: number) => [number, string]> = {
-    "c->f": (v) => [v * 9 / 5 + 32, "°F"],
-    "f->c": (v) => [(v - 32) * 5 / 9, "°C"],
+    "c->f": (v) => [(v * 9) / 5 + 32, "°F"],
+    "f->c": (v) => [((v - 32) * 5) / 9, "°C"],
     "km->mi": (v) => [v * 0.621371, "mi"],
     "mi->km": (v) => [v / 0.621371, "km"],
     "kg->lb": (v) => [v * 2.20462, "lb"],

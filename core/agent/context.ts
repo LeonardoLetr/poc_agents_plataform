@@ -44,7 +44,14 @@ export const MIN_HISTORY_SHARE = 0.4;
  * Deve compactar antes da próxima chamada? Além do limite da janela, o histórico precisa ser uma parte relevante
  * do contexto: se o grosso for prompt de sistema e definições de ferramentas, resumir não libera espaço.
  */
-export function shouldCompact(opts: { enabled: boolean; thresholdPct: number; tokens: number; window: number; messageCount: number; historyShare?: number }): boolean {
+export function shouldCompact(opts: {
+  enabled: boolean;
+  thresholdPct: number;
+  tokens: number;
+  window: number;
+  messageCount: number;
+  historyShare?: number;
+}): boolean {
   if (!opts.enabled || opts.window <= 0 || opts.messageCount < 3) return false;
   if (opts.historyShare !== undefined && opts.historyShare < MIN_HISTORY_SHARE) return false;
   return (opts.tokens / opts.window) * 100 >= opts.thresholdPct;

@@ -4,7 +4,13 @@ import { api } from "../lib/api";
 import { Badge, Button, ErrorNote, Modal } from "./ui";
 
 type Collection = "llms" | "agents" | "prompts" | "mcpServers" | "memories";
-const LABELS: Record<Collection, string> = { agents: "Agentes", llms: "LLMs", prompts: "Prompts", mcpServers: "Servidores MCP", memories: "Memórias" };
+const LABELS: Record<Collection, string> = {
+  agents: "Agentes",
+  llms: "LLMs",
+  prompts: "Prompts",
+  mcpServers: "Servidores MCP",
+  memories: "Memórias",
+};
 const ORDER: Collection[] = ["agents", "llms", "prompts", "mcpServers", "memories"];
 
 interface ImportReport {
@@ -57,7 +63,11 @@ export function ImportDialog({ open, onClose }: { open: boolean; onClose: () => 
 
   async function run() {
     if (!file) return;
-    if (mode === "replace" && !confirm("Substituir toda a configuração atual pela do arquivo? Agentes, LLMs, prompts, servidores e memórias atuais serão trocados.")) return;
+    if (
+      mode === "replace" &&
+      !confirm("Substituir toda a configuração atual pela do arquivo? Agentes, LLMs, prompts, servidores e memórias atuais serão trocados.")
+    )
+      return;
     setBusy(true);
     setError(null);
     try {
@@ -89,7 +99,9 @@ export function ImportDialog({ open, onClose }: { open: boolean; onClose: () => 
                 <tr key={c} className="border-t border-ink-850 text-ink-200">
                   <td className="py-1.5">{LABELS[c]}</td>
                   <td className="py-1.5 text-right tabular-nums">{report.counts[c].added}</td>
-                  <td className="py-1.5 text-right tabular-nums">{report.mode === "merge" ? report.counts[c].skipped : report.counts[c].replaced}</td>
+                  <td className="py-1.5 text-right tabular-nums">
+                    {report.mode === "merge" ? report.counts[c].skipped : report.counts[c].replaced}
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -119,7 +131,13 @@ export function ImportDialog({ open, onClose }: { open: boolean; onClose: () => 
         </div>
       ) : (
         <div className="space-y-4">
-          <input ref={input} type="file" accept="application/json,.json" className="hidden" onChange={(e) => void pick(e.target.files?.[0])} />
+          <input
+            ref={input}
+            type="file"
+            accept="application/json,.json"
+            className="hidden"
+            onChange={(e) => void pick(e.target.files?.[0])}
+          />
           <button
             onClick={() => input.current?.click()}
             className="flex w-full flex-col items-center gap-1 rounded-xl border border-dashed border-ink-600 px-4 py-5 text-[12.5px] text-ink-300 transition hover:border-ink-500 hover:text-ink-100"
@@ -137,10 +155,12 @@ export function ImportDialog({ open, onClose }: { open: boolean; onClose: () => 
                 ))}
               </div>
               <div className="grid gap-2 sm:grid-cols-2">
-                {([
-                  ["merge", "Mesclar", "Adiciona o que é novo e mantém o que já existe. Itens repetidos aparecem como conflitos."],
-                  ["replace", "Substituir", "Troca toda a configuração pela do arquivo. As chaves das LLMs com o mesmo id são mantidas."],
-                ] as const).map(([value, title, text]) => (
+                {(
+                  [
+                    ["merge", "Mesclar", "Adiciona o que é novo e mantém o que já existe. Itens repetidos aparecem como conflitos."],
+                    ["replace", "Substituir", "Troca toda a configuração pela do arquivo. As chaves das LLMs com o mesmo id são mantidas."],
+                  ] as const
+                ).map(([value, title, text]) => (
                   <button
                     key={value}
                     type="button"
@@ -152,7 +172,9 @@ export function ImportDialog({ open, onClose }: { open: boolean; onClose: () => 
                   </button>
                 ))}
               </div>
-              <p className="text-[11.5px] text-ink-400">Chaves de API e valores de cabeçalhos não fazem parte do arquivo: informe-os depois em “LLMs” e “Servidores MCP”.</p>
+              <p className="text-[11.5px] text-ink-400">
+                Chaves de API e valores de cabeçalhos não fazem parte do arquivo: informe-os depois em “LLMs” e “Servidores MCP”.
+              </p>
             </>
           )}
           <ErrorNote message={error} />

@@ -7,7 +7,15 @@ import { rememberUsedTool, remoteMcpFor } from "../mcp/remote.js";
 import { db, persist } from "../store.js";
 import { builtinTools, type ToolContext } from "../tools/builtin.js";
 import { contextWindowFor } from "../llm/catalog.js";
-import { compactedMessage, contextBreakdown, historyShare, estimateTokens, extractSummary, shouldCompact, SUMMARY_PROMPT } from "./context.js";
+import {
+  compactedMessage,
+  contextBreakdown,
+  historyShare,
+  estimateTokens,
+  extractSummary,
+  shouldCompact,
+  SUMMARY_PROMPT,
+} from "./context.js";
 import { agentIdFromTool, agentToolDefinition, delegationBlocked, isAgentTool } from "./delegation.js";
 import { collectCitations, isServerTool, serverToolDefinitions } from "../tools/server.js";
 import type { AgentConfig, LlmConfig, RunEvent, RunRecord } from "../types.js";
@@ -96,11 +104,22 @@ function buildSystemPrompt(agent: AgentConfig, recalled: { content: string; kind
   return parts.join("\n\n");
 }
 
-async function executeTool(run: LiveRun, block: { id: string; name: string; input: unknown }, ctx: ToolContext): Promise<Anthropic.Beta.BetaToolResultBlockParam> {
+async function executeTool(
+  run: LiveRun,
+  block: { id: string; name: string; input: unknown },
+  ctx: ToolContext,
+): Promise<Anthropic.Beta.BetaToolResultBlockParam> {
   const input = (block.input ?? {}) as Record<string, unknown>;
   const delegated = isAgentTool(block.name);
   const mcp = builtinTools[block.name] || delegated ? null : resolveMcpTool(block.name, db.mcpServers);
-  emit(run, { type: "tool.call", id: block.id, name: block.name, input, source: delegated ? "agent" : mcp ? "mcp" : "builtin", server: mcp?.server.name });
+  emit(run, {
+    type: "tool.call",
+    id: block.id,
+    name: block.name,
+    input,
+    source: delegated ? "agent" : mcp ? "mcp" : "builtin",
+    server: mcp?.server.name,
+  });
   audit({
     type: "tool.call",
     actor: "agent",
@@ -118,12 +137,24 @@ async function executeTool(run: LiveRun, block: { id: string; name: string; inpu
       run.abort.signal.addEventListener("abort", () => resolve(false), { once: true });
     });
     emit(run, { type: "tool.approval_requested", id: block.id, name: block.name, input });
-    audit({ type: "tool.approval_requested", actor: "system", agentId: run.agent.id, runId: run.record.id, summary: `Aguardando aprovação para ${block.name}` });
+    audit({
+      type: "tool.approval_requested",
+      actor: "system",
+      agentId: run.agent.id,
+      runId: run.record.id,
+      summary: `Aguardando aprovação para ${block.name}`,
+    });
     const approved = await decision;
     run.approvals.delete(block.id);
     if (run.approvals.size === 0) run.record.status = "running";
     emit(run, { type: "tool.approval_resolved", id: block.id, approved });
-    audit({ type: "tool.approval_resolved", actor: "user", agentId: run.agent.id, runId: run.record.id, summary: `${approved ? "Aprovou" : "Negou"} ${block.name}` });
+    audit({
+      type: "tool.approval_resolved",
+      actor: "user",
+      agentId: run.agent.id,
+      runId: run.record.id,
+      summary: `${approved ? "Aprovou" : "Negou"} ${block.name}`,
+    });
     if (!approved) {
       const output = "O usuário NEGOU a execução desta ferramenta. Siga sem ela ou pergunte como prosseguir.";
       emit(run, { type: "tool.result", id: block.id, name: block.name, output, isError: true, durationMs: 0 });
@@ -135,7 +166,8 @@ async function executeTool(run: LiveRun, block: { id: string; name: string; inpu
   let output: string;
   let isError = false;
   try {
-    if (!toolEnabled(run.agent, block.name, mcp?.server.name)) throw new Error(`Ferramenta "${block.name}" não está habilitada para este agente.`);
+    if (!toolEnabled(run.agent, block.name, mcp?.server.name))
+      throw new Error(`Ferramenta "${block.name}" não está habilitada para este agente.`);
     const builtin = builtinTools[block.name];
     if (builtin) output = await builtin.run(input, ctx);
     else if (delegated) {
@@ -175,7 +207,12 @@ async function delegate(parent: LiveRun, toolUseId: string, agentId: string, tas
   if (blocked) throw new Error(blocked);
   if (!task) throw new Error("Informe a subtarefa no campo task.");
 
-  const child = startRun(target!, task, { parentRunId: parent.record.id, parentToolUseId: toolUseId, depth: depth + 1, chain: [...chain, target!.id] });
+  const child = startRun(target!, task, {
+    parentRunId: parent.record.id,
+    parentToolUseId: toolUseId,
+    depth: depth + 1,
+    chain: [...chain, target!.id],
+  });
   (parent.record.childRunIds ??= []).push(child.id);
   const names = [...chain, target!.id].map((id) => db.agents.find((a) => a.id === id)?.name ?? id);
   emit(parent, { type: "delegation.started", toolUseId, childRunId: child.id, agentId: target!.id, agentName: target!.name, task });
@@ -194,11 +231,21 @@ async function delegate(parent: LiveRun, toolUseId: string, agentId: string, tas
   await live.get(child.id)?.finished;
   parent.abort.signal.removeEventListener("abort", onAbort);
 
-  const childUsage = { input: child.usage.input + (child.childUsage?.input ?? 0), output: child.usage.output + (child.childUsage?.output ?? 0) };
+  const childUsage = {
+    input: child.usage.input + (child.childUsage?.input ?? 0),
+    output: child.usage.output + (child.childUsage?.output ?? 0),
+  };
   const agg = (parent.record.childUsage ??= { input: 0, output: 0 });
   agg.input += childUsage.input;
   agg.output += childUsage.output;
-  emit(parent, { type: "delegation.finished", toolUseId, childRunId: child.id, status: child.status, iterations: child.iterations, usage: childUsage });
+  emit(parent, {
+    type: "delegation.finished",
+    toolUseId,
+    childRunId: child.id,
+    status: child.status,
+    iterations: child.iterations,
+    usage: childUsage,
+  });
   audit({
     type: "agent.delegation_finished",
     actor: "agent",
@@ -252,7 +299,13 @@ async function compactHistory(
   record.usage.output += turn.usage.output;
   const summary = extractSummary(turnText(turn.content as { type: string; text?: string }[]));
   if (!summary) {
-    audit({ type: "context.compacted", actor: "system", agentId: agent.id, runId: record.id, summary: "Resumo do contexto não gerado: o modelo não retornou texto. O histórico foi mantido." });
+    audit({
+      type: "context.compacted",
+      actor: "system",
+      agentId: agent.id,
+      runId: record.id,
+      summary: "Resumo do contexto não gerado: o modelo não retornou texto. O histórico foi mantido.",
+    });
     return;
   }
 
@@ -289,7 +342,11 @@ async function loop(run: LiveRun) {
   const remote = remoteMcpFor(agent, llm, db.mcpServers);
   const providerTools = [...server.defs, ...remote.toolsets];
   const remoteCalls = new Set<string>();
-  const toolNames = [...tools.map((t) => t.name), ...agent.tools.filter(isServerTool).filter(() => server.defs.length > 0), ...remote.servers.map((s) => `mcp__${s.name}__*`)];
+  const toolNames = [
+    ...tools.map((t) => t.name),
+    ...agent.tools.filter(isServerTool).filter(() => server.defs.length > 0),
+    ...remote.servers.map((s) => `mcp__${s.name}__*`),
+  ];
   // Repassa os eventos do provedor; chamadas a ferramentas de servidor também entram na auditoria.
   const forward = (ev: RunEvent) => {
     emit(run, ev);
@@ -299,7 +356,14 @@ async function loop(run: LiveRun) {
       // Ferramenta usada fica registrada no servidor: a lista na tela cresce com o uso, sem custo.
       const remoteServer = db.mcpServers.find((s) => s.name === ev.server);
       if (remoteServer && ev.server && rememberUsedTool(remoteServer, ev.name.slice(`mcp__${ev.server}__`.length))) persist();
-      audit({ type: "tool.call", actor: "agent", agentId: agent.id, runId: record.id, summary: `Chamou ${ev.name} (MCP via Anthropic)`, data: { toolUseId: ev.id, input: ev.input, server: ev.server, executedBy: "anthropic" } });
+      audit({
+        type: "tool.call",
+        actor: "agent",
+        agentId: agent.id,
+        runId: record.id,
+        summary: `Chamou ${ev.name} (MCP via Anthropic)`,
+        data: { toolUseId: ev.id, input: ev.input, server: ev.server, executedBy: "anthropic" },
+      });
     } else if (ev.type === "tool.result" && remoteCalls.has(ev.id)) {
       audit({
         type: "tool.result",
@@ -311,7 +375,14 @@ async function loop(run: LiveRun) {
         data: { toolUseId: ev.id, output: clip(ev.output, 2000), isError: ev.isError },
       });
     } else if (ev.type === "tool.call" && ev.source === "server") {
-      audit({ type: "tool.call", actor: "agent", agentId: agent.id, runId: record.id, summary: `Chamou ${ev.name} (servidor Anthropic)`, data: { toolUseId: ev.id, input: ev.input, executedBy: "anthropic" } });
+      audit({
+        type: "tool.call",
+        actor: "agent",
+        agentId: agent.id,
+        runId: record.id,
+        summary: `Chamou ${ev.name} (servidor Anthropic)`,
+        data: { toolUseId: ev.id, input: ev.input, executedBy: "anthropic" },
+      });
     } else if (ev.type === "tool.result" && isServerTool(ev.name)) {
       audit({
         type: "tool.result",
@@ -383,8 +454,12 @@ async function loop(run: LiveRun) {
           model: llm.model,
           effort: llm.provider === "anthropic" ? llm.effort : undefined,
           tools: toolNames,
-          ...(server.ignored.length ? { serverToolsIgnored: server.ignored, reason: "ferramentas de servidor exigem uma LLM Anthropic" } : {}),
-          ...(remote.ignored.length ? { remoteMcpIgnored: remote.ignored, remoteMcpReason: "servidores MCP conectados pela Anthropic exigem uma LLM Anthropic" } : {}),
+          ...(server.ignored.length
+            ? { serverToolsIgnored: server.ignored, reason: "ferramentas de servidor exigem uma LLM Anthropic" }
+            : {}),
+          ...(remote.ignored.length
+            ? { remoteMcpIgnored: remote.ignored, remoteMcpReason: "servidores MCP conectados pela Anthropic exigem uma LLM Anthropic" }
+            : {}),
         },
       });
 
@@ -418,7 +493,9 @@ async function loop(run: LiveRun) {
         breakdown: contextBreakdown(record.systemPrompt, [...tools, ...providerTools], record.messages),
         messageCount: record.messages.length,
       });
-      const toolUses = (turn.content as { type: string; id?: string; name?: string; input?: unknown }[]).filter((b) => b.type === "tool_use");
+      const toolUses = (turn.content as { type: string; id?: string; name?: string; input?: unknown }[]).filter(
+        (b) => b.type === "tool_use",
+      );
       const text = turnText(turn.content as { type: string; text?: string }[]);
       audit({
         type: "llm.response",
@@ -457,7 +534,13 @@ async function loop(run: LiveRun) {
     record.status = "completed";
     record.output = finalText;
     record.finishedAt = now();
-    emit(run, { type: "run.completed", output: finalText, iterations: record.iterations, usage: record.usage, ...(record.childUsage ? { childUsage: record.childUsage } : {}) });
+    emit(run, {
+      type: "run.completed",
+      output: finalText,
+      iterations: record.iterations,
+      usage: record.usage,
+      ...(record.childUsage ? { childUsage: record.childUsage } : {}),
+    });
     audit({
       type: "run.completed",
       actor: "agent",
@@ -530,7 +613,12 @@ export function answerText(content: { type: string; text?: string }[], fallback:
 function llmFor(agent: AgentConfig, overrideId?: string): LlmConfig {
   const id = overrideId ?? agent.llmId;
   const llm = db.llms.find((l) => l.id === id);
-  if (!llm) throw new Error(overrideId ? "A LLM escolhida para esta execução não existe mais." : `O agente "${agent.name}" não tem uma LLM válida. Escolha uma no editor do agente.`);
+  if (!llm)
+    throw new Error(
+      overrideId
+        ? "A LLM escolhida para esta execução não existe mais."
+        : `O agente "${agent.name}" não tem uma LLM válida. Escolha uma no editor do agente.`,
+    );
   return structuredClone(llm);
 }
 
@@ -540,7 +628,11 @@ function llmFor(agent: AgentConfig, overrideId?: string): LlmConfig {
  */
 export function summarizeEpisode(input: string, iterations: number, events: RunRecord["events"], finalText: string): string {
   // Remove marcação de markdown apenas da resposta do modelo.
-  const clean = (t: string) => t.replace(/[*_`>#]/g, "").replace(/\s+/g, " ").trim();
+  const clean = (t: string) =>
+    t
+      .replace(/[*_`>#]/g, "")
+      .replace(/\s+/g, " ")
+      .trim();
   const tools = [...new Set(events.flatMap((e) => (e.type === "tool.call" ? [e.name.replace(/^mcp__(.+?)__/, "$1/")] : [])))];
   const firstLine = clean(finalText.split("\n").find((l) => l.trim() && !/epis[óo]dio/i.test(l)) ?? "");
   const firstSentence = firstLine.split(/(?<=[.!?:])\s/)[0] ?? "";
@@ -571,7 +663,12 @@ export function startRun(agent: AgentConfig, input: string, opts: StartRunOption
   const llm = llmFor(agent, opts.llmId);
   // Episódios ficam fora do recall automático por padrão: são registros do passado, não conhecimento.
   const recalled = agent.memory.autoRecall
-    ? searchMemories(input, { agentId: agent.id, limit: agent.memory.recallLimit, touch: true, excludeKinds: agent.memory.recallEpisodes ? [] : ["episode"] })
+    ? searchMemories(input, {
+        agentId: agent.id,
+        limit: agent.memory.recallLimit,
+        touch: true,
+        excludeKinds: agent.memory.recallEpisodes ? [] : ["episode"],
+      })
     : [];
   const record: RunRecord = {
     id: uid("run"),
@@ -587,24 +684,43 @@ export function startRun(agent: AgentConfig, input: string, opts: StartRunOption
     finishedAt: null,
     events: [],
     messages: [{ role: "user", content: input }],
-    systemPrompt: buildSystemPrompt(agent, recalled.map((r) => r.memory)),
+    systemPrompt: buildSystemPrompt(
+      agent,
+      recalled.map((r) => r.memory),
+    ),
     scratchpad: [],
     llmId: llm.id,
     ...(opts.comparisonId ? { comparisonId: opts.comparisonId } : {}),
-    ...(opts.parentRunId ? { parentRunId: opts.parentRunId, parentToolUseId: opts.parentToolUseId, depth: opts.depth ?? 1, chain: opts.chain } : {}),
+    ...(opts.parentRunId
+      ? { parentRunId: opts.parentRunId, parentToolUseId: opts.parentToolUseId, depth: opts.depth ?? 1, chain: opts.chain }
+      : {}),
   };
   db.runs.push(record);
   const run: LiveRun = { record, agent: structuredClone(agent), llm, abort: new AbortController(), approvals: new Map(), busy: false };
   live.set(record.id, run);
 
-  emit(run, { type: "run.started", runId: record.id, agentId: agent.id, input, provider: llm.provider, model: llm.model, llmName: llm.name });
+  emit(run, {
+    type: "run.started",
+    runId: record.id,
+    agentId: agent.id,
+    input,
+    provider: llm.provider,
+    model: llm.model,
+    llmName: llm.name,
+  });
   audit({
     type: "run.started",
     actor: opts.parentRunId ? "agent" : "user",
     agentId: agent.id,
     runId: record.id,
     summary: `${opts.parentRunId ? "Execução delegada" : "Nova execução"} de "${agent.name}": ${clip(input, 100)}`,
-    data: { input, llm: llm.name, provider: llm.provider, model: llm.model, ...(opts.parentRunId ? { parentRunId: opts.parentRunId, depth: opts.depth } : {}) },
+    data: {
+      input,
+      llm: llm.name,
+      provider: llm.provider,
+      model: llm.model,
+      ...(opts.parentRunId ? { parentRunId: opts.parentRunId, depth: opts.depth } : {}),
+    },
   });
   if (recalled.length) {
     emit(run, {

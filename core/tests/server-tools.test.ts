@@ -14,7 +14,16 @@ function anthropicSse(events: Record<string, unknown>[]) {
 
 const start = (id = "msg_1") => ({
   type: "message_start",
-  message: { id, type: "message", role: "assistant", model: "claude-opus-5-5", content: [], stop_reason: null, stop_sequence: null, usage: { input_tokens: 50, output_tokens: 1 } },
+  message: {
+    id,
+    type: "message",
+    role: "assistant",
+    model: "claude-opus-5-5",
+    content: [],
+    stop_reason: null,
+    stop_sequence: null,
+    usage: { input_tokens: 50, output_tokens: 1 },
+  },
 });
 const end = (stop_reason: string) => [
   { type: "message_delta", delta: { stop_reason, stop_sequence: null }, usage: { output_tokens: 30 } },
@@ -34,7 +43,15 @@ function searchTurn(stop = "end_turn") {
       content_block: {
         type: "web_search_tool_result",
         tool_use_id: "srvtoolu_1",
-        content: [{ type: "web_search_result", title: "Guia de agentes", url: "https://exemplo.dev/agentes", encrypted_content: "x", page_age: null }],
+        content: [
+          {
+            type: "web_search_result",
+            title: "Guia de agentes",
+            url: "https://exemplo.dev/agentes",
+            encrypted_content: "x",
+            page_age: null,
+          },
+        ],
       },
     },
     { type: "content_block_stop", index: 1 },
@@ -43,7 +60,16 @@ function searchTurn(stop = "end_turn") {
     {
       type: "content_block_delta",
       index: 2,
-      delta: { type: "citations_delta", citation: { type: "web_search_result_location", url: "https://exemplo.dev/agentes", title: "Guia de agentes", cited_text: "agentes chamam ferramentas", encrypted_index: "i" } },
+      delta: {
+        type: "citations_delta",
+        citation: {
+          type: "web_search_result_location",
+          url: "https://exemplo.dev/agentes",
+          title: "Guia de agentes",
+          cited_text: "agentes chamam ferramentas",
+          encrypted_index: "i",
+        },
+      },
     },
     { type: "content_block_stop", index: 2 },
     ...end(stop),
@@ -51,17 +77,34 @@ function searchTurn(stop = "end_turn") {
 }
 
 const llm = (apiKey: string): LlmConfig => ({
-  id: "llm_t", name: "Opus teste", provider: "anthropic", model: "claude-opus-5-5", apiKey,
-  effort: "medium", refusalFallback: false, maxTokens: 1000, createdAt: "", updatedAt: "",
+  id: "llm_t",
+  name: "Opus teste",
+  provider: "anthropic",
+  model: "claude-opus-5-5",
+  apiKey,
+  effort: "medium",
+  refusalFallback: false,
+  maxTokens: 1000,
+  createdAt: "",
+  updatedAt: "",
 });
 
 afterEach(() => vi.unstubAllGlobals());
 
 describe("definição das ferramentas de servidor", () => {
   it("usa as versões com filtragem dinâmica nos modelos compatíveis e as básicas nos demais", () => {
-    expect(serverToolDefinitions(["web_search", "web_fetch"], "claude-opus-5-5").map((t) => t.type)).toEqual(["web_search_20260209", "web_fetch_20260209"]);
-    expect(serverToolDefinitions(["web_search", "web_fetch"], "claude-sonnet-5-5").map((t) => t.type)).toEqual(["web_search_20260209", "web_fetch_20260209"]);
-    expect(serverToolDefinitions(["web_search", "web_fetch"], "claude-haiku-5-5").map((t) => t.type)).toEqual(["web_search_20250305", "web_fetch_20250910"]);
+    expect(serverToolDefinitions(["web_search", "web_fetch"], "claude-opus-5-5").map((t) => t.type)).toEqual([
+      "web_search_20260209",
+      "web_fetch_20260209",
+    ]);
+    expect(serverToolDefinitions(["web_search", "web_fetch"], "claude-sonnet-5-5").map((t) => t.type)).toEqual([
+      "web_search_20260209",
+      "web_fetch_20260209",
+    ]);
+    expect(serverToolDefinitions(["web_search", "web_fetch"], "claude-haiku-5-5").map((t) => t.type)).toEqual([
+      "web_search_20250305",
+      "web_fetch_20250910",
+    ]);
     expect(serverToolDefinitions(["calculator"], "claude-opus-5-5")).toEqual([]);
   });
 
@@ -74,16 +117,26 @@ describe("definição das ferramentas de servidor", () => {
 
 describe("leitura dos resultados", () => {
   it("formata resultados de busca, documentos e erros (que chegam como objeto, não exceção)", () => {
-    const search = describeServerResult({ type: "web_search_tool_result", content: [{ type: "web_search_result", title: "A", url: "https://a.dev" }] });
+    const search = describeServerResult({
+      type: "web_search_tool_result",
+      content: [{ type: "web_search_result", title: "A", url: "https://a.dev" }],
+    });
     expect(search).toEqual({ output: "1. A — https://a.dev", isError: false });
 
-    const error = describeServerResult({ type: "web_search_tool_result", content: { type: "web_search_tool_result_error", error_code: "max_uses_exceeded" } });
+    const error = describeServerResult({
+      type: "web_search_tool_result",
+      content: { type: "web_search_tool_result_error", error_code: "max_uses_exceeded" },
+    });
     expect(error.isError).toBe(true);
     expect(error.output).toContain("max_uses_exceeded");
 
     const doc = describeServerResult({
       type: "web_fetch_tool_result",
-      content: { type: "web_fetch_result", url: "https://b.dev", content: { type: "document", title: "Página B", source: { type: "text", media_type: "text/plain", data: "conteúdo da página" } } },
+      content: {
+        type: "web_fetch_result",
+        url: "https://b.dev",
+        content: { type: "document", title: "Página B", source: { type: "text", media_type: "text/plain", data: "conteúdo da página" } },
+      },
     });
     expect(doc.isError).toBe(false);
     expect(doc.output).toContain("https://b.dev");
@@ -153,14 +206,29 @@ describe("loop agêntico com ferramentas de servidor", () => {
     const { core, api, db } = await bootCore();
     const requests: { messages: { role: string }[]; tools?: { name: string }[] }[] = [];
     let n = 0;
-    vi.stubGlobal("fetch", vi.fn(async (_url: string, init: RequestInit) => {
-      requests.push(JSON.parse(init.body as string));
-      return searchTurn(n++ === 0 ? "pause_turn" : "end_turn");
-    }));
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (_url: string, init: RequestInit) => {
+        requests.push(JSON.parse(init.body as string));
+        return searchTurn(n++ === 0 ? "pause_turn" : "end_turn");
+      }),
+    );
 
-    const created = await api("POST", "/api/llms", { name: "Opus web", provider: "anthropic", model: "claude-opus-5-5", apiKey: "sk-ant-teste-loop", effort: "medium", refusalFallback: false });
+    const created = await api("POST", "/api/llms", {
+      name: "Opus web",
+      provider: "anthropic",
+      model: "claude-opus-5-5",
+      apiKey: "sk-ant-teste-loop",
+      effort: "medium",
+      refusalFallback: false,
+    });
     const agent = await api("POST", "/api/agents", {
-      name: "Pesquisador web", llmId: created.body.id, systemPrompt: "Pesquise.", tools: ["web_search", "calculator"], maxIterations: 4, requireApproval: false,
+      name: "Pesquisador web",
+      llmId: created.body.id,
+      systemPrompt: "Pesquise.",
+      tools: ["web_search", "calculator"],
+      maxIterations: 4,
+      requireApproval: false,
       memory: { autoRecall: false, autoEpisode: false, recallLimit: 3 },
     });
     const run = await api("POST", "/api/runs", { agentId: agent.body.id, input: "o que são agentes?" });
@@ -184,14 +252,33 @@ describe("loop agêntico com ferramentas de servidor", () => {
   it("não envia ferramentas de servidor a LLMs de outros provedores", async () => {
     const { core, api, db } = await bootCore();
     const bodies: { tools?: { function: { name: string } }[] }[] = [];
-    vi.stubGlobal("fetch", vi.fn(async (_url: string, init: RequestInit) => {
-      bodies.push(JSON.parse(init.body as string));
-      const chunk = { choices: [{ delta: { content: "ok" }, finish_reason: "stop" }] };
-      return new Response(`data: ${JSON.stringify(chunk)}\n\ndata: [DONE]\n\n`, { status: 200, headers: { "content-type": "text/event-stream" } });
-    }));
-    const created = await api("POST", "/api/llms", { name: "Compatível", provider: "openai", model: "x", apiKey: "sk-x", baseUrl: "https://exemplo.dev/v1", effort: "medium", refusalFallback: false });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (_url: string, init: RequestInit) => {
+        bodies.push(JSON.parse(init.body as string));
+        const chunk = { choices: [{ delta: { content: "ok" }, finish_reason: "stop" }] };
+        return new Response(`data: ${JSON.stringify(chunk)}\n\ndata: [DONE]\n\n`, {
+          status: 200,
+          headers: { "content-type": "text/event-stream" },
+        });
+      }),
+    );
+    const created = await api("POST", "/api/llms", {
+      name: "Compatível",
+      provider: "openai",
+      model: "x",
+      apiKey: "sk-x",
+      baseUrl: "https://exemplo.dev/v1",
+      effort: "medium",
+      refusalFallback: false,
+    });
     const agent = await api("POST", "/api/agents", {
-      name: "Sem servidor", llmId: created.body.id, systemPrompt: "Oi.", tools: ["web_search", "calculator"], maxIterations: 2, requireApproval: false,
+      name: "Sem servidor",
+      llmId: created.body.id,
+      systemPrompt: "Oi.",
+      tools: ["web_search", "calculator"],
+      maxIterations: 2,
+      requireApproval: false,
       memory: { autoRecall: false, autoEpisode: false, recallLimit: 3 },
     });
     const run = await api("POST", "/api/runs", { agentId: agent.body.id, input: "olá" });

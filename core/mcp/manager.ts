@@ -14,8 +14,6 @@ export const BUILTIN_MCP_SERVERS: Record<string, { description: string; create: 
   laboratorio: { description: "Notas, dados, estatísticas de texto e conversão de unidades.", create: createLabServer },
 };
 
-
-
 /**
  * Gerencia conexões com servidores MCP. Cada servidor expõe ferramentas que
  * viram ferramentas do agente com o nome `mcp__<servidor>__<ferramenta>`.
@@ -101,14 +99,17 @@ export function explainConnectError(message: string, cfg: Pick<McpServerConfig, 
   if (cfg.transport === "http" && /failed to fetch|fetch failed|networkerror|load failed/i.test(message)) {
     hints.push(
       "A conexão sai direto desta página, e o servidor precisa permitir requisições vindas deste site (CORS). " +
-        "Se ele não permitir e o agente usar uma LLM Anthropic, edite o servidor e escolha \"API da Anthropic\" em \"Quem faz a conexão\".",
+        'Se ele não permitir e o agente usar uma LLM Anthropic, edite o servidor e escolha "API da Anthropic" em "Quem faz a conexão".',
     );
   }
   if (/\b40[13]\b|unauthori[sz]ed|forbidden|invalid[^.]*(key|token)/i.test(message)) {
-    hints.push("Autenticação recusada: confira a chave e o cabeçalho, em geral \"Authorization: Bearer <chave>\".");
+    hints.push('Autenticação recusada: confira a chave e o cabeçalho, em geral "Authorization: Bearer <chave>".');
   }
-  const auth = Object.entries(cfg.headers ?? {}).find(([k]) => k.toLowerCase() === "authorization")?.[1]?.trim();
-  if (auth && !/\s/.test(auth)) hints.push("O cabeçalho Authorization está sem o tipo antes da chave; a maioria dos servidores espera \"Bearer <chave>\".");
+  const auth = Object.entries(cfg.headers ?? {})
+    .find(([k]) => k.toLowerCase() === "authorization")?.[1]
+    ?.trim();
+  if (auth && !/\s/.test(auth))
+    hints.push('O cabeçalho Authorization está sem o tipo antes da chave; a maioria dos servidores espera "Bearer <chave>".');
   return hints.length ? `${message}\n\n${hints.join("\n")}` : message;
 }
 
@@ -182,13 +183,14 @@ export async function connect(cfg: McpServerConfig, opts: { silent?: boolean } =
       }
     };
 
-    if (!opts.silent) audit({
-      type: "mcp.connected",
-      actor: "system",
-      summary: `MCP "${cfg.name}" conectado (${c.tools.length} ferramentas)`,
-      durationMs: Date.now() - started,
-      data: { server: cfg.name, serverInfo: c.serverInfo, tools: c.tools.map((t) => t.name) },
-    });
+    if (!opts.silent)
+      audit({
+        type: "mcp.connected",
+        actor: "system",
+        summary: `MCP "${cfg.name}" conectado (${c.tools.length} ferramentas)`,
+        durationMs: Date.now() - started,
+        data: { server: cfg.name, serverInfo: c.serverInfo, tools: c.tools.map((t) => t.name) },
+      });
   } catch (err) {
     c.status = "error";
     c.error = explainConnectError(errorMessage(err), cfg);
@@ -240,7 +242,11 @@ export function allMcpTools(servers: McpServerConfig[]): { server: McpServerConf
   return out;
 }
 
-export async function callMcpTool(serverId: string, toolName: string, args: Record<string, unknown>): Promise<{ text: string; isError: boolean }> {
+export async function callMcpTool(
+  serverId: string,
+  toolName: string,
+  args: Record<string, unknown>,
+): Promise<{ text: string; isError: boolean }> {
   const c = connections.get(serverId);
   if (!c?.client || c.status !== "connected") throw new Error("Servidor MCP não está conectado.");
   log(serverId, `→ ${toolName}(${clip(JSON.stringify(args), 200)})`);

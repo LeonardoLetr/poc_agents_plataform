@@ -28,7 +28,19 @@ export function LoopDiagram({ size: maxSize = 340, duration = 8 }: { size?: numb
     <div className="relative mx-auto" style={{ width: size, height: size }}>
       <svg width={size} height={size} className="absolute inset-0 overflow-visible">
         <circle cx={c} cy={c} r={r} fill="none" stroke="var(--color-ink-600)" strokeWidth={1.2} strokeDasharray="3 7" />
-        <motion.circle cx={c} cy={c} r={r} fill="none" stroke="var(--color-accent)" strokeWidth={1.6} strokeLinecap="round" initial={{ pathLength: 0, rotate: -90 }} animate={{ pathLength: [0, 1, 1], opacity: [1, 1, 0] }} transition={{ duration, repeat: Infinity, ease: "linear", times: [0, 0.98, 1] }} style={{ originX: "50%", originY: "50%" }} />
+        <motion.circle
+          cx={c}
+          cy={c}
+          r={r}
+          fill="none"
+          stroke="var(--color-accent)"
+          strokeWidth={1.6}
+          strokeLinecap="round"
+          initial={{ pathLength: 0, rotate: -90 }}
+          animate={{ pathLength: [0, 1, 1], opacity: [1, 1, 0] }}
+          transition={{ duration, repeat: Infinity, ease: "linear", times: [0, 0.98, 1] }}
+          style={{ originX: "50%", originY: "50%" }}
+        />
         <circle r={5} fill="var(--color-accent)">
           <animateMotion dur={`${duration}s`} repeatCount="indefinite" path={path} />
         </circle>

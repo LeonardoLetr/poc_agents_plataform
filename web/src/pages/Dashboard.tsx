@@ -34,7 +34,9 @@ export default function Dashboard({ health }: { health: Health | null }) {
 
   const s = stats.data;
   const activity = [...feed, ...(recent.data?.entries ?? [])].filter((e, i, arr) => arr.findIndex((x) => x.id === e.id) === i).slice(0, 14);
-  const toolUsage = Object.entries(s?.toolUsage ?? {}).sort((a, b) => b[1] - a[1]).slice(0, 8);
+  const toolUsage = Object.entries(s?.toolUsage ?? {})
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 8);
   const maxUse = Math.max(1, ...toolUsage.map((t) => t[1]));
   const history = [...(runs.data ?? [])].reverse().slice(-40);
   const completed = s?.runsByStatus.completed ?? 0;
@@ -50,11 +52,20 @@ export default function Dashboard({ health }: { health: Health | null }) {
         actions={
           <div className="flex items-center">
             {agents.data?.slice(0, 4).map((a, i) => (
-              <span key={a.id} className="-ml-1.5 flex h-6 w-6 items-center justify-center rounded-full border-2 border-surface text-[12px] first:ml-0" style={{ background: `${a.color}22`, zIndex: 10 - i }} title={a.name}>
+              <span
+                key={a.id}
+                className="-ml-1.5 flex h-6 w-6 items-center justify-center rounded-full border-2 border-surface text-[12px] first:ml-0"
+                style={{ background: `${a.color}22`, zIndex: 10 - i }}
+                title={a.name}
+              >
                 {a.emoji}
               </span>
             ))}
-            {(agents.data?.length ?? 0) > 4 && <span className="-ml-1.5 flex h-6 w-6 items-center justify-center rounded-full border-2 border-surface bg-ink-850 text-[10px] font-medium text-ink-400">+{agents.data!.length - 4}</span>}
+            {(agents.data?.length ?? 0) > 4 && (
+              <span className="-ml-1.5 flex h-6 w-6 items-center justify-center rounded-full border-2 border-surface bg-ink-850 text-[10px] font-medium text-ink-400">
+                +{agents.data!.length - 4}
+              </span>
+            )}
           </div>
         }
       />
@@ -78,7 +89,8 @@ export default function Dashboard({ health }: { health: Health | null }) {
           value={fmtNumber((s?.tokens.input ?? 0) + (s?.tokens.output ?? 0))}
           caption={
             <>
-              <span className="text-ink-200">{fmtNumber(s?.tokens.input ?? 0)}</span> de entrada · <span className="text-ink-200">{fmtNumber(s?.tokens.output ?? 0)}</span> de saída
+              <span className="text-ink-200">{fmtNumber(s?.tokens.input ?? 0)}</span> de entrada ·{" "}
+              <span className="text-ink-200">{fmtNumber(s?.tokens.output ?? 0)}</span> de saída
             </>
           }
           aside={<span className="text-[11px] text-ink-400">{fmtUsd(s?.estimatedCostUsd ?? 0)}</span>}
@@ -92,7 +104,11 @@ export default function Dashboard({ health }: { health: Health | null }) {
           value={`${health?.llmsReady ?? 0}/${health?.llmsTotal ?? 0}`}
           caption={`${s?.mcpConnected ?? 0} de ${s?.mcpServers ?? 0} servidores MCP conectados`}
           aside={
-            <Link to="/llms" className="flex h-6 w-6 items-center justify-center rounded-md border border-ink-700 text-ink-400 hover:bg-ink-850 hover:text-ink-100" aria-label="Gerenciar LLMs">
+            <Link
+              to="/llms"
+              className="flex h-6 w-6 items-center justify-center rounded-md border border-ink-700 text-ink-400 hover:bg-ink-850 hover:text-ink-100"
+              aria-label="Gerenciar LLMs"
+            >
               <ArrowUpRight size={13} />
             </Link>
           }
@@ -129,10 +145,16 @@ export default function Dashboard({ health }: { health: Health | null }) {
             {agents.data?.map((a) => {
               const l = llmOf(a);
               return (
-                <Link key={a.id} to="/playground" className="group flex flex-col rounded-xl border border-ink-700 bg-surface p-3 transition-colors hover:border-ink-600">
+                <Link
+                  key={a.id}
+                  to="/playground"
+                  className="group flex flex-col rounded-xl border border-ink-700 bg-surface p-3 transition-colors hover:border-ink-600"
+                >
                   <div className="flex items-center gap-1.5 text-[10.5px] font-medium uppercase tracking-[0.04em] text-ink-400">
                     <Cpu size={12} strokeWidth={1.7} /> {l ? PROVIDER_LABEL[l.provider] : "Sem LLM"}
-                    <span className="ml-auto normal-case tracking-normal">{l && <Badge color={l.ready ? "ok" : "warn"}>{l.ready ? "Pronta" : "Sem chave"}</Badge>}</span>
+                    <span className="ml-auto normal-case tracking-normal">
+                      {l && <Badge color={l.ready ? "ok" : "warn"}>{l.ready ? "Pronta" : "Sem chave"}</Badge>}
+                    </span>
                   </div>
                   <div className="mt-2.5 flex items-center gap-2">
                     <span className="text-[16px]">{a.emoji}</span>
@@ -146,7 +168,10 @@ export default function Dashboard({ health }: { health: Health | null }) {
                 </Link>
               );
             })}
-            <Link to="/agents" className="flex min-h-[130px] items-center justify-center rounded-xl border border-dashed border-ink-600 text-[12px] text-ink-400 transition-colors hover:border-ink-500 hover:text-ink-200">
+            <Link
+              to="/agents"
+              className="flex min-h-[130px] items-center justify-center rounded-xl border border-dashed border-ink-600 text-[12px] text-ink-400 transition-colors hover:border-ink-500 hover:text-ink-200"
+            >
               <Plus size={13} className="mr-1" /> Novo agente
             </Link>
           </div>
@@ -154,13 +179,29 @@ export default function Dashboard({ health }: { health: Health | null }) {
 
         {tab === "activity" && (
           <div className="overflow-hidden rounded-xl border border-ink-700 bg-surface">
-            {activity.length === 0 && <p className="p-8 text-center text-[13px] text-ink-400">Nenhuma atividade ainda. Rode um agente no Playground.</p>}
+            {activity.length === 0 && (
+              <p className="p-8 text-center text-[13px] text-ink-400">Nenhuma atividade ainda. Rode um agente no Playground.</p>
+            )}
             {activity.map((e) => (
               <div key={e.id} className="flex items-center gap-3 border-b border-ink-850 px-4 py-2.5 last:border-0">
                 <span className="flex w-16 shrink-0 items-center gap-1 text-[11px] tabular-nums text-ink-400">
                   <Calendar size={11} /> {fmtTime(e.ts)}
                 </span>
-                <Badge color={e.type.startsWith("run.failed") || e.type === "mcp.error" ? "bad" : e.type.startsWith("tool") ? "warn" : e.type.startsWith("memory") ? "memory" : e.type.startsWith("llm") ? "accent" : "ink"}>{e.type}</Badge>
+                <Badge
+                  color={
+                    e.type.startsWith("run.failed") || e.type === "mcp.error"
+                      ? "bad"
+                      : e.type.startsWith("tool")
+                        ? "warn"
+                        : e.type.startsWith("memory")
+                          ? "memory"
+                          : e.type.startsWith("llm")
+                            ? "accent"
+                            : "ink"
+                  }
+                >
+                  {e.type}
+                </Badge>
                 <span className="min-w-0 truncate text-[13px] text-ink-200">{e.summary}</span>
               </div>
             ))}

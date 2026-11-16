@@ -11,15 +11,52 @@ function inline(text: string, key: string): ReactNode[] {
     if (m.index > last) out.push(text.slice(last, m.index));
     const t = m[0];
     const k = `${key}-${i++}`;
-    if (t.startsWith("**")) out.push(<strong key={k} className="font-semibold text-ink-100">{t.slice(2, -2)}</strong>);
-    else if (t.startsWith("`")) out.push(<code key={k} className="rounded bg-ink-850 px-1 py-0.5 font-mono text-[0.85em] text-info">{t.slice(1, -1)}</code>);
-    else if (t.startsWith("_")) out.push(<em key={k} className="text-ink-300">{t.slice(1, -1)}</em>);
+    if (t.startsWith("**"))
+      out.push(
+        <strong key={k} className="font-semibold text-ink-100">
+          {t.slice(2, -2)}
+        </strong>,
+      );
+    else if (t.startsWith("`"))
+      out.push(
+        <code key={k} className="rounded bg-ink-850 px-1 py-0.5 font-mono text-[0.85em] text-info">
+          {t.slice(1, -1)}
+        </code>,
+      );
+    else if (t.startsWith("_"))
+      out.push(
+        <em key={k} className="text-ink-300">
+          {t.slice(1, -1)}
+        </em>,
+      );
     else if (t.startsWith("[")) {
       const [, label = t, href = ""] = t.match(/\[([^\]]+)\]\(([^)]+)\)/) ?? [];
       // Só links http(s): o texto vem do modelo e não deve poder injetar `javascript:`.
       if (!/^https?:\/\//.test(href)) out.push(label);
-      else out.push(<a key={k} href={href} target="_blank" rel="noreferrer" className="text-info underline decoration-info/30 underline-offset-2 hover:decoration-info">{label}</a>);
-    } else out.push(<a key={k} href={t} target="_blank" rel="noreferrer" className="break-all text-info underline decoration-info/30 underline-offset-2">{t}</a>);
+      else
+        out.push(
+          <a
+            key={k}
+            href={href}
+            target="_blank"
+            rel="noreferrer"
+            className="text-info underline decoration-info/30 underline-offset-2 hover:decoration-info"
+          >
+            {label}
+          </a>,
+        );
+    } else
+      out.push(
+        <a
+          key={k}
+          href={t}
+          target="_blank"
+          rel="noreferrer"
+          className="break-all text-info underline decoration-info/30 underline-offset-2"
+        >
+          {t}
+        </a>,
+      );
     last = m.index + t.length;
   }
   if (last < text.length) out.push(text.slice(last));
@@ -32,14 +69,23 @@ export function Markdown({ text, className = "" }: { text: string; className?: s
   let list: ReactNode[] = [];
   let code: string[] | null = null;
   const flush = () => {
-    if (list.length) blocks.push(<ul key={`ul${blocks.length}`} className="my-2 space-y-1 pl-4">{list}</ul>);
+    if (list.length)
+      blocks.push(
+        <ul key={`ul${blocks.length}`} className="my-2 space-y-1 pl-4">
+          {list}
+        </ul>,
+      );
     list = [];
   };
   lines.forEach((line, idx) => {
     const k = `l${idx}`;
     if (line.startsWith("```")) {
       if (code) {
-        blocks.push(<pre key={k} className="my-2 overflow-x-auto rounded-xl bg-ink-900 p-3 font-mono text-xs text-ink-200">{code.join("\n")}</pre>);
+        blocks.push(
+          <pre key={k} className="my-2 overflow-x-auto rounded-xl bg-ink-900 p-3 font-mono text-xs text-ink-200">
+            {code.join("\n")}
+          </pre>,
+        );
         code = null;
       } else {
         flush();
@@ -51,7 +97,10 @@ export function Markdown({ text, className = "" }: { text: string; className?: s
     const [, indent, , item] = line.match(/^(\s*)([-*]|\d+\.)\s+(.*)/) ?? [];
     if (item !== undefined) {
       list.push(
-        <li key={k} className={`relative pl-3 before:absolute before:left-0 before:top-[0.6em] before:h-1 before:w-1 before:rounded-full before:bg-accent ${indent ? "ml-4" : ""}`}>
+        <li
+          key={k}
+          className={`relative pl-3 before:absolute before:left-0 before:top-[0.6em] before:h-1 before:w-1 before:rounded-full before:bg-accent ${indent ? "ml-4" : ""}`}
+        >
           {inline(item, k)}
         </li>,
       );
@@ -60,9 +109,24 @@ export function Markdown({ text, className = "" }: { text: string; className?: s
     flush();
     if (!line.trim()) return;
     const heading = line.match(/^#{1,4}\s+(.*)/)?.[1];
-    if (heading !== undefined) blocks.push(<div key={k} className="mt-3 mb-1 font-semibold text-ink-100">{inline(heading, k)}</div>);
-    else if (line.startsWith(">")) blocks.push(<blockquote key={k} className="my-2 border-l-2 border-accent/50 pl-3 text-ink-300">{inline(line.replace(/^>\s?/, ""), k)}</blockquote>);
-    else blocks.push(<p key={k} className="my-1.5">{inline(line, k)}</p>);
+    if (heading !== undefined)
+      blocks.push(
+        <div key={k} className="mt-3 mb-1 font-semibold text-ink-100">
+          {inline(heading, k)}
+        </div>,
+      );
+    else if (line.startsWith(">"))
+      blocks.push(
+        <blockquote key={k} className="my-2 border-l-2 border-accent/50 pl-3 text-ink-300">
+          {inline(line.replace(/^>\s?/, ""), k)}
+        </blockquote>,
+      );
+    else
+      blocks.push(
+        <p key={k} className="my-1.5">
+          {inline(line, k)}
+        </p>,
+      );
   });
   flush();
   return <div className={`text-[14px] leading-relaxed text-ink-200 ${className}`}>{blocks}</div>;

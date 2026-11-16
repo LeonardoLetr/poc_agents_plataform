@@ -6,11 +6,15 @@ let labId = "";
 
 beforeAll(async () => {
   ctx = await bootCore();
-  await waitFor(async () => {
-    const lab = (await ctx.api("GET", "/api/mcp")).body.find((s: any) => s.name === "laboratorio");
-    labId = lab?.id ?? "";
-    return lab?.state.status === "connected";
-  }, 5000, "MCP laboratorio");
+  await waitFor(
+    async () => {
+      const lab = (await ctx.api("GET", "/api/mcp")).body.find((s: any) => s.name === "laboratorio");
+      labId = lab?.id ?? "";
+      return lab?.state.status === "connected";
+    },
+    5000,
+    "MCP laboratorio",
+  );
 });
 
 describe("MCP: servidor embutido", () => {
@@ -70,16 +74,29 @@ describe("MCP: validação do cadastro", () => {
 describe("MCP: edição e diagnóstico de conexão", () => {
   it("editar mantém valores ocultos e renomear atualiza as ferramentas dos agentes", async () => {
     const created = await ctx.api("POST", "/api/mcp", {
-      name: "remoto_teste", transport: "http", url: "https://exemplo.dev/mcp", headers: { Authorization: "Bearer re_secreta" }, enabled: false,
+      name: "remoto_teste",
+      transport: "http",
+      url: "https://exemplo.dev/mcp",
+      headers: { Authorization: "Bearer re_secreta" },
+      enabled: false,
     });
     expect(created.body.headers).toEqual({ Authorization: "••••" });
     const agent = await ctx.api("POST", "/api/agents", {
-      name: "Usa remoto", llmId: "llm_demo", systemPrompt: "x", tools: ["mcp__remoto_teste__*", "calculator"], maxIterations: 3, requireApproval: false,
+      name: "Usa remoto",
+      llmId: "llm_demo",
+      systemPrompt: "x",
+      tools: ["mcp__remoto_teste__*", "calculator"],
+      maxIterations: 3,
+      requireApproval: false,
       memory: { autoRecall: false, autoEpisode: false, recallLimit: 3 },
     });
 
     const updated = await ctx.api("PUT", `/api/mcp/${created.body.id}`, {
-      name: "resend", transport: "http", url: "https://mcp.resend.com/mcp", headers: { Authorization: "••••", "X-Extra": "1" }, enabled: false,
+      name: "resend",
+      transport: "http",
+      url: "https://mcp.resend.com/mcp",
+      headers: { Authorization: "••••", "X-Extra": "1" },
+      enabled: false,
     });
     expect(updated.status).toBe(200);
     const stored = ctx.db.mcpServers.find((s) => s.id === created.body.id)!;
@@ -93,16 +110,28 @@ describe("MCP: edição e diagnóstico de conexão", () => {
     const cors = explainConnectError("SSE error: Failed to fetch", { transport: "http", headers: {} });
     expect(cors).toMatch(/CORS/);
     expect(cors).toMatch(/API da Anthropic/);
-    expect(explainConnectError("HTTP 401 Unauthorized", { transport: "http", headers: { Authorization: "re_123" } })).toMatch(/Bearer <chave>/);
+    expect(explainConnectError("HTTP 401 Unauthorized", { transport: "http", headers: { Authorization: "re_123" } })).toMatch(
+      /Bearer <chave>/,
+    );
     expect(explainConnectError("timeout", { transport: "http", headers: { Authorization: "Bearer re_123" } })).toBe("timeout");
   });
 });
 
 describe("MCP: exclusão", () => {
   it("apagar um servidor remove as ferramentas dele dos agentes", async () => {
-    const created = await ctx.api("POST", "/api/mcp", { name: "para_apagar", transport: "http", url: "https://exemplo.dev/mcp", enabled: false });
+    const created = await ctx.api("POST", "/api/mcp", {
+      name: "para_apagar",
+      transport: "http",
+      url: "https://exemplo.dev/mcp",
+      enabled: false,
+    });
     const agent = await ctx.api("POST", "/api/agents", {
-      name: "Usa apagado", llmId: "llm_demo", systemPrompt: "x", tools: ["mcp__para_apagar__*", "mcp__para_apagar__enviar", "calculator"], maxIterations: 3, requireApproval: false,
+      name: "Usa apagado",
+      llmId: "llm_demo",
+      systemPrompt: "x",
+      tools: ["mcp__para_apagar__*", "mcp__para_apagar__enviar", "calculator"],
+      maxIterations: 3,
+      requireApproval: false,
       memory: { autoRecall: false, autoEpisode: false, recallLimit: 3 },
     });
     await ctx.api("DELETE", `/api/mcp/${created.body.id}`);
