@@ -16,6 +16,12 @@
   relevante.
 - **Autoria:** os commits são feitos em nome do responsável pelo repositório; não adicionar linhas de coautoria.
 
+## Código
+
+- A lógica TypeScript (`core/` e `web/src/lib/`) segue `docs/CODIGO.md`: tipos sem casts, validação nas fronteiras,
+  decisões em funções puras, sem abstrações antecipadas, testes de comportamento e comentários só sobre o porquê.
+- Toda mudança passa pelo checklist da seção 8 desse arquivo antes do merge.
+
 ## Validação antes de integrar
 
 ```bash
@@ -31,4 +37,5 @@ Para mudanças visuais, executar também `node web/scripts/check-mobile.cjs` com
 
 - Arquitetura e funcionalidades: `README.md`
 - Backlog priorizado: `docs/BACKLOG.md` (atualizar o status ao concluir um item)
+- Diretrizes de código: `docs/CODIGO.md`
 - Sistema visual: `.claude/skills/agent-lab-ui` e `docs/style-guides/painel-saas-claro.md`

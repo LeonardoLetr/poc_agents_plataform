@@ -25,8 +25,9 @@ Melhorias e novas funcionalidades planejadas, priorizadas por impacto e esforço
 | AL-13 | Busca semântica de memória com embeddings | Funcionalidade | P3 | M | a fazer |
 | AL-14 | Publicação do servidor na AWS | Infraestrutura | P3 | G | a fazer |
 | AL-15 | Servidores MCP remotos via conector da API do Claude | Funcionalidade | P2 | M | concluído |
+| AL-16 | Adequar o núcleo às diretrizes de código | Qualidade | P1 | G | a fazer |
 
-Sequência sugerida: AL-01 → AL-02/AL-03 → AL-04 → AL-06 → AL-05 → AL-07 → demais → AL-14 (último).
+Sequência sugerida: AL-16 → AL-11 → AL-10 → demais → AL-14 (último).
 
 ---
 
@@ -171,6 +172,29 @@ Sequência sugerida: AL-01 → AL-02/AL-03 → AL-04 → AL-06 → AL-05 → AL-
   resultados (`mcp_tool_use` / `mcp_tool_result`) aparecem ao vivo na linha do tempo e no grafo e entram na auditoria;
   LLMs de outros provedores ignoram esses servidores, com aviso no editor e registro na auditoria. O modelo pronto do
   Resend já vem com essa opção.
+
+## Qualidade de código
+
+### AL-16 · Adequar o núcleo às diretrizes de código
+- **Problema:** o núcleo cresceu rápido e se afasta de `docs/CODIGO.md`. A função `loop()` de `core/agent/runner.ts`
+  tem cerca de 225 linhas e mistura chamada à LLM, contexto, resumo, auditoria, eventos e ferramentas;
+  `core/agent/runner.ts` (667 linhas) e `core/router.ts` (615 linhas, 42 rotas) concentram responsabilidades. Há 63
+  asserções de tipo (`as`), 6 delas `as unknown as`, e 14 formas de blocos da API escritas à mão em vez dos tipos do
+  SDK. Decisões e efeitos estão misturados (20 chamadas de `audit()` e 21 de `emit()` no meio do loop). O `tsconfig`
+  só tem `strict` e não há linter, então promises esquecidas passam despercebidas.
+- **Proposta:** adequação em fases pequenas, cada uma em uma branch, sem mudar comportamento e com a suíte atual
+  passando a cada passo:
+  1. ligar `noUncheckedIndexedAccess`, `exactOptionalPropertyTypes` e as demais opções da seção 2 e corrigir os erros;
+  2. adotar typescript-eslint (`strict-type-checked` e as regras da seção 9) e formatação automática no CI;
+  3. trocar as formas escritas à mão pelos tipos do SDK da Anthropic e eliminar `as unknown as`;
+  4. dividir `loop()` em etapas (chamar a LLM, processar a resposta, executar ferramentas, registrar), com as decisões
+     em funções puras testadas diretamente;
+  5. separar `core/router.ts` em rotas por recurso;
+  6. validar os dados salvos e as respostas de provedores compatíveis com OpenAI na fronteira;
+  7. revisar os comentários: remover os que narram o código e manter os que explicam decisões.
+- **Critérios de aceite:** nenhuma função do núcleo acima de ~60 linhas sem justificativa; nenhum `as unknown as`;
+  asserções restantes comentadas; lint e opções estritas ativos no CI; a suíte de testes passa sem alterações de
+  comportamento.
 
 ---
 
