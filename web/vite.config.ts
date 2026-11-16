@@ -32,8 +32,5 @@ export default defineConfig({
   base: process.env.BASE_PATH ?? "/",
   plugins: [react(), tailwindcss(), contentSecurityPolicy()],
   build: { chunkSizeWarningLimit: 1200 },
-  server: {
-    port: 5173,
-    proxy: { "/api": { target: "http://localhost:8787", changeOrigin: true } },
-  },
+  server: { port: 5173 },
 });

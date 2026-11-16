@@ -16,11 +16,11 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - name: Tipos (core, server e web)
+      - name: Tipos (core e web)
         run: npm run typecheck
       - name: Testes do núcleo
         run: npm test
-      - name: Build completo (servidor + interface)
+      - name: Build da interface
         run: npm run build
 
   layout-mobile:
@@ -32,10 +32,9 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - name: Build da interface (modo navegador)
+      - name: Build da interface
         working-directory: web
         env:
-          VITE_RUNTIME: browser
           BASE_PATH: /poc_agents_plataform/
         run: npx vite build
       - name: Nenhuma página mais larga que a tela do celular

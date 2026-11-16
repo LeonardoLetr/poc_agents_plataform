@@ -48,10 +48,9 @@ jobs:
           enablement: true
         continue-on-error: true
 
-      - name: Build da interface (modo navegador)
+      - name: Build da interface 
         working-directory: web
         env:
-          VITE_RUNTIME: browser
           BASE_PATH: /${{ github.event.repository.name }}/
         run: |
           npx vite build
