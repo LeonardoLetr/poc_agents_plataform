@@ -147,6 +147,8 @@ para novos servidores e também pode ser executado como processo stdio (`mcp-ser
   requisição; o conteúdo lido entra nos tokens de entrada.
 - O Markdown renderizado aceita apenas links `http(s)`.
 - Cada agente tem limite de iterações e pode exigir aprovação para cada ferramenta.
+- Memórias salvas por um agente são privadas dele. Um agente só remove as próprias; memórias globais, criadas pelo
+  usuário, e as de outros agentes ficam protegidas.
 - A API nunca retorna chaves de API, apenas os quatro últimos caracteres. No modo servidor, as chaves ficam em
   `server/data/`, fora do controle de versão.
 - **Modo navegador:**

@@ -88,3 +88,34 @@ describe("ranking BM25", () => {
     expect(mem.searchMemories("orçamento trimestral", { excludeKinds: ["episode"] })).toHaveLength(0);
   });
 });
+
+describe("permissão para remover memórias", () => {
+  const toolCtx = (agentId: string) => ({ agentId, runId: "run_teste", scratchpad: [] as string[] });
+
+  it("um agente remove só as próprias memórias; globais e de outros agentes ficam protegidas", async () => {
+    const { builtinTools } = await import("../tools/builtin.js");
+    const forget = builtinTools.memory_forget;
+    const own = mem.createMemory({ content: "anotação do agente A", kind: "fact", agentId: "agt_a", source: "agent" });
+    const other = mem.createMemory({ content: "anotação do agente B", kind: "fact", agentId: "agt_b", source: "agent" });
+    const global = mem.createMemory({ content: "preferência do usuário", kind: "preference", agentId: null, source: "user" });
+
+    await expect(forget.run({ id: global.id }, toolCtx("agt_a"))).rejects.toThrow(/global/);
+    await expect(forget.run({ id: other.id }, toolCtx("agt_a"))).rejects.toThrow(/outro agente/);
+    expect(ctx.db.memories.some((m) => m.id === global.id)).toBe(true);
+    expect(ctx.db.memories.some((m) => m.id === other.id)).toBe(true);
+
+    expect(JSON.parse(await forget.run({ id: own.id }, toolCtx("agt_a")))).toEqual({ deleted: true });
+    expect(ctx.db.memories.some((m) => m.id === own.id)).toBe(false);
+  });
+
+  it("memory_search informa o escopo e o usuário continua podendo remover qualquer memória", async () => {
+    const { builtinTools } = await import("../tools/builtin.js");
+    const global = mem.createMemory({ content: "o usuário trabalha com observabilidade", kind: "fact", agentId: null, source: "user" });
+    const found = JSON.parse(await builtinTools.memory_search.run({ query: "observabilidade" }, toolCtx("agt_a"))) as { id: string; scope: string }[];
+    expect(found.find((r) => r.id === global.id)?.scope).toBe("global");
+
+    const res = await ctx.api("DELETE", `/api/memories/${global.id}`);
+    expect(res.status).toBe(200);
+    expect(ctx.db.memories.some((m) => m.id === global.id)).toBe(false);
+  });
+});

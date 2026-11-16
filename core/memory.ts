@@ -146,9 +146,21 @@ export function createMemory(input: {
   return memory;
 }
 
+/**
+ * Remove uma memória. O usuário pode remover qualquer uma; um agente só remove as próprias:
+ * memórias globais e de outros agentes ficam protegidas.
+ */
 export function deleteMemory(id: string, actor: "user" | "agent", ctx: { agentId?: string; runId?: string } = {}): boolean {
   const idx = db.memories.findIndex((m) => m.id === id);
   if (idx < 0) return false;
+  const target = db.memories[idx];
+  if (actor === "agent" && target.agentId !== ctx.agentId) {
+    throw new Error(
+      target.agentId === null
+        ? "Esta memória é global (criada pelo usuário) e não pode ser removida por um agente. Informe o usuário se ela estiver errada."
+        : "Esta memória pertence a outro agente e não pode ser removida por este.",
+    );
+  }
   const [removed] = db.memories.splice(idx, 1);
   persist();
   audit({ type: "memory.deleted", actor, ...ctx, summary: `Memória removida: ${removed.content.slice(0, 80)}`, data: removed });
