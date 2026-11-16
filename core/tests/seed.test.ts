@@ -57,7 +57,7 @@ describe("migração para a versão 3 (multiagente)", () => {
     const db = migrate(structuredClone(data), "browser");
     const coordinator = db.agents.find((a) => a.name === "Coordenador (offline)");
     expect(coordinator?.tools).toContain(`agent__${demo.id}`);
-    expect(db.version).toBe(6);
+    expect(db.version).toBe(7);
   });
 
   it("não duplica o coordenador nem o cria sem o agente demo", () => {
@@ -103,10 +103,33 @@ describe("migração para a versão 6 (assistente de e-mail)", () => {
     expect(agent.llmId).toBe(SEED_LLM.opus);
     expect(agent.tools).toContain("mcp__meu_resend__*");
     expect(agent.systemPrompt).toMatch(/Nunca envie um e-mail sem confirmação/);
+    expect(agent.systemPrompt).toMatch(/Gmail pelo Zapier/);
     expect(migrate(structuredClone(db) as never, "browser").agents.filter((a) => a.name === "Assistente de E-mail")).toHaveLength(1);
   });
 
   it("sem servidor cadastrado, usa o nome padrão do modelo pronto (resend)", () => {
     expect(seedDb("browser").agents.find((a) => a.name === "Assistente de E-mail")!.tools).toContain("mcp__resend__*");
+  });
+});
+
+describe("migração para a versão 7 (assistente de e-mail para qualquer servidor)", () => {
+  const v6Prompt = "Você é um assistente que redige e envia e-mails usando as ferramentas do servidor MCP do Resend.\n\nRegras...";
+  const base = () => {
+    const fresh = seedDb("browser");
+    return { ...fresh, version: 6, agents: fresh.agents.map((a) => (a.name === "Assistente de E-mail" ? { ...a, systemPrompt: v6Prompt, description: "Redige e envia e-mails pelo servidor MCP do Resend." } : a)) };
+  };
+
+  it("atualiza as instruções que o usuário não editou", () => {
+    const db = migrate(structuredClone(base()), "browser");
+    const agent = db.agents.find((a) => a.name === "Assistente de E-mail")!;
+    expect(agent.systemPrompt).toMatch(/Gmail pelo Zapier/);
+    expect(agent.description).not.toContain("do Resend");
+  });
+
+  it("preserva instruções editadas pelo usuário", () => {
+    const data = base();
+    data.agents = data.agents.map((a) => (a.name === "Assistente de E-mail" ? { ...a, systemPrompt: "Minhas próprias instruções" } : a));
+    const db = migrate(structuredClone(data), "browser");
+    expect(db.agents.find((a) => a.name === "Assistente de E-mail")!.systemPrompt).toBe("Minhas próprias instruções");
   });
 });
