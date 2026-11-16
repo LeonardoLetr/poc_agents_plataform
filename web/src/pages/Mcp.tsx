@@ -1,7 +1,8 @@
 import { AnimatePresence, motion } from "motion/react";
-import { ArrowLeft, ArrowRight, ChevronDown, Loader2, Pencil, Plug, PlugZap, Plus, Power, Search, Terminal, Trash2, Zap } from "lucide-react";
+import { ChevronDown, Loader2, Pencil, Plug, PlugZap, Plus, Power, Search, Terminal, Trash2, Zap } from "lucide-react";
 import { useState } from "react";
 import { LiveDot } from "../components/effects";
+import { McpDiagram } from "../components/McpDiagram";
 import { JsonView } from "../components/JsonView";
 import { Badge, Button, Card, EmptyState, ErrorNote, Field, Input, Modal, PageHeader, Select, Textarea } from "../components/ui";
 import { api, type Health, type McpServer } from "../lib/api";
@@ -49,12 +50,19 @@ export default function Mcp() {
         }
       />
 
-      <ProtocolExplainer />
 
       {servers.data?.length === 0 && <EmptyState icon={<Plug />} title="Nenhum servidor MCP" description="Adicione um para expandir as capacidades dos seus agentes." />}
       <div className="grid gap-4 lg:grid-cols-2">
         {servers.data?.map((s) => <ServerCard key={s.id} server={s} onChange={servers.reload} onEdit={() => setEditing(s)} />)}
       </div>
+
+      <Card className="mt-6 p-4">
+        <div className="mb-3">
+          <div className="text-[13px] font-medium text-ink-100">Como o MCP funciona</div>
+          <p className="mt-0.5 text-[12px] text-ink-400">Cinco mensagens entre o modelo, o Agent Lab e o servidor, do primeiro contato ao resultado da ferramenta.</p>
+        </div>
+        <McpDiagram />
+      </Card>
       {(adding || editing) && (
         <ServerForm
           health={health.data}
@@ -71,90 +79,6 @@ export default function Mcp() {
         />
       )}
     </div>
-  );
-}
-
-const PROTOCOL_STEPS = [
-  {
-    title: "Conectar",
-    method: "initialize",
-    direction: "cliente → servidor",
-    text: "O Agent Lab abre a conexão e os dois lados combinam a versão do protocolo e o que cada um suporta.",
-    example: { jsonrpc: "2.0", id: 1, method: "initialize", params: { protocolVersion: "2025-06-18", clientInfo: { name: "agent-lab" } } },
-  },
-  {
-    title: "Descobrir ferramentas",
-    method: "tools/list",
-    direction: "cliente → servidor",
-    text: "O servidor responde com a lista de ferramentas: nome, descrição e o esquema dos argumentos. Elas aparecem para os agentes como mcp__servidor__ferramenta.",
-    example: { tools: [{ name: "send_email", description: "Envia um e-mail", inputSchema: { type: "object", properties: { to: { type: "string" }, subject: { type: "string" } } } }] },
-  },
-  {
-    title: "Chamar",
-    method: "tools/call",
-    direction: "cliente → servidor",
-    text: "Quando o modelo decide usar a ferramenta, o loop do agente envia a chamada com os argumentos que o modelo gerou.",
-    example: { jsonrpc: "2.0", id: 7, method: "tools/call", params: { name: "send_email", arguments: { to: "ana@exemplo.com", subject: "Relatório" } } },
-  },
-  {
-    title: "Resultado",
-    method: "result",
-    direction: "servidor → cliente",
-    text: "O servidor executa e devolve o conteúdo. O loop entrega esse resultado ao modelo como tool_result, e o modelo decide o próximo passo.",
-    example: { jsonrpc: "2.0", id: 7, result: { content: [{ type: "text", text: "E-mail enviado (id 4f2a)" }], isError: false } },
-  },
-];
-
-/** Explicação do protocolo em etapas, no ritmo de quem lê (sem animação automática). */
-function ProtocolExplainer() {
-  const [step, setStep] = useState(0);
-  const current = PROTOCOL_STEPS[step];
-  return (
-    <Card className="mb-6 p-4">
-      <div className="mb-3 flex flex-wrap items-center gap-2">
-        <span className="text-[13px] font-medium text-ink-100">Como o MCP funciona</span>
-        <span className="text-[12px] text-ink-400">quatro mensagens entre o Agent Lab (cliente) e o servidor</span>
-      </div>
-      <div className="grid gap-4 md:grid-cols-[220px_1fr]">
-        <ol className="flex gap-1.5 overflow-x-auto md:flex-col md:overflow-visible">
-          {PROTOCOL_STEPS.map((s, i) => (
-            <li key={s.method} className="shrink-0">
-              <button
-                onClick={() => setStep(i)}
-                className={`flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left transition-colors ${i === step ? "bg-ink-850" : "hover:bg-ink-850/60"}`}
-                aria-current={i === step ? "step" : undefined}
-              >
-                <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[11px] font-semibold ${i === step ? "bg-mcp text-white" : i < step ? "bg-mcp/15 text-mcp" : "bg-ink-850 text-ink-400"}`}>{i + 1}</span>
-                <span className="min-w-0">
-                  <span className={`block text-[12.5px] ${i === step ? "font-medium text-ink-100" : "text-ink-300"}`}>{s.title}</span>
-                  <span className="block font-mono text-[10.5px] text-ink-500">{s.method}</span>
-                </span>
-              </button>
-            </li>
-          ))}
-        </ol>
-        <motion.div key={step} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.2 }} className="min-w-0">
-          <div className="flex flex-wrap items-center gap-2 text-[12px]">
-            <span className="rounded-md border border-ink-700 px-2 py-0.5 text-ink-300">Agent Lab</span>
-            <span className="font-mono text-[11px] text-ink-400">{current.direction.startsWith("cliente") ? "———→" : "←———"}</span>
-            <span className="rounded-md border border-mcp/30 bg-mcp/[0.06] px-2 py-0.5 text-mcp">Servidor MCP</span>
-            <code className="ml-auto rounded bg-ink-850 px-1.5 py-0.5 font-mono text-[11px] text-info">{current.method}</code>
-          </div>
-          <p className="mt-2.5 text-[13px] leading-relaxed text-ink-300">{current.text}</p>
-          <div className="mt-2.5">
-            <JsonView value={current.example} maxHeight={170} />
-          </div>
-          <div className="mt-3 flex justify-between">
-            <Button size="sm" onClick={() => setStep(step - 1)} disabled={step === 0}>
-              <ArrowLeft size={13} /> Anterior
-            </Button>
-            <Button size="sm" onClick={() => setStep(step + 1)} disabled={step === PROTOCOL_STEPS.length - 1}>
-              Próximo <ArrowRight size={13} />
-            </Button>
-          </div>
-        </motion.div>
-      </div>
-    </Card>
   );
 }
 
