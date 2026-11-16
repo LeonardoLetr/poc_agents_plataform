@@ -24,7 +24,7 @@ Melhorias e novas funcionalidades planejadas, priorizadas por impacto e esforço
 | AL-12 | Preços de modelos compatíveis com OpenAI | Melhoria | P3 | P | a fazer |
 | AL-13 | Busca semântica de memória com embeddings | Funcionalidade | P3 | M | a fazer |
 | AL-14 | Publicação do servidor na AWS | Infraestrutura | P3 | G | a fazer |
-| AL-15 | Servidores MCP remotos via conector da API do Claude | Funcionalidade | P2 | M | a fazer |
+| AL-15 | Servidores MCP remotos via conector da API do Claude | Funcionalidade | P2 | M | concluído |
 
 Sequência sugerida: AL-01 → AL-02/AL-03 → AL-04 → AL-06 → AL-05 → AL-07 → demais → AL-14 (último).
 
@@ -160,6 +160,12 @@ Sequência sugerida: AL-01 → AL-02/AL-03 → AL-04 → AL-06 → AL-05 → AL-
   como as ferramentas de servidor.
 - **Critérios de aceite:** servidor MCP sem CORS utilizável no modo navegador com LLM Anthropic; chave do servidor
   enviada só à API da Anthropic; erros de conexão visíveis na linha do tempo.
+- **Resultado:** opção "Quem faz a conexão" no cadastro de servidores HTTP (`core/mcp/remote.ts`). Com "API da
+  Anthropic", o Agent Lab não abre conexão: o servidor vai em `mcp_servers` (com o token extraído do cabeçalho
+  Authorization) e um `mcp_toolset` por servidor, respeitando ferramentas habilitadas individualmente. Chamadas e
+  resultados (`mcp_tool_use` / `mcp_tool_result`) aparecem ao vivo na linha do tempo e no grafo e entram na auditoria;
+  LLMs de outros provedores ignoram esses servidores, com aviso no editor e registro na auditoria. O modelo pronto do
+  Resend já vem com essa opção.
 
 ---
 
