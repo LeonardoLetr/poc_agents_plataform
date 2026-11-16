@@ -82,7 +82,7 @@ export function Field({ label, hint, children }: { label: string; hint?: ReactNo
 
 export function Toggle({ checked, onChange, label, description }: { checked: boolean; onChange: (v: boolean) => void; label: string; description?: string }) {
   return (
-    <button type="button" onClick={() => onChange(!checked)} className="flex w-full items-start gap-3 rounded-xl p-2 text-left transition hover:bg-black/[0.022]">
+    <button type="button" onClick={() => onChange(!checked)} className="flex w-full items-start gap-3 rounded-xl p-2 text-left transition hover:bg-ink-900">
       <span className={`relative mt-0.5 inline-flex h-5 w-9 shrink-0 rounded-full transition ${checked ? "bg-accent" : "bg-ink-600"}`}>
         <motion.span layout transition={{ type: "spring", stiffness: 500, damping: 32 }} className={`absolute top-0.5 h-4 w-4 rounded-full bg-surface shadow ${checked ? "right-0.5" : "left-0.5"}`} />
       </span>
@@ -99,7 +99,7 @@ export function Modal({ open, onClose, title, children, wide }: { open: boolean;
     <AnimatePresence>
       {open && (
         <motion.div className="fixed inset-0 z-50 flex items-center justify-center p-4" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-          <div className="absolute inset-0 bg-ink-100/30" onClick={onClose} />
+          <div className="absolute inset-0 bg-black/50" onClick={onClose} />
           <motion.div
             initial={{ opacity: 0, y: 24, scale: 0.97 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -109,7 +109,7 @@ export function Modal({ open, onClose, title, children, wide }: { open: boolean;
           >
             <div className="mb-5 flex items-center justify-between gap-4">
               <h2 className="text-[15px] font-semibold text-ink-100">{title}</h2>
-              <button onClick={onClose} className="rounded-lg p-1.5 text-ink-400 transition hover:bg-black/[0.075] hover:text-ink-100" aria-label="Fechar">
+              <button onClick={onClose} className="rounded-lg p-1.5 text-ink-400 transition hover:bg-ink-850 hover:text-ink-100" aria-label="Fechar">
                 <X size={18} />
               </button>
             </div>
@@ -123,8 +123,8 @@ export function Modal({ open, onClose, title, children, wide }: { open: boolean;
 
 export function EmptyState({ icon, title, description, action }: { icon: ReactNode; title: string; description?: string; action?: ReactNode }) {
   return (
-    <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-black/[0.08] px-6 py-14 text-center">
-      <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-black/[0.038] text-ink-300">{icon}</div>
+    <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-ink-700 px-6 py-14 text-center">
+      <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-ink-850 text-ink-300">{icon}</div>
       <div className="font-medium text-ink-100">{title}</div>
       {description && <p className="mt-1 max-w-sm text-sm text-ink-400">{description}</p>}
       {action && <div className="mt-5">{action}</div>}

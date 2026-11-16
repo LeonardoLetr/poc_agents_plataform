@@ -159,12 +159,12 @@ export default function MemoryPage() {
           <div className="mt-3 flex-1 space-y-2 overflow-y-auto">
             {results?.length === 0 && <p className="text-[12px] text-ink-500">Nenhuma memória relevante — o agente rodaria sem contexto extra.</p>}
             {results?.map((r, i) => (
-              <motion.div key={r.memory.id} initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.05 }} className="rounded-xl bg-black/[0.022] p-2.5">
+              <motion.div key={r.memory.id} initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.05 }} className="rounded-xl bg-ink-900 p-2.5">
                 <div className="flex items-center justify-between text-[12px]">
                   <span className="line-clamp-1 text-ink-200">{r.memory.content}</span>
                   <span className="ml-2 font-mono text-info">{r.score.toFixed(2)}</span>
                 </div>
-                <div className="mt-1.5 flex h-1.5 overflow-hidden rounded-full bg-black/[0.038]">
+                <div className="mt-1.5 flex h-1.5 overflow-hidden rounded-full bg-ink-850">
                   <motion.div initial={{ width: 0 }} animate={{ width: `${r.breakdown.overlap * 70}%` }} className="bg-info" title="termos" />
                   <motion.div initial={{ width: 0 }} animate={{ width: `${r.breakdown.importance * 20}%` }} className="bg-mcp" title="importância" />
                   <motion.div initial={{ width: 0 }} animate={{ width: `${r.breakdown.recency * 10}%` }} className="bg-ok" title="recência" />
@@ -226,7 +226,7 @@ function Constellation({ memories, highlighted }: { memories: Memory[]; highligh
     <div className="absolute inset-0">
       <svg className="absolute inset-0 h-full w-full" preserveAspectRatio="none">
         {[0.3, 0.55, 0.75, 0.9].map((r) => (
-          <ellipse key={r} cx="50%" cy="52%" rx={`${r * 44}%`} ry={`${r * 40}%`} fill="none" stroke="rgb(31 30 28 / 0.1)" strokeDasharray="3 6" />
+          <ellipse key={r} cx="50%" cy="52%" rx={`${r * 44}%`} ry={`${r * 40}%`} fill="none" stroke="var(--color-ink-700)" strokeDasharray="3 6" />
         ))}
       </svg>
       <div className="absolute left-1/2 top-[52%] -translate-x-1/2 -translate-y-1/2 text-[12px] font-medium text-ink-400">agente</div>
@@ -248,7 +248,7 @@ function Constellation({ memories, highlighted }: { memories: Memory[]; highligh
       })}
       <AnimatePresence>
         {hover && (
-          <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="absolute bottom-3 left-3 right-3 rounded-xl border border-black/[0.08] bg-surface p-3 text-[12.5px] text-ink-200 backdrop-blur">
+          <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="absolute bottom-3 left-3 right-3 rounded-xl border border-ink-700 bg-surface p-3 text-[12.5px] text-ink-200 backdrop-blur">
             <Badge>{kindLabel[hover.kind]}</Badge> {hover.content}
           </motion.div>
         )}

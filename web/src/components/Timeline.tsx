@@ -13,10 +13,10 @@ function Rail({ icon, color, children, last }: { icon: React.ReactNode; color: s
   return (
     <motion.div {...enter} className="relative flex gap-3">
       <div className="flex flex-col items-center">
-        <div className="z-10 flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-black/[0.08]" style={{ background: `color-mix(in oklab, ${color} 18%, #ffffff)`, color }}>
+        <div className="z-10 flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-ink-700" style={{ background: `color-mix(in oklab, ${color} 18%, var(--color-surface))`, color }}>
           {icon}
         </div>
-        {!last && <div className="w-px flex-1 bg-gradient-to-b from-black/[0.112] to-transparent" />}
+        {!last && <div className="w-px flex-1 bg-gradient-to-b from-ink-700 to-transparent" />}
       </div>
       <div className="min-w-0 flex-1 pb-5">{children}</div>
     </motion.div>
@@ -76,7 +76,7 @@ function Iteration({ step, live }: { step: Extract<Step, { kind: "iteration" }>;
   const [showThinking, setShowThinking] = useState(true);
   const streaming = live && step.phase === "llm";
   return (
-    <div className={`rounded-2xl border bg-black/[0.015] p-3.5 ${streaming ? "beam border-accent/30" : "border-black/[0.064]"}`}>
+    <div className={`rounded-2xl border bg-ink-900 p-3.5 ${streaming ? "beam border-accent/30" : "border-ink-700"}`}>
       <div className="mb-2 flex flex-wrap items-center gap-2">
         <span className="text-[13px] font-semibold">Iteração {step.n}</span>
         <Badge color="accent">LLM</Badge>

@@ -18,7 +18,7 @@ export function SpotlightCard({ children, className = "", onClick }: { children:
       onClick={onClick}
       whileHover={{ y: -1 }}
       transition={{ duration: 0.15 }}
-      className={`glass relative overflow-hidden rounded-2xl transition-colors hover:border-black/15 ${className}`}
+      className={`glass relative overflow-hidden rounded-2xl transition-colors hover:border-ink-600 ${className}`}
     >
       {children}
     </motion.div>

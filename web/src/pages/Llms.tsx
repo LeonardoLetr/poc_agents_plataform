@@ -54,7 +54,7 @@ export default function Llms({ health, onChange }: { health: Health | null; onCh
       />
 
       {browser && (
-        <div className="mb-6 rounded-2xl border border-black/[0.08] bg-surface p-4 text-[13px] leading-relaxed text-ink-300">
+        <div className="mb-6 rounded-2xl border border-ink-700 bg-surface p-4 text-[13px] leading-relaxed text-ink-300">
           <div className="flex items-start gap-3">
             <ShieldAlert size={18} className="mt-0.5 shrink-0 text-warn" />
             <div>
@@ -64,7 +64,7 @@ export default function Llms({ health, onChange }: { health: Health | null; onCh
               terminar de testar.
             </div>
           </div>
-          <div className="mt-2 border-t border-black/[0.06] pt-2">
+          <div className="mt-2 border-t border-ink-700 pt-2">
             <Toggle
               checked={remember}
               onChange={(v) => {
@@ -201,7 +201,7 @@ function LlmEditor({ initial, id, existing, health, onClose, onSaved }: { initia
             <button
               key={p.id}
               onClick={() => pickProvider(p.id)}
-              className={`rounded-xl border p-3 text-left transition ${form.provider === p.id ? "border-black/[0.2] bg-black/[0.045]" : "border-black/[0.064] hover:bg-black/[0.022]"}`}
+              className={`rounded-xl border p-3 text-left transition ${form.provider === p.id ? "border-ink-600 bg-ink-850" : "border-ink-700 hover:bg-ink-900"}`}
               style={form.provider === p.id ? { boxShadow: `inset 0 0 0 1px rgb(${p.rgb} / 0.5)` } : undefined}
             >
               <div className="text-[13px] font-medium" style={{ color: `rgb(${p.rgb})` }}>{p.label}</div>
@@ -215,7 +215,7 @@ function LlmEditor({ initial, id, existing, health, onClose, onSaved }: { initia
             <div className="mb-1.5 text-[12px] text-ink-400">Atalhos</div>
             <div className="flex flex-wrap gap-1.5">
               {health?.catalog.openai.map((p) => (
-                <button key={p.id} onClick={() => setForm((f) => ({ ...f, baseUrl: p.baseUrl, model: p.model, name: f.name || p.label }))} className="rounded-full border border-black/[0.08] px-2.5 py-1 text-[12px] text-ink-300 hover:border-info/40 hover:text-ink-100">
+                <button key={p.id} onClick={() => setForm((f) => ({ ...f, baseUrl: p.baseUrl, model: p.model, name: f.name || p.label }))} className="rounded-full border border-ink-700 px-2.5 py-1 text-[12px] text-ink-300 hover:border-info/40 hover:text-ink-100">
                   {p.label}
                 </button>
               ))}

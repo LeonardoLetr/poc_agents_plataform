@@ -135,7 +135,7 @@ export default function Playground() {
               if (runId) navigate("/playground");
             }}
             className={`relative flex shrink-0 items-center gap-2.5 rounded-2xl border px-3.5 py-2.5 text-left transition ${
-              agent?.id === a.id ? "border-black/[0.16] bg-surface shadow-[0_1px_2px_rgb(31_30_28/0.06)]" : "border-black/[0.07] hover:bg-surface/70"
+              agent?.id === a.id ? "border-ink-600 bg-surface shadow-[0_1px_2px_rgb(31_30_28/0.06)]" : "border-ink-700 hover:bg-surface/70"
             } disabled:opacity-50`}
           >
             {agent?.id === a.id && <motion.div layoutId="agent-pick" className="absolute inset-x-3 -bottom-px h-px" style={{ background: a.color }} />}
@@ -173,7 +173,7 @@ export default function Playground() {
         </div>
         <div className="flex flex-wrap gap-1.5 px-2 pb-1 pt-1">
           {examples.map((ex) => (
-            <button key={ex} onClick={() => setInput(ex)} className="rounded-full border border-black/[0.064] bg-black/[0.022] px-2.5 py-1 text-[11.5px] text-ink-300 transition hover:border-accent/40 hover:text-ink-100">
+            <button key={ex} onClick={() => setInput(ex)} className="rounded-full border border-ink-700 bg-ink-900 px-2.5 py-1 text-[11.5px] text-ink-300 transition hover:border-accent/40 hover:text-ink-100">
               {ex.length > 60 ? `${ex.slice(0, 58)}…` : ex}
             </button>
           ))}
@@ -230,7 +230,7 @@ export default function Playground() {
         {/* Timeline */}
         <div className="xl:col-span-5">
           <Card className="flex h-[720px] flex-col overflow-hidden">
-            <div className="flex items-center justify-between border-b border-black/[0.04] px-4 py-3">
+            <div className="flex items-center justify-between border-b border-ink-700 px-4 py-3">
               <div className="text-[13px] font-medium">Linha do tempo do raciocínio</div>
               {view.model && <Badge color={view.provider === "demo" ? "ok" : "accent"}>{view.model}</Badge>}
             </div>
@@ -246,7 +246,7 @@ export default function Playground() {
               )}
             </div>
             {runId && !live && view.status !== "idle" && (
-              <div className="border-t border-black/[0.04] p-3">
+              <div className="border-t border-ink-700 p-3">
                 <div className="flex gap-2">
                   <Textarea
                     rows={1}
@@ -351,10 +351,10 @@ function RecentRuns({ runs, current }: { runs: RunSummary[]; current?: string })
       </Button>
       <AnimatePresence>
         {open && (
-          <motion.div initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }} className="absolute right-0 z-30 mt-2 max-h-96 w-80 overflow-y-auto rounded-2xl border border-black/[0.08] bg-surface p-1.5 shadow-2xl backdrop-blur-xl">
+          <motion.div initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }} className="absolute right-0 z-30 mt-2 max-h-96 w-80 overflow-y-auto rounded-2xl border border-ink-700 bg-surface p-1.5 shadow-2xl backdrop-blur-xl">
             {runs.length === 0 && <div className="p-3 text-sm text-ink-400">Nenhuma execução ainda.</div>}
             {runs.map((r) => (
-              <Link key={r.id} to={`/playground/${r.id}`} onClick={() => setOpen(false)} className={`block rounded-xl px-3 py-2 transition hover:bg-black/[0.038] ${r.id === current ? "bg-black/[0.038]" : ""}`}>
+              <Link key={r.id} to={`/playground/${r.id}`} onClick={() => setOpen(false)} className={`block rounded-xl px-3 py-2 transition hover:bg-ink-850 ${r.id === current ? "bg-ink-850" : ""}`}>
                 <div className="truncate text-[13px] text-ink-100">{r.input}</div>
                 <div className="mt-0.5 flex items-center gap-2 font-mono text-[10.5px] text-ink-500">
                   <span className={color[r.status]}>●</span> {r.agentName} · {timeAgo(r.startedAt)} · {r.iterations} it.

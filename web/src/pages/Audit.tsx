@@ -118,7 +118,7 @@ export default function Audit() {
         <div className="flex gap-1 overflow-x-auto">
           {GROUPS.map((g) => (
             <button key={g.id} onClick={() => setGroup(g.id)} className="relative rounded-lg px-3 py-1.5 text-[12.5px]">
-              {group === g.id && <motion.div layoutId="audit-group" className="absolute inset-0 rounded-lg bg-black/[0.06]" />}
+              {group === g.id && <motion.div layoutId="audit-group" className="absolute inset-0 rounded-lg bg-ink-850" />}
               <span className={`relative ${group === g.id ? "text-ink-100" : "text-ink-400"}`}>{g.label}</span>
             </button>
           ))}
@@ -142,8 +142,8 @@ export default function Audit() {
             const Icon = style.icon;
             const open = openId === e.id;
             return (
-              <motion.div key={e.id} layout="position" initial={{ opacity: 0, backgroundColor: "rgba(139,92,246,0.15)" }} animate={{ opacity: 1, backgroundColor: "rgba(0,0,0,0)" }} transition={{ duration: 1.2 }} className="border-b border-black/[0.04] last:border-0">
-                <button onClick={() => setOpenId(open ? null : e.id)} className="flex w-full items-center gap-3 px-4 py-2.5 text-left transition hover:bg-black/[0.015]">
+              <motion.div key={e.id} layout="position" initial={{ opacity: 0, backgroundColor: "rgba(139,92,246,0.15)" }} animate={{ opacity: 1, backgroundColor: "rgba(0,0,0,0)" }} transition={{ duration: 1.2 }} className="border-b border-ink-700 last:border-0">
+                <button onClick={() => setOpenId(open ? null : e.id)} className="flex w-full items-center gap-3 px-4 py-2.5 text-left transition hover:bg-ink-900">
                   <ChevronRight size={13} className={`shrink-0 text-ink-500 transition ${open ? "rotate-90" : ""}`} />
                   <span className="w-[68px] shrink-0 font-mono text-[11px] text-ink-500">{fmtTime(e.ts)}</span>
                   <span className="flex w-[150px] shrink-0 items-center gap-1.5 font-mono text-[11px]" style={{ color: style.color }}>

@@ -1,6 +1,7 @@
-import { ChevronRight, FlaskConical, Plus, Search } from "lucide-react";
+import { ChevronRight, FlaskConical, Moon, Plus, Search, Sun } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
+import { useTheme } from "../lib/theme";
 
 const PAGES = [
   { to: "/", label: "Visão geral" },
@@ -18,6 +19,7 @@ const PAGES = [
 export function TopBar() {
   const { pathname } = useLocation();
   const navigate = useNavigate();
+  const { theme, toggle } = useTheme();
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
   const input = useRef<HTMLInputElement>(null);
@@ -83,8 +85,17 @@ export function TopBar() {
         )}
       </div>
 
+      <button
+        onClick={toggle}
+        className="ml-auto flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-ink-700 text-ink-400 transition-colors hover:bg-ink-850 hover:text-ink-100 md:ml-0"
+        aria-label={theme === "escuro" ? "Usar tema claro" : "Usar tema escuro"}
+        title={theme === "escuro" ? "Tema claro" : "Tema escuro"}
+      >
+        {theme === "escuro" ? <Sun size={15} /> : <Moon size={15} />}
+      </button>
+
       {pathname === "/" && (
-        <Link to="/playground" className="ml-auto shrink-0 md:ml-0">
+        <Link to="/playground" className="shrink-0">
           <span className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-accent px-3 text-[13px] font-medium text-white transition-colors hover:bg-[#1d4ed8]">
             <Plus size={14} /> Nova execução
           </span>

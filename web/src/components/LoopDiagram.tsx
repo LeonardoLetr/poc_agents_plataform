@@ -46,8 +46,9 @@ export function LoopDiagram({ size: maxSize = 340, duration = 8 }: { size?: numb
           >
             <motion.div
               className="flex h-12 w-12 items-center justify-center rounded-2xl border text-[11px] font-semibold"
-              style={{ borderColor: `${s.color}55`, color: s.color, backgroundColor: "#ffffff" }}
-              animate={{ backgroundColor: ["#ffffff", `color-mix(in oklab, ${s.color} 14%, #ffffff)`, "#ffffff"], scale: [1, 1.08, 1] }}
+              style={{ borderColor: `${s.color}55`, color: s.color, backgroundColor: "var(--color-surface)" }}
+              // Destaque por anel colorido (box-shadow), que funciona em qualquer tema.
+              animate={{ boxShadow: [`0 0 0 0px ${s.color}00`, `0 0 0 4px ${s.color}33`, `0 0 0 0px ${s.color}00`], scale: [1, 1.08, 1] }}
               transition={{ duration: duration * 0.18, repeat: Infinity, repeatDelay: duration * 0.82, delay: t * duration }}
             >
               {i + 1}

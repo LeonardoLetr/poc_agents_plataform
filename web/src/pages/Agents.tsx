@@ -183,7 +183,7 @@ function AgentEditor({ initial, id, onClose, onSaved }: { initial: AgentInput; i
                 key={l.id}
                 type="button"
                 onClick={() => set("llmId", l.id)}
-                className={`rounded-xl border p-2.5 text-left transition ${form.llmId === l.id ? "border-accent/50 bg-accent/10" : "border-black/[0.064] hover:bg-black/[0.022]"}`}
+                className={`rounded-xl border p-2.5 text-left transition ${form.llmId === l.id ? "border-accent/50 bg-accent/10" : "border-ink-700 hover:bg-ink-900"}`}
               >
                 <div className="flex items-center justify-between gap-2 text-[13px] font-medium text-ink-100">
                   <span className="truncate">{l.name}</span>
@@ -204,7 +204,7 @@ function AgentEditor({ initial, id, onClose, onSaved }: { initial: AgentInput; i
             <span className="flex items-center gap-1">
               <FileText size={11} /> inserir da biblioteca:
               <select
-                className="ml-1 rounded-md border border-black/10 bg-surface px-1 text-ink-200"
+                className="ml-1 rounded-md border border-ink-700 bg-surface px-1 text-ink-200"
                 value=""
                 onChange={(e) => {
                   const p = prompts.data?.find((x) => x.id === e.target.value);
@@ -224,7 +224,7 @@ function AgentEditor({ initial, id, onClose, onSaved }: { initial: AgentInput; i
           <div className="mb-2 text-[13px] font-medium text-ink-200">Ferramentas</div>
           <div className="grid gap-2 md:grid-cols-2">
             {builtin.map((t) => (
-              <label key={t.name} className={`flex cursor-pointer gap-2.5 rounded-lg border p-2.5 transition ${form.tools.includes(t.name) ? "border-ink-400/50 bg-ink-950" : "border-black/[0.08] hover:bg-ink-950"}`}>
+              <label key={t.name} className={`flex cursor-pointer gap-2.5 rounded-lg border p-2.5 transition ${form.tools.includes(t.name) ? "border-ink-400/50 bg-ink-950" : "border-ink-700 hover:bg-ink-950"}`}>
                 <input type="checkbox" className="mt-0.5 accent-[#2563eb]" checked={form.tools.includes(t.name)} onChange={() => toggleTool(t.name)} />
                 <span className="min-w-0">
                   <span className="flex items-center gap-1.5 font-mono text-[12px] text-ink-100">
@@ -249,7 +249,7 @@ function AgentEditor({ initial, id, onClose, onSaved }: { initial: AgentInput; i
                     {!form.tools.includes(wildcard) && (
                       <div className="mt-2 flex flex-wrap gap-1.5">
                         {serverTools.map((t) => (
-                          <button key={t.name} onClick={() => toggleTool(t.name)} className={`rounded-full border px-2 py-0.5 font-mono text-[11px] ${form.tools.includes(t.name) ? "border-mcp/50 bg-mcp/15 text-mcp" : "border-black/[0.08] text-ink-400"}`}>
+                          <button key={t.name} onClick={() => toggleTool(t.name)} className={`rounded-full border px-2 py-0.5 font-mono text-[11px] ${form.tools.includes(t.name) ? "border-mcp/50 bg-mcp/15 text-mcp" : "border-ink-700 text-ink-400"}`}>
                             {toolLabel(t.name).label}
                           </button>
                         ))}
@@ -264,12 +264,12 @@ function AgentEditor({ initial, id, onClose, onSaved }: { initial: AgentInput; i
         </div>
 
         <div className="grid gap-4 md:grid-cols-2">
-          <div className="rounded-xl border border-black/[0.064] p-2">
+          <div className="rounded-xl border border-ink-700 p-2">
             <div className="px-2 pt-1 text-[12px] font-medium text-ink-400">Memória</div>
             <Toggle checked={form.memory.autoRecall} onChange={(v) => set("memory", { ...form.memory, autoRecall: v })} label="Recall automático" description="Busca memórias relevantes e injeta no prompt de sistema antes de rodar." />
             <Toggle checked={form.memory.autoEpisode} onChange={(v) => set("memory", { ...form.memory, autoEpisode: v })} label="Memória episódica" description="Salva um resumo de cada execução concluída." />
           </div>
-          <div className="rounded-xl border border-black/[0.064] p-2">
+          <div className="rounded-xl border border-ink-700 p-2">
             <div className="px-2 pt-1 text-[12px] font-medium text-ink-400">Controle e segurança</div>
             <Toggle checked={form.requireApproval} onChange={(v) => set("requireApproval", v)} label="Aprovação humana" description="Pausa antes de cada ferramenta e pede sua autorização." />
             <div className="px-2 pt-1">

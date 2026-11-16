@@ -1,8 +1,8 @@
 @import "tailwindcss";
 
 /*
- * Tokens do sistema visual "painel claro" (especificação em docs/style-guides/painel-saas-claro.md).
- * - Neutros na escala zinc; superfícies brancas separadas por bordas de 1px.
+ * Tokens do sistema visual (especificação em docs/style-guides/painel-saas-claro.md).
+ * - Tema claro em tom papel, com cartões brancos; tema escuro em grafite quente.
  * - Escala "ink": 950 é o tom mais claro e 100 o mais escuro.
  * - Azul como única cor de ação; cores semânticas apenas em status, ícones e progresso.
  */
@@ -11,18 +11,19 @@
   --font-mono: "Geist Mono", ui-monospace, monospace;
   --font-serif: "Inter", ui-sans-serif, system-ui, sans-serif;
 
+  /* Tema claro (padrão): papel bege, cartões brancos */
   --color-surface: #ffffff; /* cartões, campos, menus */
-  --color-ink-950: #ffffff; /* fundo do conteúdo */
-  --color-ink-900: #fafafa; /* sidebar, colunas do quadro, blocos de código */
-  --color-ink-850: #f4f4f5; /* item ativo, aba ativa, hover */
-  --color-ink-800: #ececee;
-  --color-ink-700: #e4e4e7; /* bordas */
-  --color-ink-600: #d4d4d8; /* bordas fortes */
-  --color-ink-500: #a1a1aa; /* placeholders, terciário */
-  --color-ink-400: #71717a; /* rótulos, legendas */
-  --color-ink-300: #52525b; /* texto de apoio */
-  --color-ink-200: #3f3f46; /* corpo */
-  --color-ink-100: #18181b; /* títulos e valores */
+  --color-ink-950: #f7f5ef; /* fundo do conteúdo */
+  --color-ink-900: #f1eee6; /* sidebar, colunas do quadro, blocos de código */
+  --color-ink-850: #ebe7dc; /* item ativo, aba ativa, hover */
+  --color-ink-800: #e4dfd3;
+  --color-ink-700: #e2ddd1; /* bordas */
+  --color-ink-600: #d2cbbd; /* bordas fortes */
+  --color-ink-500: #a39c8e; /* placeholders, terciário */
+  --color-ink-400: #716b60; /* rótulos, legendas */
+  --color-ink-300: #57524a; /* texto de apoio */
+  --color-ink-200: #3d3a34; /* corpo */
+  --color-ink-100: #1f1e1c; /* títulos e valores */
 
   --color-accent: #2563eb; /* ação principal */
   --color-info: #0284c7;
@@ -49,23 +50,9 @@
 :root { color-scheme: light; }
 
 /*
- * Variações de tema. A estrutura e os componentes são os mesmos; só os tokens mudam.
- * Ativação: atributo data-theme no <html> (ver main.tsx).
+ * Tema escuro (grafite quente). A estrutura e os componentes são os mesmos; só os tokens mudam.
+ * Ativação: atributo data-theme="escuro" no <html> (ver web/src/lib/theme.ts).
  */
-:root[data-theme="bege"] {
-  --color-ink-950: #f7f5ef;
-  --color-ink-900: #f1eee6;
-  --color-ink-850: #ebe7dc;
-  --color-ink-800: #e4dfd3;
-  --color-ink-700: #e2ddd1;
-  --color-ink-600: #d2cbbd;
-  --color-ink-500: #a39c8e;
-  --color-ink-400: #716b60;
-  --color-ink-300: #57524a;
-  --color-ink-200: #3d3a34;
-  --color-ink-100: #1f1e1c;
-}
-
 :root[data-theme="escuro"] {
   color-scheme: dark;
   --color-surface: #30302e;

@@ -137,7 +137,7 @@ export default function Learn() {
           ].map((c, i) => (
             <motion.div key={c.title} initial={{ opacity: 0, y: 16 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: i * 0.08 }}>
               <Link to={c.to}>
-                <Card className="h-full p-5 transition hover:border-black/[0.16]">
+                <Card className="h-full p-5 transition hover:border-ink-600">
                   <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-xl" style={{ background: `${c.color}1f`, color: c.color }}>
                     {c.icon}
                   </div>
@@ -166,12 +166,12 @@ export default function Learn() {
           <h2 className="mb-4 text-[16px] font-semibold tracking-[-0.01em] text-ink-100">
             5. Experimentos <span className="text-[14px] font-normal text-ink-400">({done.size}/{EXERCISES.length})</span>
           </h2>
-          <div className="mb-3 h-1.5 overflow-hidden rounded-full bg-black/[0.038]">
+          <div className="mb-3 h-1.5 overflow-hidden rounded-full bg-ink-850">
             <motion.div className="h-full bg-accent/70" animate={{ width: `${(done.size / EXERCISES.length) * 100}%` }} />
           </div>
           <div className="space-y-2">
             {EXERCISES.map((ex, i) => (
-              <button key={i} onClick={() => toggle(i)} className={`flex w-full items-start gap-3 rounded-xl border p-3 text-left text-[13.5px] transition ${done.has(i) ? "border-ok/25 bg-ok/5 text-ink-400 line-through" : "border-black/[0.064] bg-black/[0.015] text-ink-200 hover:bg-black/[0.03]"}`}>
+              <button key={i} onClick={() => toggle(i)} className={`flex w-full items-start gap-3 rounded-xl border p-3 text-left text-[13.5px] transition ${done.has(i) ? "border-ok/25 bg-ok/5 text-ink-400 line-through" : "border-ink-700 bg-ink-900 text-ink-200 hover:bg-ink-850"}`}>
                 {done.has(i) ? <CheckCircle2 size={17} className="mt-0.5 shrink-0 text-ok" /> : <Circle size={17} className="mt-0.5 shrink-0 text-ink-500" />}
                 {ex}
               </button>

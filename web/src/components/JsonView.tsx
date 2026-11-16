@@ -15,7 +15,7 @@ export function JsonView({ value, className = "", maxHeight = 260 }: { value: un
     });
   return (
     <pre
-      className={`overflow-auto rounded-xl border border-black/[0.04] bg-ink-900 p-3 font-mono text-[11.5px] leading-relaxed text-ink-300 ${className}`}
+      className={`overflow-auto rounded-xl border border-ink-700 bg-ink-900 p-3 font-mono text-[11.5px] leading-relaxed text-ink-300 ${className}`}
       style={{ maxHeight }}
       dangerouslySetInnerHTML={{ __html: html }}
     />
