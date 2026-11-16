@@ -18,7 +18,7 @@ Melhorias e novas funcionalidades planejadas, priorizadas por impacto e esforço
 | AL-06 | Ferramentas de servidor do Claude (web search e web fetch) | Funcionalidade | P1 | P | concluído |
 | AL-07 | Gestão da janela de contexto (medidor e resumo) | Funcionalidade | P1 | M | concluído |
 | AL-08 | Replay passo a passo de execuções | Funcionalidade | P2 | M | concluído |
-| AL-09 | Exportar e importar configuração | Funcionalidade | P2 | P | a fazer |
+| AL-09 | Exportar e importar configuração | Funcionalidade | P2 | P | concluído |
 | AL-10 | Prompts de tarefa com variáveis no Playground | Funcionalidade | P2 | P | a fazer |
 | AL-11 | Aprovação humana por ferramenta | Melhoria | P2 | P | a fazer |
 | AL-12 | Preços de modelos compatíveis com OpenAI | Melhoria | P3 | P | a fazer |
@@ -129,6 +129,11 @@ Sequência sugerida: AL-01 → AL-02/AL-03 → AL-04 → AL-06 → AL-05 → AL-
 - **Problema:** no modo navegador os dados existem apenas no `localStorage`; limpar o navegador apaga tudo.
 - **Proposta:** exportar e importar agentes, LLMs (sem chaves), prompts, servidores MCP e memórias em JSON versionado.
 - **Critérios de aceite:** importação valida o esquema e informa conflitos; chaves nunca são exportadas.
+- **Resultado:** "Exportar" e "Importar" no rodapé da barra lateral (`core/backup.ts`). O arquivo JSON leva agentes,
+  LLMs (sem chaves), prompts, servidores MCP (cabeçalhos só com o nome) e memórias, com formato e versão; execuções e
+  auditoria ficam de fora. A importação valida o formato, normaliza arquivos de versões anteriores pela migração de
+  dados e oferece "mesclar" (adiciona o novo e lista os conflitos) ou "substituir" (preserva as chaves das LLMs com o
+  mesmo id). Agentes que apontam para LLMs ausentes passam a usar a LLM demo, com aviso no relatório.
 
 ### AL-10 · Prompts de tarefa com variáveis no Playground
 - **Problema:** modelos de tarefa com `{{variáveis}}` não têm onde ser preenchidos.
