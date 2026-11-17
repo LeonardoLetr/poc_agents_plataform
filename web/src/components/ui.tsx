@@ -191,6 +191,36 @@ export function Modal({
   );
 }
 
+/** Abas em linha, para dividir formulários longos. */
+export function Tabs<T extends string>({
+  value,
+  onChange,
+  items,
+}: {
+  value: T;
+  onChange: (value: T) => void;
+  items: readonly { value: T; label: ReactNode }[];
+}) {
+  return (
+    <div role="tablist" className="flex gap-1 overflow-x-auto border-b border-ink-700">
+      {items.map((item) => (
+        <button
+          key={item.value}
+          type="button"
+          role="tab"
+          aria-selected={value === item.value}
+          onClick={() => onChange(item.value)}
+          className={`-mb-px shrink-0 border-b-2 px-3 py-2 text-[13px] transition ${
+            value === item.value ? "border-accent font-medium text-ink-100" : "border-transparent text-ink-400 hover:text-ink-200"
+          }`}
+        >
+          {item.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 export function EmptyState({
   icon,
   title,

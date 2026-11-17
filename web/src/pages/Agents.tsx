@@ -1,9 +1,9 @@
 import { motion } from "motion/react";
-import { Bot, Cloud, Copy, FileText, Pencil, Play, Plus, Trash2, Users } from "lucide-react";
+import { Bot, Cloud, Copy, FileText, Pencil, Play, Plug, Plus, Trash2, Users } from "lucide-react";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { SpotlightCard } from "../components/effects";
-import { Badge, Button, EmptyState, ErrorNote, Field, Input, Modal, PageHeader, Select, Textarea, Toggle } from "../components/ui";
+import { Badge, Button, EmptyState, ErrorNote, Field, Input, Modal, PageHeader, Select, Tabs, Textarea, Toggle } from "../components/ui";
 import { Link } from "react-router-dom";
 import { api, type Agent, type AgentInput, type Llm, type PromptTemplate, type ToolInfo } from "../lib/api";
 import { toolLabel } from "../lib/format";
@@ -155,6 +155,7 @@ function AgentEditor({
 }) {
   const [form, setForm] = useState<AgentInput>(initial);
   const [error, setError] = useState<string | null>(null);
+  const [tab, setTab] = useState<"geral" | "ferramentas" | "comportamento">("geral");
   const tools = useResource<ToolInfo[]>("/api/tools");
   const prompts = useResource<PromptTemplate[]>("/api/prompts");
   const llms = useResource<Llm[]>("/api/llms");
@@ -184,295 +185,283 @@ function AgentEditor({
   return (
     <Modal open onClose={onClose} wide title={id ? `Editar ${initial.name}` : "Novo agente"}>
       <div className="space-y-5">
-        <div className="grid gap-4 md:grid-cols-[1fr_auto]">
-          <Field label="Nome">
-            <Input value={form.name} onChange={(e) => set("name", e.target.value)} placeholder="Ex.: Pesquisador" />
-          </Field>
-          <Field label="Aparência">
-            <div className="flex items-center gap-2">
-              <Select value={form.emoji} onChange={(e) => set("emoji", e.target.value)} className="!w-16">
-                {EMOJIS.map((e) => (
-                  <option key={e}>{e}</option>
-                ))}
-              </Select>
-              <div className="flex gap-1">
-                {COLORS.map((c) => (
-                  <button
-                    key={c}
-                    onClick={() => set("color", c)}
-                    className={`h-6 w-6 rounded-full transition ${form.color === c ? "ring-2 ring-ink-100 ring-offset-2 ring-offset-white" : ""}`}
-                    style={{ background: c }}
-                  />
-                ))}
-              </div>
-            </div>
-          </Field>
-        </div>
-        <Field label="Descrição">
-          <Input value={form.description} onChange={(e) => set("description", e.target.value)} placeholder="Para que serve este agente?" />
-        </Field>
-
-        <Field
-          label="LLM"
-          hint={
-            <Link to="/llms" className="text-info hover:underline">
-              gerenciar LLMs →
-            </Link>
-          }
-        >
-          <div className="grid gap-2 sm:grid-cols-2">
-            {llms.data?.map((l) => (
-              <button
-                key={l.id}
-                type="button"
-                onClick={() => set("llmId", l.id)}
-                className={`rounded-xl border p-2.5 text-left transition ${form.llmId === l.id ? "border-accent/50 bg-accent/10" : "border-ink-700 hover:bg-ink-900"}`}
-              >
-                <div className="flex items-center justify-between gap-2 text-[13px] font-medium text-ink-100">
-                  <span className="truncate">{l.name}</span>
-                  <Badge color={l.ready ? "ok" : "warn"}>{l.ready ? "pronta" : "sem chave"}</Badge>
+        <Tabs
+          value={tab}
+          onChange={setTab}
+          items={[
+            { value: "geral", label: "Geral" },
+            { value: "ferramentas", label: `Ferramentas · ${form.tools.length}` },
+            { value: "comportamento", label: "Comportamento" },
+          ]}
+        />
+        {tab === "geral" && (
+          <>
+            <div className="grid gap-4 md:grid-cols-[1fr_auto]">
+              <Field label="Nome">
+                <Input value={form.name} onChange={(e) => set("name", e.target.value)} placeholder="Ex.: Pesquisador" />
+              </Field>
+              <Field label="Aparência">
+                <div className="flex items-center gap-2">
+                  <Select value={form.emoji} onChange={(e) => set("emoji", e.target.value)} className="!w-16">
+                    {EMOJIS.map((e) => (
+                      <option key={e}>{e}</option>
+                    ))}
+                  </Select>
+                  <div className="flex gap-1">
+                    {COLORS.map((c) => (
+                      <button
+                        key={c}
+                        onClick={() => set("color", c)}
+                        className={`h-6 w-6 rounded-full transition ${form.color === c ? "ring-2 ring-ink-100 ring-offset-2 ring-offset-white" : ""}`}
+                        style={{ background: c }}
+                      />
+                    ))}
+                  </div>
                 </div>
-                <div className="truncate text-[11.5px] text-ink-400">
-                  {l.provider} · {l.model}
-                  {l.provider === "anthropic" ? ` · ${l.effort}` : ""}
-                </div>
-              </button>
-            ))}
-          </div>
-        </Field>
-
-        <Field
-          label="Prompt de sistema"
-          hint={
-            <span className="flex items-center gap-1">
-              <FileText size={11} /> inserir da biblioteca:
-              <select
-                className="ml-1 rounded-md border border-ink-700 bg-surface px-1 text-ink-200"
-                value=""
-                onChange={(e) => {
-                  const p = prompts.data?.find((x) => x.id === e.target.value);
-                  if (p) set("systemPrompt", `${form.systemPrompt.trim()}\n\n${p.content}`.trim());
-                }}
-              >
-                <option value="">escolher…</option>
-                {prompts.data
-                  ?.filter((p) => p.category === "system")
-                  .map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.name}
-                    </option>
-                  ))}
-              </select>
-            </span>
-          }
-        >
-          <Textarea
-            rows={6}
-            value={form.systemPrompt}
-            onChange={(e) => set("systemPrompt", e.target.value)}
-            className="font-mono text-[12.5px]"
-          />
-        </Field>
-
-        <div>
-          <div className="mb-2 text-[13px] font-medium text-ink-200">Ferramentas</div>
-          <div className="grid gap-2 md:grid-cols-2">
-            {builtin.map((t) => (
-              <label
-                key={t.name}
-                className={`flex cursor-pointer gap-2.5 rounded-lg border p-2.5 transition ${form.tools.includes(t.name) ? "border-ink-400/50 bg-ink-950" : "border-ink-700 hover:bg-ink-950"}`}
-              >
-                <input
-                  type="checkbox"
-                  className="mt-0.5 accent-[#2563eb]"
-                  checked={form.tools.includes(t.name)}
-                  onChange={() => toggleTool(t.name)}
-                />
-                <span className="min-w-0">
-                  <span className="flex items-center gap-1.5 font-mono text-[12px] text-ink-100">
-                    {t.name} <Badge>{t.category}</Badge>
-                  </span>
-                  <span className="line-clamp-2 text-[11.5px] text-ink-400">{t.description}</span>
-                </span>
-              </label>
-            ))}
-          </div>
-          {serverTools.length > 0 && (
-            <div className="mt-3">
-              <div className="mb-1.5 flex flex-wrap items-center gap-x-2 text-[12px] text-ink-400">
-                <Cloud size={12} /> Executadas pela Anthropic{" "}
-                <span className="text-ink-500">· apenas LLMs Anthropic · até 5 usos por chamada</span>
-              </div>
-              <div className="grid gap-2 md:grid-cols-2">
-                {serverTools.map((t) => (
-                  <label
-                    key={t.name}
-                    className={`flex cursor-pointer gap-2.5 rounded-lg border p-2.5 transition ${form.tools.includes(t.name) ? "border-ink-400/50 bg-ink-950" : "border-ink-700 hover:bg-ink-950"}`}
-                  >
-                    <input
-                      type="checkbox"
-                      className="mt-0.5 accent-[#2563eb]"
-                      checked={form.tools.includes(t.name)}
-                      onChange={() => toggleTool(t.name)}
-                    />
-                    <span className="min-w-0">
-                      <span className="flex items-center gap-1.5 font-mono text-[12px] text-ink-100">
-                        {t.name} <Badge color="info">servidor</Badge>
-                      </span>
-                      <span className="line-clamp-2 text-[11.5px] text-ink-400">{t.description}</span>
-                    </span>
-                  </label>
-                ))}
-              </div>
-              {serverToolsUnsupported && (
-                <p className="mt-1.5 text-[11.5px] text-warn">
-                  A LLM selecionada não é da Anthropic: as ferramentas de servidor serão ignoradas nas execuções.
-                </p>
-              )}
+              </Field>
             </div>
-          )}
-          {delegates.length > 0 && (
-            <div className="mt-3">
-              <div className="mb-1.5 flex flex-wrap items-center gap-x-2 text-[12px] text-ink-400">
-                <Users size={12} /> Delegar para agentes{" "}
-                <span className="text-ink-500">· cada um roda o próprio loop e devolve a resposta · até 2 níveis</span>
-              </div>
-              <div className="flex flex-wrap gap-1.5">
-                {delegates.map((t) => (
+            <Field label="Descrição">
+              <Input
+                value={form.description}
+                onChange={(e) => set("description", e.target.value)}
+                placeholder="Para que serve este agente?"
+              />
+            </Field>
+
+            <Field
+              label="LLM"
+              hint={
+                <Link to="/llms" className="text-info hover:underline">
+                  gerenciar LLMs →
+                </Link>
+              }
+            >
+              <div className="grid gap-2 sm:grid-cols-2">
+                {llms.data?.map((l) => (
                   <button
-                    key={t.name}
+                    key={l.id}
                     type="button"
-                    onClick={() => toggleTool(t.name)}
-                    className={`rounded-full border px-2.5 py-1 text-[12px] transition ${form.tools.includes(t.name) ? "border-memory/50 bg-memory/10 text-memory" : "border-ink-700 text-ink-300 hover:bg-ink-950"}`}
+                    onClick={() => set("llmId", l.id)}
+                    className={`rounded-xl border p-2.5 text-left transition ${form.llmId === l.id ? "border-accent/50 bg-accent/10" : "border-ink-700 hover:bg-ink-900"}`}
                   >
-                    {t.label}
+                    <div className="flex items-center justify-between gap-2 text-[13px] font-medium text-ink-100">
+                      <span className="truncate">{l.name}</span>
+                      <Badge color={l.ready ? "ok" : "warn"}>{l.ready ? "pronta" : "sem chave"}</Badge>
+                    </div>
+                    <div className="truncate text-[11.5px] text-ink-400">
+                      {l.provider} · {l.model}
+                      {l.provider === "anthropic" ? ` · ${l.effort}` : ""}
+                    </div>
                   </button>
                 ))}
               </div>
+            </Field>
+
+            <Field
+              label="Prompt de sistema"
+              hint={
+                <span className="flex items-center gap-1">
+                  <FileText size={11} /> inserir da biblioteca:
+                  <select
+                    className="ml-1 rounded-md border border-ink-700 bg-surface px-1 text-ink-200"
+                    value=""
+                    onChange={(e) => {
+                      const p = prompts.data?.find((x) => x.id === e.target.value);
+                      if (p) set("systemPrompt", `${form.systemPrompt.trim()}\n\n${p.content}`.trim());
+                    }}
+                  >
+                    <option value="">escolher…</option>
+                    {prompts.data
+                      ?.filter((p) => p.category === "system")
+                      .map((p) => (
+                        <option key={p.id} value={p.id}>
+                          {p.name}
+                        </option>
+                      ))}
+                  </select>
+                </span>
+              }
+            >
+              <Textarea
+                rows={6}
+                value={form.systemPrompt}
+                onChange={(e) => set("systemPrompt", e.target.value)}
+                className="font-mono text-[12.5px]"
+              />
+            </Field>
+          </>
+        )}
+
+        {tab === "ferramentas" && (
+          <div>
+            <div className="mb-2 text-[13px] font-medium text-ink-200">Nativas</div>
+            <div className="grid gap-2 md:grid-cols-2">
+              {builtin.map((t) => (
+                <label
+                  key={t.name}
+                  className={`flex cursor-pointer gap-2.5 rounded-lg border p-2.5 transition ${form.tools.includes(t.name) ? "border-ink-400/50 bg-ink-950" : "border-ink-700 hover:bg-ink-950"}`}
+                >
+                  <input
+                    type="checkbox"
+                    className="mt-0.5 accent-[#2563eb]"
+                    checked={form.tools.includes(t.name)}
+                    onChange={() => toggleTool(t.name)}
+                  />
+                  <span className="min-w-0">
+                    <span className="flex items-center gap-1.5 font-mono text-[12px] text-ink-100">
+                      {t.name} <Badge>{t.category}</Badge>
+                    </span>
+                    <span className="line-clamp-2 text-[11.5px] text-ink-400">{t.description}</span>
+                  </span>
+                </label>
+              ))}
             </div>
-          )}
-          {mcpServers.length > 0 && (
-            <div className="mt-3 space-y-2">
-              {mcpServers.map((server) => {
-                const wildcard = `mcp__${server}__*`;
-                const serverTools = tools.data!.filter((t) => t.server === server);
-                const viaAnthropic = serverTools.some((t) => t.viaAnthropic);
-                return (
-                  <div key={server} className="rounded-xl border border-mcp/20 bg-mcp/[0.03] p-3">
-                    <label className="flex cursor-pointer items-center gap-2 text-[13px]">
+            {serverTools.length > 0 && (
+              <div className="mt-3">
+                <div className="mb-1.5 flex flex-wrap items-center gap-x-2 text-[12px] text-ink-400">
+                  <Cloud size={12} /> Executadas pela Anthropic{" "}
+                  <span className="text-ink-500">· apenas LLMs Anthropic · até 5 usos por chamada</span>
+                </div>
+                <div className="grid gap-2 md:grid-cols-2">
+                  {serverTools.map((t) => (
+                    <label
+                      key={t.name}
+                      className={`flex cursor-pointer gap-2.5 rounded-lg border p-2.5 transition ${form.tools.includes(t.name) ? "border-ink-400/50 bg-ink-950" : "border-ink-700 hover:bg-ink-950"}`}
+                    >
                       <input
                         type="checkbox"
-                        className="accent-[#2563eb]"
-                        checked={form.tools.includes(wildcard)}
-                        onChange={() => toggleTool(wildcard)}
+                        className="mt-0.5 accent-[#2563eb]"
+                        checked={form.tools.includes(t.name)}
+                        onChange={() => toggleTool(t.name)}
                       />
-                      <span className="font-medium text-mcp">MCP: {server}</span>{" "}
-                      <span className="text-ink-400">
-                        {viaAnthropic
-                          ? serverTools.length > 1
-                            ? `— via Anthropic: todas as ferramentas (${serverTools.length - 1} conhecidas)`
-                            : "— via Anthropic: ferramentas descobertas na execução"
-                          : `— todas as ${serverTools.length} ferramentas`}
+                      <span className="min-w-0">
+                        <span className="flex items-center gap-1.5 font-mono text-[12px] text-ink-100">
+                          {t.name} <Badge color="info">servidor</Badge>
+                        </span>
+                        <span className="line-clamp-2 text-[11.5px] text-ink-400">{t.description}</span>
                       </span>
                     </label>
-                    {viaAnthropic &&
-                      serverTools.length > 0 &&
-                      form.tools.includes(wildcard) &&
-                      selectedLlm &&
-                      selectedLlm.provider !== "anthropic" && (
-                        <p className="mt-1.5 text-[11.5px] text-warn">
-                          Este servidor é conectado pela API da Anthropic: com a LLM selecionada, ele será ignorado.
-                        </p>
-                      )}
-                    {!form.tools.includes(wildcard) && serverTools.some((t) => t.name !== wildcard) && (
-                      <div className="mt-2 flex flex-wrap gap-1.5">
-                        {serverTools
-                          .filter((t) => t.name !== wildcard)
-                          .map((t) => (
-                            <button
-                              key={t.name}
-                              onClick={() => toggleTool(t.name)}
-                              className={`rounded-full border px-2 py-0.5 font-mono text-[11px] ${form.tools.includes(t.name) ? "border-mcp/50 bg-mcp/15 text-mcp" : "border-ink-700 text-ink-400"}`}
-                            >
-                              {toolLabel(t.name).label}
-                            </button>
-                          ))}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          )}
-          {mcpServers.length === 0 && (
-            <p className="mt-2 text-[12px] text-ink-500">Conecte um servidor MCP para ver ferramentas externas aqui.</p>
-          )}
-        </div>
-
-        <div className="grid gap-4 md:grid-cols-2">
-          <div className="rounded-xl border border-ink-700 p-2">
-            <div className="px-2 pt-1 text-[12px] font-medium text-ink-400">Memória</div>
-            <Toggle
-              checked={form.memory.autoRecall}
-              onChange={(v) => set("memory", { ...form.memory, autoRecall: v })}
-              label="Recall automático"
-              description="Busca memórias relevantes e injeta no prompt de sistema antes de rodar."
-            />
-            <Toggle
-              checked={form.memory.autoEpisode}
-              onChange={(v) => set("memory", { ...form.memory, autoEpisode: v })}
-              label="Memória episódica"
-              description="Salva um resumo de cada execução concluída."
-            />
-            <Toggle
-              checked={Boolean(form.memory.recallEpisodes)}
-              onChange={(v) => set("memory", { ...form.memory, recallEpisodes: v })}
-              label="Episódios no recall"
-              description="Inclui resumos de execuções anteriores entre as memórias injetadas automaticamente."
-            />
+                  ))}
+                </div>
+                {serverToolsUnsupported && (
+                  <p className="mt-1.5 text-[11.5px] text-warn">
+                    A LLM selecionada não é da Anthropic: as ferramentas de servidor serão ignoradas nas execuções.
+                  </p>
+                )}
+              </div>
+            )}
+            {delegates.length > 0 && (
+              <div className="mt-3">
+                <div className="mb-1.5 flex flex-wrap items-center gap-x-2 text-[12px] text-ink-400">
+                  <Users size={12} /> Delegar para agentes{" "}
+                  <span className="text-ink-500">· cada um roda o próprio loop e devolve a resposta · até 2 níveis</span>
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  {delegates.map((t) => (
+                    <button
+                      key={t.name}
+                      type="button"
+                      onClick={() => toggleTool(t.name)}
+                      className={`rounded-full border px-2.5 py-1 text-[12px] transition ${form.tools.includes(t.name) ? "border-memory/50 bg-memory/10 text-memory" : "border-ink-700 text-ink-300 hover:bg-ink-950"}`}
+                    >
+                      {t.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+            {mcpServers.length > 0 && (
+              <div className="mt-3">
+                <div className="mb-1.5 flex flex-wrap items-center gap-x-2 text-[12px] text-ink-400">
+                  <Plug size={12} /> Servidores MCP{" "}
+                  <span className="text-ink-500">· marque para liberar todas as ferramentas do servidor</span>
+                </div>
+                <div className="space-y-1.5">
+                  {mcpServers.map((server) => (
+                    <McpServerPick
+                      key={server}
+                      server={server}
+                      tools={tools.data?.filter((t) => t.server === server) ?? []}
+                      selected={form.tools}
+                      onToggle={toggleTool}
+                      ignored={selectedLlm !== undefined && selectedLlm.provider !== "anthropic"}
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
+            {mcpServers.length === 0 && (
+              <p className="mt-2 text-[12px] text-ink-500">Conecte um servidor MCP para ver ferramentas externas aqui.</p>
+            )}
           </div>
-          <div className="rounded-xl border border-ink-700 p-2">
-            <div className="px-2 pt-1 text-[12px] font-medium text-ink-400">Controle e segurança</div>
-            <Toggle
-              checked={form.requireApproval}
-              onChange={(v) => set("requireApproval", v)}
-              label="Aprovação humana"
-              description="Pausa antes de cada ferramenta e pede sua autorização."
-            />
-            <div className="px-2 pt-1">
-              <Field label="Máximo de iterações" hint="evita loops infinitos">
-                <Input
-                  type="number"
-                  min={1}
-                  max={50}
-                  value={form.maxIterations}
-                  onChange={(e) => set("maxIterations", Number(e.target.value))}
-                />
-              </Field>
+        )}
+
+        {tab === "comportamento" && (
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="rounded-xl border border-ink-700 p-2">
+              <div className="px-2 pt-1 text-[12px] font-medium text-ink-400">Memória</div>
+              <Toggle
+                checked={form.memory.autoRecall}
+                onChange={(v) => set("memory", { ...form.memory, autoRecall: v })}
+                label="Recall automático"
+                description="Busca memórias relevantes e injeta no prompt de sistema antes de rodar."
+              />
+              <Toggle
+                checked={form.memory.autoEpisode}
+                onChange={(v) => set("memory", { ...form.memory, autoEpisode: v })}
+                label="Memória episódica"
+                description="Salva um resumo de cada execução concluída."
+              />
+              <Toggle
+                checked={Boolean(form.memory.recallEpisodes)}
+                onChange={(v) => set("memory", { ...form.memory, recallEpisodes: v })}
+                label="Episódios no recall"
+                description="Inclui resumos de execuções anteriores entre as memórias injetadas automaticamente."
+              />
             </div>
-            <Toggle
-              checked={form.context?.autoCompact ?? false}
-              onChange={(v) => set("context", { thresholdPct: form.context?.thresholdPct ?? 60, autoCompact: v })}
-              label="Resumo automático do histórico"
-              description="Ao passar do limite da janela de contexto, o modelo resume a conversa e continua a partir do resumo."
-            />
-            {form.context?.autoCompact && (
+            <div className="rounded-xl border border-ink-700 p-2">
+              <div className="px-2 pt-1 text-[12px] font-medium text-ink-400">Controle e segurança</div>
+              <Toggle
+                checked={form.requireApproval}
+                onChange={(v) => set("requireApproval", v)}
+                label="Aprovação humana"
+                description="Pausa antes de cada ferramenta e pede sua autorização."
+              />
               <div className="px-2 pt-1">
-                <Field label="Limite da janela" hint="% que dispara o resumo">
+                <Field label="Máximo de iterações" hint="evita loops infinitos">
                   <Input
                     type="number"
-                    min={5}
-                    max={95}
-                    value={form.context.thresholdPct}
-                    onChange={(e) =>
-                      set("context", { autoCompact: true, thresholdPct: Math.min(95, Math.max(5, Number(e.target.value) || 60)) })
-                    }
+                    min={1}
+                    max={50}
+                    value={form.maxIterations}
+                    onChange={(e) => set("maxIterations", Number(e.target.value))}
                   />
                 </Field>
               </div>
-            )}
+              <Toggle
+                checked={form.context?.autoCompact ?? false}
+                onChange={(v) => set("context", { thresholdPct: form.context?.thresholdPct ?? 60, autoCompact: v })}
+                label="Resumo automático do histórico"
+                description="Ao passar do limite da janela de contexto, o modelo resume a conversa e continua a partir do resumo."
+              />
+              {form.context?.autoCompact && (
+                <div className="px-2 pt-1">
+                  <Field label="Limite da janela" hint="% que dispara o resumo">
+                    <Input
+                      type="number"
+                      min={5}
+                      max={95}
+                      value={form.context.thresholdPct}
+                      onChange={(e) =>
+                        set("context", { autoCompact: true, thresholdPct: Math.min(95, Math.max(5, Number(e.target.value) || 60)) })
+                      }
+                    />
+                  </Field>
+                </div>
+              )}
+            </div>
           </div>
-        </div>
+        )}
 
         <ErrorNote message={error} />
         <div className="flex justify-end gap-2">
@@ -483,5 +472,76 @@ function AgentEditor({
         </div>
       </div>
     </Modal>
+  );
+}
+
+/**
+ * Servidor MCP no editor: só o nome e um resumo do que está liberado. As ferramentas individuais ficam atrás de
+ * "escolher", para servidores com muitas ferramentas não alongarem o formulário.
+ */
+function McpServerPick({
+  server,
+  tools,
+  selected,
+  onToggle,
+  ignored,
+}: {
+  server: string;
+  tools: ToolInfo[];
+  selected: string[];
+  onToggle: (name: string) => void;
+  /** A LLM do agente não é da Anthropic: servidores conectados pela API da Anthropic não serão usados. */
+  ignored: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const wildcard = `mcp__${server}__*`;
+  const all = selected.includes(wildcard);
+  const viaAnthropic = tools.some((t) => t.viaAnthropic);
+  const individual = tools.filter((t) => t.name !== wildcard);
+  const picked = individual.filter((t) => selected.includes(t.name)).length;
+  const summary = all
+    ? viaAnthropic
+      ? "todas, descobertas na execução"
+      : `todas as ${individual.length}`
+    : picked
+      ? `${picked} de ${individual.length}`
+      : individual.length
+        ? `nenhuma de ${individual.length}`
+        : "ferramentas descobertas na execução";
+  return (
+    <div className={`rounded-lg border px-3 py-2 transition ${all || picked ? "border-mcp/40 bg-mcp/[0.04]" : "border-ink-700"}`}>
+      <div className="flex items-center gap-2 text-[13px]">
+        <label className="flex min-w-0 flex-1 cursor-pointer items-center gap-2">
+          <input type="checkbox" className="accent-[#2563eb]" checked={all} onChange={() => onToggle(wildcard)} />
+          <span className="truncate font-medium text-ink-100">{server}</span>
+          {viaAnthropic && <Badge color="info">via Anthropic</Badge>}
+          <span className="shrink-0 text-[11.5px] text-ink-400">{summary}</span>
+        </label>
+        {!all && individual.length > 0 && (
+          <button type="button" onClick={() => setOpen(!open)} className="shrink-0 text-[12px] text-info hover:underline">
+            {open ? "fechar" : "escolher"}
+          </button>
+        )}
+      </div>
+      {viaAnthropic && (all || picked > 0) && ignored && (
+        <p className="mt-1.5 text-[11.5px] text-warn">
+          Conectado pela API da Anthropic: com a LLM selecionada, este servidor será ignorado.
+        </p>
+      )}
+      {open && !all && (
+        <div className="mt-2 flex flex-wrap gap-1.5">
+          {individual.map((t) => (
+            <button
+              key={t.name}
+              type="button"
+              onClick={() => onToggle(t.name)}
+              className={`rounded-full border px-2 py-0.5 font-mono text-[11px] ${selected.includes(t.name) ? "border-mcp/50 bg-mcp/15 text-mcp" : "border-ink-700 text-ink-400"}`}
+            >
+              {toolLabel(t.name).label}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }

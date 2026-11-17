@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from "motion/react";
-import { ChevronDown, Loader2, Pencil, Plug, PlugZap, Plus, Power, Search, Terminal, Trash2, Zap } from "lucide-react";
+import { ChevronDown, List, Loader2, Pencil, Plug, PlugZap, Plus, Power, Search, Terminal, Trash2, Zap } from "lucide-react";
 import { useState } from "react";
 import { LiveDot } from "../components/effects";
 import { McpDiagram } from "../components/McpDiagram";
@@ -109,6 +109,7 @@ function RemoteTools({ server, onChange }: { server: McpServer; onChange: () => 
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const known = server.knownTools ?? [];
+  const [listing, setListing] = useState(false);
   async function discover() {
     setBusy(true);
     setError(null);
@@ -132,6 +133,11 @@ function RemoteTools({ server, onChange }: { server: McpServer; onChange: () => 
         <span className="font-mono text-[10.5px] uppercase tracking-wider text-ink-500">
           {known.length ? `${known.length} ferramentas conhecidas` : "ferramentas ainda não conhecidas"}
         </span>
+        {known.length > 0 && (
+          <Button size="sm" variant="subtle" onClick={() => setListing(true)}>
+            <List size={13} /> Ver ferramentas
+          </Button>
+        )}
         <Button
           size="sm"
           className="ml-auto"
@@ -144,20 +150,78 @@ function RemoteTools({ server, onChange }: { server: McpServer; onChange: () => 
         </Button>
       </div>
       <ErrorNote message={error} />
-      {known.length > 0 && (
-        <div className="mt-2 grid gap-1.5 sm:grid-cols-2">
-          {known.map((t) => (
-            <div key={t.name} className="rounded-lg bg-ink-900 px-2.5 py-2">
-              <div className="flex items-center gap-1.5">
-                <span className="truncate font-mono text-[12px] text-ink-100">{t.name}</span>
-                <Badge color={t.source === "used" ? "ok" : "ink"}>{t.source === "used" ? "usada" : "descoberta"}</Badge>
-              </div>
-              {t.description && <div className="mt-0.5 line-clamp-2 text-[11px] text-ink-400">{t.description}</div>}
-            </div>
-          ))}
-        </div>
-      )}
+      <ToolsModal
+        open={listing}
+        onClose={() => setListing(false)}
+        title={`Ferramentas de ${server.name}`}
+        items={known.map((t) => ({
+          name: t.name,
+          description: t.description ?? "",
+          badge: t.source === "used" ? { text: "usada", color: "ok" as const } : { text: "descoberta", color: "ink" as const },
+        }))}
+      />
     </div>
+  );
+}
+
+/** Lista das ferramentas de um servidor, com busca quando são muitas. */
+function ToolsModal({
+  open,
+  onClose,
+  title,
+  hint,
+  items,
+  onPick,
+}: {
+  open: boolean;
+  onClose: () => void;
+  title: string;
+  hint?: string;
+  items: { name: string; description: string; badge?: { text: string; color: "ok" | "ink" } }[];
+  onPick?: (name: string) => void;
+}) {
+  const [query, setQuery] = useState("");
+  const q = query.trim().toLowerCase();
+  const shown = q ? items.filter((t) => `${t.name} ${t.description}`.toLowerCase().includes(q)) : items;
+  return (
+    <Modal open={open} onClose={onClose} wide title={title}>
+      <div className="space-y-3">
+        {hint && <p className="text-[12.5px] text-ink-400">{hint}</p>}
+        {items.length > 8 && (
+          <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={`Buscar entre ${items.length} ferramentas…`} />
+        )}
+        <div className="grid gap-1.5 sm:grid-cols-2">
+          {shown.map((t) => {
+            const body = (
+              <>
+                <div className="flex items-center gap-1.5">
+                  <span className="truncate font-mono text-[12px] text-ink-100">{t.name}</span>
+                  {t.badge && <Badge color={t.badge.color}>{t.badge.text}</Badge>}
+                  {onPick && (
+                    <span className="ml-auto shrink-0 text-[10px] text-mcp opacity-0 transition group-hover:opacity-100">testar →</span>
+                  )}
+                </div>
+                {t.description && <div className="mt-0.5 line-clamp-2 text-[11px] text-ink-400">{t.description}</div>}
+              </>
+            );
+            return onPick ? (
+              <button
+                key={t.name}
+                onClick={() => onPick(t.name)}
+                className="group rounded-xl border border-ink-700 bg-ink-900 px-3 py-2 text-left transition hover:border-mcp/40 hover:bg-mcp/5"
+              >
+                {body}
+              </button>
+            ) : (
+              <div key={t.name} className="rounded-xl bg-ink-900 px-3 py-2">
+                {body}
+              </div>
+            );
+          })}
+        </div>
+        {shown.length === 0 && <p className="text-[12.5px] text-ink-400">Nenhuma ferramenta com “{query}”.</p>}
+      </div>
+    </Modal>
   );
 }
 
@@ -165,6 +229,7 @@ function ServerCard({ server, onChange, onEdit }: { server: McpServer; onChange:
   const [busy, setBusy] = useState(false);
   const [showLogs, setShowLogs] = useState(false);
   const [testing, setTesting] = useState<McpServer["state"]["tools"][number] | null>(null);
+  const [listing, setListing] = useState(false);
   const meta = statusMeta[server.state.status];
 
   async function act(path: string) {
@@ -238,30 +303,28 @@ function ServerCard({ server, onChange, onEdit }: { server: McpServer; onChange:
         {server.state.instructions && <p className="mt-3 text-[12.5px] text-ink-300">📋 {server.state.instructions}</p>}
 
         {server.state.tools.length > 0 && (
-          <div className="mt-4">
-            <div className="mb-2 font-mono text-[10.5px] uppercase tracking-wider text-ink-500">
+          <div className="mt-4 flex flex-wrap items-center gap-2">
+            <span className="font-mono text-[10.5px] uppercase tracking-wider text-ink-500">
               {server.state.tools.length} ferramentas descobertas
-            </div>
-            <div className="grid gap-1.5 sm:grid-cols-2">
-              {server.state.tools.map((t, i) => (
-                <motion.button
-                  key={t.name}
-                  initial={{ opacity: 0, x: -6 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: i * 0.04 }}
-                  onClick={() => setTesting(t)}
-                  className="group rounded-xl border border-ink-700 bg-ink-900 px-3 py-2 text-left transition hover:border-mcp/40 hover:bg-mcp/5"
-                >
-                  <div className="flex items-center justify-between font-mono text-[12px] text-ink-100">
-                    {t.name}
-                    <span className="text-[10px] text-mcp opacity-0 transition group-hover:opacity-100">testar →</span>
-                  </div>
-                  <div className="line-clamp-1 text-[11px] text-ink-400">{t.description}</div>
-                </motion.button>
-              ))}
-            </div>
+            </span>
+            <Button size="sm" variant="subtle" onClick={() => setListing(true)}>
+              <List size={13} /> Ver ferramentas
+            </Button>
           </div>
         )}
+        <ToolsModal
+          open={listing}
+          onClose={() => setListing(false)}
+          title={`Ferramentas de ${server.name}`}
+          hint="Clique numa ferramenta para testá-la direto, sem agente."
+          items={server.state.tools.map((t) => ({ name: t.name, description: t.description }))}
+          onPick={(name) => {
+            const tool = server.state.tools.find((t) => t.name === name);
+            if (!tool) return;
+            setListing(false);
+            setTesting(tool);
+          }}
+        />
 
         <button
           onClick={() => setShowLogs(!showLogs)}
