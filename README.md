@@ -71,6 +71,9 @@ Localmente a aplicação funciona como a versão online: núcleo na página e da
   confirmação do usuário na conversa.
 - O agente **Supervisor** usa Claude: divide a tarefa e delega ao Pesquisador (busca na web) e ao Analista de Dados
   (cálculos), consolidando as respostas. Requer a chave da LLM "Claude Opus 5.5".
+- O **Comparador de Mercados** usa Claude: pede o CEP uma vez (e o guarda na memória), localiza as lojas das grandes
+  redes da lista nas instruções e compara os preços dos encartes da semana, delegando a busca ao Pesquisador e as
+  contas ao Analista de Dados. A lista de redes pode ser editada no editor do agente.
 - O **Agente Demo** usa uma janela simulada de 4 mil tokens: ao continuar a conversa algumas vezes, o resumo automático
   do histórico aparece no medidor e na linha do tempo.
 

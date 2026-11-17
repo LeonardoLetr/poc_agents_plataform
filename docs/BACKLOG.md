@@ -27,6 +27,7 @@ Melhorias e novas funcionalidades planejadas, priorizadas por impacto e esforço
 | AL-15 | Servidores MCP remotos via conector da API do Claude | Funcionalidade | P2 | M | concluído |
 | AL-16 | Adequar o núcleo às diretrizes de código | Qualidade | P1 | G | concluído |
 | AL-17 | Acompanhar execuções delegadas sem sair da execução pai | Melhoria | P1 | M | concluído |
+| AL-18 | Comparador de preços por encartes de supermercado | Funcionalidade | P2 | P | concluído |
 
 Sequência sugerida: AL-11 → AL-10 → demais → AL-14 (último).
 
@@ -238,4 +239,18 @@ Sequência sugerida: AL-11 → AL-10 → demais → AL-14 (último).
   e localizam a filha de cada agente; `useRunStream()` acompanha uma execução ao vivo. O nó do agente no grafo mostra
   "pensando…", a ferramenta em uso ou o desfecho, com o número da iteração. `ChildRunPanel` abre a filha ao lado, com
   aprovação, "tela cheia" e uma pilha para netas; Esc fecha.
+
+### AL-18 · Comparador de preços por encartes de supermercado
+- **Problema:** comparar o preço de uma lista de compras entre as grandes redes perto de casa exige abrir o encarte de
+  cada uma e fazer as contas à mão.
+- **Proposta:** agente que pede o CEP uma vez, localiza a loja de cada rede da lista mais próxima (até 5 km, ampliando
+  para 10 km dentro da cidade), lê os encartes vigentes e compara os preços, delegando a busca ao Pesquisador e as
+  contas ao Analista de Dados.
+- **Critérios de aceite:** CEP e lojas guardados na memória para não repetir a busca; um encarte por delegação, em
+  paralelo; preços com unidade, validade e fonte; produto não encontrado informado como tal, nunca estimado.
+- **Resultado:** agente "Comparador de Mercados" (`marketAgent` em `core/seed.ts`), adicionado aos dados existentes
+  pela migração v10 quando o Pesquisador, o Analista e a LLM Opus de exemplo existem. Redes iniciais: Tauste,
+  Carrefour, Assaí e Atacadão, editáveis nas instruções. Encartes só trazem as promoções da semana, o que a resposta
+  deixa claro. Próximos passos possíveis: ferramenta própria de busca de encartes (servidor MCP) e localização pelo
+  navegador.
 

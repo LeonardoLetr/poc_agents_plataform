@@ -52,6 +52,11 @@ const EXAMPLES = {
     'Escreva um e-mail para meu-email@exemplo.com com o assunto "Teste do Agent Lab" dizendo que o agente de e-mail está funcionando',
     "Redija um convite para uma reunião de alinhamento na sexta às 10h para equipe@exemplo.com",
   ],
+  // Comparador de mercados: listas de compras.
+  market: [
+    "Quero comprar frutas: banana prata, maçã, mamão e laranja. Onde está mais barato?",
+    "Compare o preço de arroz 5 kg, feijão carioca 1 kg, café 500 g e óleo de soja",
+  ],
   // Agentes que delegam (com outros agentes como ferramentas) ganham exemplos de tarefa em equipe.
   team: [
     "Pesquise o preço médio atual do litro da gasolina no Brasil e calcule quanto custa rodar 1.200 km com um carro que faz 11 km/l",
@@ -142,7 +147,17 @@ export default function Playground() {
   const emailer = Boolean(
     agent && (/e-?mail/i.test(agent.name) || agent.tools.some((t) => /^mcp__.*(resend|zapier|gmail|brevo|mail).*__/i.test(t))),
   );
-  const examples = agentLlm?.provider === "demo" ? EXAMPLES.demo : emailer ? EXAMPLES.email : delegates ? EXAMPLES.team : EXAMPLES.default;
+  const market = agent?.name === "Comparador de Mercados";
+  const examples =
+    agentLlm?.provider === "demo"
+      ? EXAMPLES.demo
+      : emailer
+        ? EXAMPLES.email
+        : market
+          ? EXAMPLES.market
+          : delegates
+            ? EXAMPLES.team
+            : EXAMPLES.default;
 
   async function start(text = input) {
     if (!agent || !text.trim()) return;

@@ -56,7 +56,7 @@ describe("migração para a versão 3 (multiagente)", () => {
     const db = migrate(structuredClone(data));
     const coordinator = db.agents.find((a) => a.name === "Coordenador (offline)");
     expect(coordinator?.tools).toContain(`agent__${demo.id}`);
-    expect(db.version).toBe(9);
+    expect(db.version).toBe(10);
   });
 
   it("não duplica o coordenador nem o cria sem o agente demo", () => {
@@ -205,6 +205,33 @@ describe("migração para a versão 9 (sem servidor local)", () => {
     expect(db.mcpServers.map((s) => s.name)).toEqual(["laboratorio"]);
     expect(db.agents.find((a) => a.name === "Explorador MCP")!.tools).toEqual(["mcp__laboratorio__*", "calculator"]);
     expect(db.mcpServers[0]).not.toHaveProperty("env");
+  });
+});
+
+describe("migração para a versão 10 (comparador de mercados)", () => {
+  it("adiciona o comparador delegando ao Pesquisador e ao Analista existentes, uma única vez", () => {
+    const fresh = seedDb();
+    const data = { ...fresh, version: 9, agents: fresh.agents.filter((a) => a.name !== "Comparador de Mercados") };
+    const db = migrate(structuredClone(data));
+    const agent = db.agents.find((a) => a.name === "Comparador de Mercados");
+    const researcher = db.agents.find((a) => a.name === "Pesquisador");
+    const analyst = db.agents.find((a) => a.name === "Analista de Dados");
+    expect(agent?.llmId).toBe(SEED_LLM.opus);
+    expect(agent?.tools).toEqual(
+      expect.arrayContaining([`agent__${researcher?.id}`, `agent__${analyst?.id}`, "memory_search", "memory_save"]),
+    );
+    expect(agent?.systemPrompt).toMatch(/CEP/);
+    expect(migrate(structuredClone(db)).agents.filter((a) => a.name === "Comparador de Mercados")).toHaveLength(1);
+  });
+
+  it("não adiciona quando o Pesquisador foi removido", () => {
+    const fresh = seedDb();
+    const data = {
+      ...fresh,
+      version: 9,
+      agents: fresh.agents.filter((a) => a.name !== "Comparador de Mercados" && a.name !== "Pesquisador"),
+    };
+    expect(migrate(structuredClone(data)).agents.some((a) => a.name === "Comparador de Mercados")).toBe(false);
   });
 });
 

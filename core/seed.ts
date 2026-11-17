@@ -105,6 +105,7 @@ export function seedAgents(): AgentConfig[] {
     demo,
     coordinatorAgent(demo.id),
     emailAgent(),
+    marketAgent(researcher.id, analyst.id),
   ];
 }
 
@@ -146,6 +147,61 @@ export function supervisorAgent(researcherId: string, analystId: string): AgentC
       "Não faça você mesmo o trabalho dos especialistas. Responda em português.",
     tools: [`agent__${researcherId}`, `agent__${analystId}`, "scratchpad_write", "scratchpad_read"],
     maxIterations: 12,
+    memory: { autoRecall: true, autoEpisode: true, recallLimit: 3 },
+    context: { autoCompact: true, thresholdPct: 60 },
+  });
+}
+
+const MARKET_PROMPT =
+  "Você compara preços de produtos nos encartes (folhetos de ofertas) das grandes redes de supermercado perto do usuário. " +
+  "Você coordena dois especialistas: o Pesquisador (busca e lê páginas e PDFs na web) e o Analista de Dados (faz as contas). " +
+  "Eles não veem esta conversa: cada delegação precisa trazer todas as informações necessárias.\n\n" +
+  "Redes consideradas (edite esta lista conforme a sua cidade): Tauste, Carrefour, Assaí, Atacadão. " +
+  "Use só essas redes grandes; ignore mercados pequenos e independentes.\n\n" +
+  "Passo a passo:\n" +
+  '1. Localização: procure na memória o CEP do usuário (`memory_search` com "CEP endereço do usuário"). ' +
+  "Se não houver, pergunte o CEP e pare. Quando o usuário informar, salve com `memory_save` (tipo preference, " +
+  'ex.: "CEP do usuário: 18000-000, Sorocaba/SP") e continue.\n' +
+  "2. Lojas próximas: procure na memória as lojas de cada rede já identificadas para esse CEP. Se não houver, delegue ao " +
+  "Pesquisador: listar a loja de cada rede mais próxima do CEP, na mesma cidade, com endereço e distância aproximada, " +
+  "dando preferência às que ficam a até 5 km (amplie para 10 km só se alguma rede não tiver loja nesse raio). " +
+  "Salve o resultado com `memory_save` (tipo fact) para não repetir a busca.\n" +
+  "3. Encartes: delegue ao Pesquisador uma rede por vez, em paralelo. Peça para encontrar o encarte vigente da rede na " +
+  "cidade (ou da loja indicada), ler o PDF ou a página com `web_fetch` e devolver, para cada produto pedido: nome como " +
+  "aparece no encarte, preço, unidade (kg, unidade, bandeja), se é preço de clube ou de cartão, validade da oferta e a " +
+  'URL do encarte. Produto que não aparecer deve vir como "não encontrado", nunca estimado.\n' +
+  "4. Comparação: envie ao Analista de Dados os preços encontrados (com as unidades) e a lista do usuário. Peça para " +
+  "converter tudo para a mesma unidade (R$/kg sempre que possível), apontar o mais barato de cada produto e calcular o " +
+  "total da lista em cada rede, considerando só os produtos encontrados.\n" +
+  "5. Resposta: uma tabela por produto (rede, preço, unidade, validade), a recomendação de onde comprar (uma rede para " +
+  "tudo ou dividir entre duas próximas, se a economia compensar a distância) e as fontes com a data. Diga com clareza " +
+  "quando um encarte não foi encontrado ou não tinha o produto.\n\n" +
+  "Encartes trazem só as promoções da semana: deixe isso claro, porque o preço normal da loja pode ser outro. " +
+  "Não faça você mesmo o trabalho dos especialistas. Responda em português.";
+
+/**
+ * Comparador de preços por encartes das grandes redes perto do usuário. Pede o CEP uma vez e o guarda na memória;
+ * a busca dos encartes vai ao Pesquisador (uma rede por delegação, em paralelo) e as contas ao Analista de Dados.
+ */
+export function marketAgent(researcherId: string, analystId: string): AgentConfig {
+  return baseAgent({
+    name: "Comparador de Mercados",
+    emoji: "🛒",
+    color: "#15803d",
+    description:
+      "Compara preços nos encartes das grandes redes de supermercado perto do seu CEP, delegando a busca ao Pesquisador e as contas ao Analista. Usa Claude (requer chave).",
+    systemPrompt: MARKET_PROMPT,
+    tools: [
+      `agent__${researcherId}`,
+      `agent__${analystId}`,
+      "memory_search",
+      "memory_save",
+      "scratchpad_write",
+      "scratchpad_read",
+      "current_time",
+    ],
+    maxIterations: 15,
+    // O CEP é buscado de propósito no primeiro passo: o recall automático compara palavras, e "quero comprar frutas" não traz o CEP.
     memory: { autoRecall: true, autoEpisode: true, recallLimit: 3 },
     context: { autoCompact: true, thresholdPct: 60 },
   });
@@ -291,7 +347,7 @@ export function seedPrompts(): PromptTemplate[] {
 
 export function seedDb(): DB {
   return {
-    version: 9,
+    version: 10,
     llms: seedLlms(),
     agents: seedAgents(),
     memories: seedMemories(),
@@ -374,7 +430,7 @@ export function migrate(raw: unknown): DB {
 
   // Campos que o formato atual não conhece (provider/model do agente, env dos servidores) são descartados aqui.
   const out: DB = {
-    version: 9,
+    version: 10,
     llms: parseEach(LlmConfig, rawLlms, "LLMs"),
     agents: parseEach(AgentConfig, rawAgents, "agentes"),
     memories: parseEach(Memory, rawList(data.memories), "memórias"),
@@ -421,6 +477,18 @@ export function migrate(raw: unknown): DB {
     // Versão 8: remove referências a servidores MCP que já foram apagados (antes a exclusão não limpava os agentes).
     const names = new Set(out.mcpServers.map((s) => s.name));
     for (const a of out.agents) a.tools = a.tools.filter((t) => !t.startsWith("mcp__") || names.has(serverOfTool(t)));
+  }
+  if (version < 10) {
+    // Versão 10: comparador de preços por encartes, quando o Pesquisador, o Analista e a LLM Opus de exemplo ainda existem.
+    const researcher = out.agents.find((a) => a.name === "Pesquisador");
+    const analyst = out.agents.find((a) => a.name === "Analista de Dados");
+    if (
+      researcher &&
+      analyst &&
+      out.llms.some((l) => l.id === SEED_LLM.opus) &&
+      !out.agents.some((a) => a.name === "Comparador de Mercados")
+    )
+      out.agents.push(marketAgent(researcher.id, analyst.id));
   }
   return out;
 }
