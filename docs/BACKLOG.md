@@ -19,7 +19,7 @@ Melhorias e novas funcionalidades planejadas, priorizadas por impacto e esforço
 | AL-07 | Gestão da janela de contexto (medidor e resumo) | Funcionalidade | P1 | M | concluído |
 | AL-08 | Replay passo a passo de execuções | Funcionalidade | P2 | M | concluído |
 | AL-09 | Exportar e importar configuração | Funcionalidade | P2 | P | concluído |
-| AL-10 | Prompts de tarefa com variáveis no Playground | Funcionalidade | P2 | P | a fazer |
+| AL-10 | Prompts de tarefa com variáveis no Playground | Funcionalidade | P2 | P | concluído |
 | AL-11 | Aprovação humana por ferramenta | Melhoria | P2 | P | a fazer |
 | AL-12 | Preços de modelos compatíveis com OpenAI | Melhoria | P3 | P | a fazer |
 | AL-13 | Busca semântica de memória com embeddings | Funcionalidade | P3 | M | a fazer |
@@ -29,7 +29,7 @@ Melhorias e novas funcionalidades planejadas, priorizadas por impacto e esforço
 | AL-17 | Acompanhar execuções delegadas sem sair da execução pai | Melhoria | P1 | M | concluído |
 | AL-18 | Comparador de preços por encartes de supermercado | Funcionalidade | P2 | P | concluído |
 
-Sequência sugerida: AL-11 → AL-10 → demais → AL-14 (último).
+Sequência sugerida: AL-19 → AL-11 → demais → AL-14 (último).
 
 ---
 
@@ -142,6 +142,11 @@ Sequência sugerida: AL-11 → AL-10 → demais → AL-14 (último).
 - **Problema:** modelos de tarefa com `{{variáveis}}` não têm onde ser preenchidos.
 - **Proposta:** seletor de modelo de tarefa no Playground com formulário gerado a partir das variáveis.
 - **Critérios de aceite:** todas as variáveis exigidas antes da execução; texto final visível antes de enviar.
+- **Resultado:** prompts de tarefa ganharam a lista de agentes em que aparecem (`agentIds`; vazia vale para todos) e
+  viraram os atalhos do Playground, no lugar dos exemplos fixos no código. Um atalho com variáveis abre um formulário
+  com um campo por variável e a prévia do texto final; o texto só vai para a caixa de tarefa com tudo preenchido. A
+  migração v11 cria os atalhos dos agentes de exemplo. A tela Prompts separa tarefa e sistema em abas e mostra em quais
+  agentes cada atalho aparece. Funções puras em `web/src/lib/prompts.ts`, com testes.
 
 ### AL-11 · Aprovação humana por ferramenta
 - **Problema:** a aprovação é tudo ou nada por agente.

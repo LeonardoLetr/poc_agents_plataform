@@ -132,6 +132,8 @@ export const PromptTemplate = z.object({
   description: z.string().default(""),
   content: z.string(),
   category: z.enum(["system", "task"]).default("task"),
+  /** Prompts de tarefa: agentes em que o atalho aparece no Playground. Vazio = todos os agentes. */
+  agentIds: z.array(z.string()).default([]),
   createdAt: Timestamp,
 });
 export type PromptTemplate = z.infer<typeof PromptTemplate>;
