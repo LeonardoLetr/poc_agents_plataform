@@ -2,6 +2,8 @@
  * O núcleo da plataforma (core/) roda dentro desta aba: a "API" é uma chamada de função, sem servidor.
  * Dados ficam no localStorage; chaves de API ficam num cofre separado (sessionStorage por padrão).
  */
+import { z } from "zod";
+
 type Core = typeof import("../../../core/index.ts");
 
 const STORAGE_KEY = "agentlab.db.v2";
@@ -9,7 +11,13 @@ const STORAGE_KEY = "agentlab.db.v2";
 const KEYS_KEY = "agentlab.keys";
 const REMEMBER_KEY = "agentlab.keys.remember";
 
-type KeyMap = Record<string, string>;
+const KeyMap = z.record(z.string(), z.string());
+type KeyMap = z.infer<typeof KeyMap>;
+
+/** Só o que a carga precisa saber dos dados salvos: as LLMs e a chave que versões antigas guardavam nelas. O núcleo valida o resto. */
+const StoredLlms = z.looseObject({
+  llms: z.array(z.looseObject({ id: z.string(), apiKey: z.string().optional() })).optional(),
+});
 
 function safeGet(store: Storage, key: string): string | null {
   try {
@@ -28,7 +36,8 @@ function safeSet(store: Storage, key: string, value: string | null) {
 }
 const readKeys = (store: Storage): KeyMap => {
   try {
-    return JSON.parse(safeGet(store, KEYS_KEY) ?? "{}") as KeyMap;
+    const parsed = KeyMap.safeParse(JSON.parse(safeGet(store, KEYS_KEY) ?? "{}"));
+    return parsed.success ? parsed.data : {};
   } catch {
     return {};
   }
@@ -60,7 +69,11 @@ export function getCore(): Promise<Core> {
             try {
               const raw = localStorage.getItem(STORAGE_KEY);
               if (!raw) return null;
-              const data = JSON.parse(raw) as { llms?: { id: string; apiKey?: string }[] };
+              const stored: unknown = JSON.parse(raw);
+              const parsed = StoredLlms.safeParse(stored);
+              // Fora do formato esperado: o núcleo valida item por item e descarta só o que não servir.
+              if (!parsed.success) return stored;
+              const data = parsed.data;
               // Versões antigas guardavam a chave junto: move para o cofre e limpa.
               const legacy: KeyMap = {};
               for (const l of data.llms ?? []) if (l.apiKey) legacy[l.id] = l.apiKey;

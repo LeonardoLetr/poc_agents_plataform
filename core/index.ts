@@ -23,7 +23,7 @@ export function initCore(opts: CoreOptions) {
   hostEnv.demoDelayScale = opts.demoDelayScale ?? 1;
   attachStorage(opts.storage, opts.limits);
   const raw = opts.storage.load();
-  Object.assign(db, raw ? migrate(raw as Record<string, unknown>) : seedDb());
+  Object.assign(db, raw ? migrate(raw) : seedDb());
 
   // Execuções interrompidas por um reinício não continuam sozinhas.
   for (const r of db.runs) {

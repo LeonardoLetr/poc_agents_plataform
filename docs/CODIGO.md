@@ -92,7 +92,7 @@ fronteiras do Agent Lab:
 | Fronteira | Como tratar |
 |---|---|
 | Rotas do núcleo (`core/routes/`) | Esquema Zod no início do handler; o corpo nunca é usado antes disso. |
-| Dados salvos (`localStorage`) | `migrate()` normaliza versões antigas; o resultado deve ser validado antes de virar o `db`. |
+| Dados salvos (`localStorage`) | `migrate()` normaliza versões antigas e valida cada item com os esquemas de `core/types.ts`; itens inválidos são descartados com aviso. |
 | Arquivo importado | Esquema com formato e versão, depois a mesma migração dos dados salvos. |
 | Respostas de LLMs | Anthropic: tipos do SDK. Provedores compatíveis com OpenAI: `unknown` lido com esquema. |
 | Entrada de ferramentas gerada pelo modelo | Validada contra o esquema da ferramenta antes de executar; erro vira `tool_result` com `is_error`. |

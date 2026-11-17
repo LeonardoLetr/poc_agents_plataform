@@ -1,6 +1,17 @@
 import type { DB } from "./store.js";
-import type { AgentConfig, LlmConfig, McpServerConfig, Memory, PromptTemplate } from "./types.js";
-import { now, uid } from "./util.js";
+import type { z } from "zod";
+import {
+  AgentConfig,
+  AuditEntry,
+  EFFORTS,
+  LlmConfig,
+  McpServerConfig,
+  Memory,
+  PromptTemplate,
+  RunRecord,
+  StoredRunEvent,
+} from "./types.js";
+import { isRecord, now, uid } from "./util.js";
 
 export const newLlm = (l: Partial<LlmConfig> & Pick<LlmConfig, "name" | "provider" | "model">): LlmConfig => ({
   id: uid("llm"),
@@ -291,70 +302,97 @@ export function seedDb(): DB {
   };
 }
 
-/** Converte dados da versão 1 (provedor/modelo dentro do agente) para LLMs separadas. */
 /** Servidor MCP de uma ferramenta qualificada (`mcp__<servidor>__<ferramenta>`). */
-/** Dados antigos ainda podem trazer o transporte stdio, que o tipo atual não admite mais. */
-function isLegacyStdio(s: McpServerConfig): boolean {
-  const transport: string = s.transport;
-  return transport === "stdio";
-}
-
 const serverOfTool = (tool: string) => tool.slice("mcp__".length).split("__")[0] ?? "";
 
-export function migrate(raw: Record<string, unknown>): DB {
-  const data = raw as Partial<DB> & { settings?: { anthropicApiKey?: string }; version?: number };
+type Raw = Record<string, unknown>;
+const rawList = (value: unknown): Raw[] => (Array.isArray(value) ? value.filter(isRecord) : []);
+const rawString = (value: unknown) => (typeof value === "string" ? value : undefined);
+
+/** Valida cada item; os que não servem são descartados com um aviso, sem impedir a carga do resto. */
+function parseEach<T>(schema: z.ZodType<T>, items: unknown[], label: string): T[] {
+  const out: T[] = [];
+  for (const item of items) {
+    const parsed = schema.safeParse(item);
+    if (parsed.success) out.push(parsed.data);
+    else console.warn(`Item de ${label} descartado ao carregar os dados:`, parsed.error.issues[0]?.message, item);
+  }
+  return out;
+}
+
+/** Execução salva: eventos que não servem são descartados um a um, sem perder o resto do histórico. */
+function parseRun(raw: Raw): unknown {
+  return { ...raw, events: parseEach(StoredRunEvent, rawList(raw.events), "eventos de execução") };
+}
+
+/** Converte dados salvos (de qualquer versão) para o formato atual, validando cada item. */
+export function migrate(raw: unknown): DB {
+  const data = isRecord(raw) ? raw : {};
+  const version = typeof data.version === "number" ? data.version : 1;
+  const rawLlms = rawList(data.llms);
+  const rawAgents = rawList(data.agents);
   // Dados salvos, mas sem nenhum agente nem LLM (armazenamento vazio ou corrompido): começa do conjunto inicial.
-  if (!data.agents?.length && !data.llms?.length) return seedDb();
-  const out: DB = {
-    version: 9,
-    llms: data.llms ?? [],
-    agents: data.agents ?? [],
-    memories: data.memories ?? [],
-    mcpServers: data.mcpServers ?? [],
-    prompts: data.prompts ?? [],
-    audit: data.audit ?? [],
-    runs: data.runs ?? [],
-  };
-  if ((data.version ?? 1) < 2) {
-    const legacyKey = data.settings?.anthropicApiKey;
-    if (!out.llms.length) out.llms = seedLlms().map((l) => (l.provider === "anthropic" && legacyKey ? { ...l, apiKey: legacyKey } : l));
-    for (const agent of out.agents as (AgentConfig & { provider?: string; model?: string; effort?: LlmConfig["effort"] })[]) {
-      if (agent.llmId) continue;
-      if (agent.provider === "demo") agent.llmId = SEED_LLM.demo;
-      else {
-        let llm = out.llms.find((l) => l.provider === "anthropic" && l.model === agent.model && l.effort === (agent.effort ?? "medium"));
-        if (!llm) {
-          llm = newLlm({
-            name: `${agent.model} (${agent.effort})`,
-            provider: "anthropic",
-            model: agent.model ?? "claude-opus-5-5",
-            effort: agent.effort ?? "medium",
-            apiKey: legacyKey,
-          });
-          out.llms.push(llm);
-        }
-        agent.llmId = llm.id;
+  if (!rawAgents.length && !rawLlms.length) return seedDb();
+  let rawServers = rawList(data.mcpServers);
+
+  // Etapas sobre campos que o formato atual não tem mais: rodam antes da validação, nos dados brutos.
+  if (version < 2) {
+    // Versão 2: provedor e modelo saem do agente e viram LLMs separadas.
+    const legacyKey = isRecord(data.settings) ? rawString(data.settings.anthropicApiKey) : undefined;
+    if (!rawLlms.length)
+      rawLlms.push(...seedLlms().map((l) => (l.provider === "anthropic" && legacyKey ? { ...l, apiKey: legacyKey } : l)));
+    for (const agent of rawAgents) {
+      if (rawString(agent.llmId)) continue;
+      if (agent.provider === "demo") {
+        agent.llmId = SEED_LLM.demo;
+        continue;
       }
-      delete agent.provider;
-      delete agent.model;
-      delete agent.effort;
+      const model = rawString(agent.model) ?? "claude-opus-5-5";
+      const effort = EFFORTS.find((e) => e === agent.effort) ?? "medium";
+      let llm = rawLlms.find((l) => l.provider === "anthropic" && l.model === model && (l.effort ?? "medium") === effort);
+      if (!llm) {
+        llm = newLlm({ name: `${model} (${effort})`, provider: "anthropic", model, effort, apiKey: legacyKey });
+        rawLlms.push(llm);
+      }
+      agent.llmId = llm.id;
     }
     // O laboratorio agora é embutido (funciona sem processo externo).
-    for (const s of out.mcpServers)
-      if (s.name === "laboratorio" && isLegacyStdio(s)) Object.assign(s, { transport: "builtin", command: "laboratorio", args: [] });
+    for (const s of rawServers)
+      if (s.name === "laboratorio" && s.transport === "stdio") Object.assign(s, { transport: "builtin", command: "laboratorio", args: [] });
   }
-  if ((data.version ?? 1) < 3) {
+  if (version < 9) {
+    // Versão 9: sem servidor local, não há mais transporte stdio. Servidores stdio e suas ferramentas saem dos dados.
+    const removed = new Set(rawServers.filter((s) => s.transport === "stdio").map((s) => s.name));
+    rawServers = rawServers.filter((s) => !removed.has(s.name));
+    for (const a of rawAgents)
+      if (Array.isArray(a.tools))
+        a.tools = a.tools.filter((t) => typeof t !== "string" || !t.startsWith("mcp__") || !removed.has(serverOfTool(t)));
+  }
+
+  // Campos que o formato atual não conhece (provider/model do agente, env dos servidores) são descartados aqui.
+  const out: DB = {
+    version: 9,
+    llms: parseEach(LlmConfig, rawLlms, "LLMs"),
+    agents: parseEach(AgentConfig, rawAgents, "agentes"),
+    memories: parseEach(Memory, rawList(data.memories), "memórias"),
+    mcpServers: parseEach(McpServerConfig, rawServers, "servidores MCP"),
+    prompts: parseEach(PromptTemplate, rawList(data.prompts), "prompts"),
+    audit: parseEach(AuditEntry, rawList(data.audit), "auditoria"),
+    runs: parseEach(RunRecord, rawList(data.runs).map(parseRun), "execuções"),
+  };
+
+  if (version < 3) {
     // Versão 3: multiagente. Adiciona o coordenador de exemplo quando o agente demo ainda existe.
     const demo = out.agents.find((a) => a.llmId === SEED_LLM.demo && a.name === "Agente Demo (offline)");
     if (demo && out.llms.some((l) => l.id === SEED_LLM.demo) && !out.agents.some((a) => a.name === "Coordenador (offline)"))
       out.agents.push(coordinatorAgent(demo.id));
   }
-  if ((data.version ?? 1) < 4) {
+  if (version < 4) {
     // Versão 4: gestão de contexto. O agente demo passa a resumir o histórico automaticamente.
     for (const a of out.agents)
       if (a.name === "Agente Demo (offline)" && a.llmId === SEED_LLM.demo && !a.context) a.context = { ...DEMO_CONTEXT };
   }
-  if ((data.version ?? 1) < 5) {
+  if (version < 5) {
     // Versão 5: supervisor com LLM real, quando os especialistas e a LLM Opus de exemplo ainda existem.
     const researcher = out.agents.find((a) => a.name === "Pesquisador");
     const analyst = out.agents.find((a) => a.name === "Analista de Dados");
@@ -362,13 +400,13 @@ export function migrate(raw: Record<string, unknown>): DB {
       out.agents.push(supervisorAgent(researcher.id, analyst.id));
     }
   }
-  if ((data.version ?? 1) < 6) {
+  if (version < 6) {
     // Versão 6: assistente de e-mail, ligado ao servidor do Resend já cadastrado (pelo endereço), se houver.
     const resend = out.mcpServers.find((s) => s.url?.includes("mcp.resend.com"));
     if (out.llms.some((l) => l.id === SEED_LLM.opus) && !out.agents.some((a) => a.name === "Assistente de E-mail"))
       out.agents.push(emailAgent(resend?.name));
   }
-  if ((data.version ?? 1) < 7) {
+  if (version < 7) {
     // Versão 7: o assistente de e-mail deixa de ser exclusivo do Resend. Só atualiza instruções e descrição não editadas.
     for (const a of out.agents) {
       if (a.name !== "Assistente de E-mail" || !a.systemPrompt.startsWith(EMAIL_PROMPT_V6_START)) continue;
@@ -376,17 +414,10 @@ export function migrate(raw: Record<string, unknown>): DB {
       if (a.description.includes("do Resend")) a.description = emailAgent().description;
     }
   }
-  if ((data.version ?? 1) < 8) {
+  if (version < 8) {
     // Versão 8: remove referências a servidores MCP que já foram apagados (antes a exclusão não limpava os agentes).
     const names = new Set(out.mcpServers.map((s) => s.name));
     for (const a of out.agents) a.tools = a.tools.filter((t) => !t.startsWith("mcp__") || names.has(serverOfTool(t)));
-  }
-  if ((data.version ?? 1) < 9) {
-    // Versão 9: sem servidor local, não há mais transporte stdio. Servidores stdio e suas ferramentas saem dos dados.
-    const removed = new Set(out.mcpServers.filter(isLegacyStdio).map((s) => s.name));
-    out.mcpServers = out.mcpServers.filter((s) => !removed.has(s.name));
-    for (const s of out.mcpServers) Reflect.deleteProperty(s, "env");
-    for (const a of out.agents) a.tools = a.tools.filter((t) => !t.startsWith("mcp__") || !removed.has(serverOfTool(t)));
   }
   return out;
 }

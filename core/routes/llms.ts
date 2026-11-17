@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { EFFORTS, PROVIDERS } from "../types.js";
 import { audit } from "../audit.js";
 import { publicLlm } from "../llm/index.js";
 import { newLlm } from "../seed.js";
@@ -8,12 +9,12 @@ import { defineRoutes, HttpError, notFound } from "./http.js";
 
 const LlmInput = z.object({
   name: z.string().min(1).max(60),
-  provider: z.enum(["anthropic", "openai", "demo"]),
+  provider: z.enum(PROVIDERS),
   model: z.string().min(1),
   /** undefined = manter a chave atual · "" = remover */
   apiKey: z.string().optional(),
   baseUrl: z.string().optional(),
-  effort: z.enum(["low", "medium", "high", "xhigh", "max"]).default("medium"),
+  effort: z.enum(EFFORTS).default("medium"),
   refusalFallback: z.boolean().default(true),
   maxTokens: z.number().int().min(256).max(128000).optional(),
   contextWindow: z.number().int().min(1000).max(10_000_000).optional(),

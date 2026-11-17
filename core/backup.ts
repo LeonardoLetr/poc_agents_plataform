@@ -55,7 +55,6 @@ const ImportSchema = z.object({
 });
 
 type Collection = "llms" | "agents" | "prompts" | "mcpServers" | "memories";
-const COLLECTIONS: Collection[] = ["llms", "agents", "prompts", "mcpServers", "memories"];
 
 export type ImportReport = {
   mode: "merge" | "replace";
@@ -79,37 +78,39 @@ export async function importConfig(raw: unknown, mode: "merge" | "replace"): Pro
     throw new Error(`O arquivo é de uma versão mais nova da plataforma (${parsed.version}); atualize a página e tente de novo.`);
   // A migração normaliza arquivos de versões anteriores para o formato atual.
   const incoming = migrate({ ...parsed, audit: [], runs: [] });
+  const empty = () => ({ added: 0, replaced: 0, skipped: 0 });
   const report: ImportReport = {
     mode,
-    counts: Object.fromEntries(COLLECTIONS.map((c) => [c, { added: 0, replaced: 0, skipped: 0 }])) as ImportReport["counts"],
+    counts: { llms: empty(), agents: empty(), prompts: empty(), mcpServers: empty(), memories: empty() },
     conflicts: [],
     warnings: [],
   };
 
   const keys = new Map(db.llms.map((l) => [l.id, l.apiKey]));
-  const written = new Set<string>(); // ids de LLMs adicionadas ou substituídas a partir do arquivo
-  for (const c of COLLECTIONS) {
-    const current = db[c] as { id: string; name?: string }[];
-    const next = incoming[c] as { id: string; name?: string }[];
+  /** Junta uma coleção do arquivo à atual e devolve o resultado; conta e registra conflitos no relatório. */
+  const combine = <T extends { id: string; name?: string; content?: string }>(collection: Collection, current: T[], next: T[]): T[] => {
+    const counts = report.counts[collection];
     if (mode === "replace") {
-      for (const item of next) {
-        report.counts[c][current.some((x) => x.id === item.id) ? "replaced" : "added"]++;
-        if (c === "llms") written.add(item.id);
-      }
-      (db[c] as unknown[]) = next;
-    } else {
-      for (const item of next) {
-        if (current.some((x) => x.id === item.id)) {
-          report.counts[c].skipped++;
-          report.conflicts.push({ collection: c, id: item.id, name: label(item) });
-        } else {
-          current.push(item);
-          report.counts[c].added++;
-          if (c === "llms") written.add(item.id);
-        }
-      }
+      for (const item of next) counts[current.some((x) => x.id === item.id) ? "replaced" : "added"]++;
+      return next;
     }
-  }
+    const added = next.filter((item) => {
+      if (!current.some((x) => x.id === item.id)) return true;
+      counts.skipped++;
+      report.conflicts.push({ collection, id: item.id, name: label(item) });
+      return false;
+    });
+    counts.added += added.length;
+    return [...current, ...added];
+  };
+  const before = new Set(db.llms.map((l) => l.id));
+  db.llms = combine("llms", db.llms, incoming.llms);
+  db.agents = combine("agents", db.agents, incoming.agents);
+  db.prompts = combine("prompts", db.prompts, incoming.prompts);
+  db.mcpServers = combine("mcpServers", db.mcpServers, incoming.mcpServers);
+  db.memories = combine("memories", db.memories, incoming.memories);
+  // LLMs adicionadas ou substituídas a partir do arquivo (as mantidas como conflito não entram).
+  const written = new Set(incoming.llms.filter((l) => mode === "replace" || !before.has(l.id)).map((l) => l.id));
 
   // Chaves nunca vêm no arquivo: mantém as que já existiam para as mesmas LLMs.
   for (const l of db.llms) if (!l.apiKey && keys.get(l.id)) l.apiKey = keys.get(l.id);
@@ -134,7 +135,7 @@ export async function importConfig(raw: unknown, mode: "merge" | "replace"): Pro
   for (const s of incoming.mcpServers) await disconnect(s.id, false);
   for (const s of db.mcpServers.filter((x) => x.enabled)) void connect(s, { silent: true });
 
-  const total = COLLECTIONS.reduce((n, c) => n + report.counts[c].added + report.counts[c].replaced, 0);
+  const total = Object.values(report.counts).reduce((n, c) => n + c.added + c.replaced, 0);
   audit({
     type: "config.changed",
     actor: "user",

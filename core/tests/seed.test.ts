@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { SEED_LLM, migrate, seedDb } from "../seed.js";
 
 describe("dados iniciais", () => {
@@ -77,7 +77,7 @@ describe("migração para a versão 5 (supervisor)", () => {
     const ids = Object.fromEntries(db.agents.map((a) => [a.name, a.id]));
     expect(supervisor.llmId).toBe(SEED_LLM.opus);
     expect(supervisor.tools).toEqual(expect.arrayContaining([`agent__${ids["Pesquisador"]}`, `agent__${ids["Analista de Dados"]}`]));
-    expect(migrate(structuredClone(db) as never).agents.filter((a) => a.name === "Supervisor")).toHaveLength(1);
+    expect(migrate(structuredClone(db)).agents.filter((a) => a.name === "Supervisor")).toHaveLength(1);
   });
 
   it("os dados iniciais já trazem o supervisor", () => {
@@ -114,7 +114,7 @@ describe("migração para a versão 6 (assistente de e-mail)", () => {
     expect(agent.tools).toContain("mcp__meu_resend__*");
     expect(agent.systemPrompt).toMatch(/Nunca envie um e-mail sem confirmação/);
     expect(agent.systemPrompt).toMatch(/Gmail pelo Zapier/);
-    expect(migrate(structuredClone(db) as never).agents.filter((a) => a.name === "Assistente de E-mail")).toHaveLength(1);
+    expect(migrate(structuredClone(db)).agents.filter((a) => a.name === "Assistente de E-mail")).toHaveLength(1);
   });
 
   it("sem servidor cadastrado, usa o nome padrão do modelo pronto (resend)", () => {
@@ -205,5 +205,53 @@ describe("migração para a versão 9 (sem servidor local)", () => {
     expect(db.mcpServers.map((s) => s.name)).toEqual(["laboratorio"]);
     expect(db.agents.find((a) => a.name === "Explorador MCP")!.tools).toEqual(["mcp__laboratorio__*", "calculator"]);
     expect(db.mcpServers[0]).not.toHaveProperty("env");
+  });
+});
+
+describe("validação dos dados salvos", () => {
+  it("descarta itens inválidos sem perder o resto e completa campos acrescentados depois", () => {
+    const fresh = seedDb();
+    const data = {
+      ...fresh,
+      memories: [...fresh.memories, { id: "mem_sem_conteudo", kind: "fact" }, { id: "mem_tipo", kind: "segredo", content: "x" }],
+      agents: [...fresh.agents, { id: "agt_antigo", name: "Antigo", llmId: "llm_demo", createdAt: "", updatedAt: "" }],
+    };
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    const db = migrate(structuredClone(data));
+    warn.mockRestore();
+    expect(db.memories.map((m) => m.id)).toEqual(fresh.memories.map((m) => m.id));
+    expect(db.agents.find((a) => a.id === "agt_antigo")).toMatchObject({
+      tools: [],
+      maxIterations: 10,
+      memory: { autoRecall: true, autoEpisode: true, recallLimit: 5 },
+    });
+  });
+
+  it("mantém a execução e descarta só os eventos fora do formato", () => {
+    const run = {
+      id: "run_1",
+      agentId: "a",
+      agentName: "A",
+      input: "oi",
+      status: "completed",
+      output: "olá",
+      error: null,
+      iterations: 1,
+      usage: { input: 1, output: 1 },
+      startedAt: "",
+      finishedAt: "",
+      messages: [{ role: "user", content: "oi" }],
+      systemPrompt: "",
+      events: [
+        { type: "text.delta", text: "olá", ts: "", seq: 0 },
+        { type: "evento.desconhecido", ts: "", seq: 1 },
+      ],
+    };
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    const db = migrate({ ...seedDb(), runs: [run] });
+    warn.mockRestore();
+    expect(db.runs).toHaveLength(1);
+    expect(db.runs[0]?.events.map((e) => e.type)).toEqual(["text.delta"]);
+    expect(db.runs[0]?.scratchpad).toEqual([]);
   });
 });
