@@ -1,15 +1,15 @@
 import js from "@eslint/js";
 import tseslint from "typescript-eslint";
 
-// Lint da lógica TypeScript (núcleo e web/src/lib), conforme a seção 9 de docs/CODIGO.md.
+// Lint da lógica TypeScript (núcleo, web/src/lib e o servidor MCP de mercados), conforme a seção 9 de docs/CODIGO.md.
 // Componentes React ficam de fora: seguem o guia visual e não estas regras.
 export default tseslint.config(
   { ignores: ["**/dist/**", "**/node_modules/**"] },
   {
-    files: ["core/**/*.ts", "web/src/lib/**/*.ts"],
+    files: ["core/**/*.ts", "web/src/lib/**/*.ts", "mcp-mercados/**/*.ts"],
     extends: [js.configs.recommended, ...tseslint.configs.strictTypeChecked],
     languageOptions: {
-      parserOptions: { project: ["./web/tsconfig.json"], tsconfigRootDir: import.meta.dirname },
+      parserOptions: { project: ["./web/tsconfig.json", "./mcp-mercados/tsconfig.json"], tsconfigRootDir: import.meta.dirname },
     },
     rules: {
       "@typescript-eslint/switch-exhaustiveness-check": "error",
@@ -26,7 +26,7 @@ export default tseslint.config(
   {
     // Os testes leem respostas das rotas (`body` sem tipo), acessam o que acabaram de criar e montam
     // objetos parciais como entrada: checar cada campo só tornaria as asserções mais longas.
-    files: ["core/tests/**/*.ts", "web/src/**/*.test.ts"],
+    files: ["core/tests/**/*.ts", "web/src/**/*.test.ts", "mcp-mercados/tests/**/*.ts"],
     rules: {
       "@typescript-eslint/no-explicit-any": "off",
       "@typescript-eslint/restrict-plus-operands": "off",

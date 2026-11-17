@@ -28,6 +28,7 @@ Melhorias e novas funcionalidades planejadas, priorizadas por impacto e esforço
 | AL-16 | Adequar o núcleo às diretrizes de código | Qualidade | P1 | G | concluído |
 | AL-17 | Acompanhar execuções delegadas sem sair da execução pai | Melhoria | P1 | M | concluído |
 | AL-18 | Comparador de preços por encartes de supermercado | Funcionalidade | P2 | P | concluído |
+| AL-19 | Servidor MCP local de preços de supermercado | Funcionalidade | P2 | M | em andamento |
 
 Sequência sugerida: AL-11 → AL-10 → demais → AL-14 (último).
 
@@ -253,4 +254,17 @@ Sequência sugerida: AL-11 → AL-10 → demais → AL-14 (último).
   Carrefour, Assaí e Atacadão, editáveis nas instruções. Encartes só trazem as promoções da semana, o que a resposta
   deixa claro. Próximos passos possíveis: ferramenta própria de busca de encartes (servidor MCP) e localização pelo
   navegador.
+
+### AL-19 · Servidor MCP local de preços de supermercado
+- **Problema:** o Comparador de Mercados lê encartes inteiros pelo Pesquisador; cada PDF entra no histórico e é
+  reenviado a cada iteração, o que torna cada pesquisa cara.
+- **Proposta:** servidor MCP só com código (`mcp-mercados/`), rodando no computador do usuário, que busca os preços de
+  cada rede e devolve uma lista curta de produto e preço, com cache semanal. O agente passa a usar só essa ferramenta,
+  no Haiku.
+- **Critérios de aceite:** o Agent Lab publicado conecta no servidor local pelo navegador; uma fonte por rede;
+  preços com unidade, preço por kg, validade e fonte; consultas repetidas na mesma semana não vão à rede; rede que
+  falhar vira aviso, sem derrubar as demais.
+- **Andamento:** servidor HTTP com CORS restrito às origens do Agent Lab e o cabeçalho de rede privada exigido pelo
+  Chrome, ferramentas `buscar_precos` e `listar_redes`, comparação e cache testados. Faltam o mapeamento dos sites e a
+  fonte de cada rede (hoje pendentes) e a troca do agente para usar o servidor no Haiku.
 

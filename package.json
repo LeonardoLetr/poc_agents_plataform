@@ -5,18 +5,20 @@
   "description": "Plataforma visual para estudar agentes autônomos: loop de raciocínio, ferramentas, MCP, memória e auditoria.",
   "workspaces": [
     "core",
-    "web"
+    "web",
+    "mcp-mercados"
   ],
   "scripts": {
     "dev": "npm run dev -w web",
     "build": "npm run build -w web",
     "preview": "npm run preview -w web",
-    "typecheck": "npm run typecheck -w web",
+    "typecheck": "npm run typecheck -w web && npm run typecheck -w mcp-mercados",
     "lint": "eslint .",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "mercados": "npm start -w mcp-mercados"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

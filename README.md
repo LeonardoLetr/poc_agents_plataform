@@ -140,6 +140,7 @@ web/src/
   pages/               telas
   components/          grafo do agente, linha do tempo e componentes de interface
 web/scripts/           verificações automatizadas (layout em dispositivos móveis)
+mcp-mercados/          servidor MCP local de preços de supermercado (ver mcp-mercados/README.md)
 docs/                  referências de design e estudos de layout
 .github/workflows/     CI e publicação no GitHub Pages
 ```

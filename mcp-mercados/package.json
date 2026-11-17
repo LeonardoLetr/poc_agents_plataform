@@ -1,0 +1,22 @@
+{
+  "name": "@agent-lab/mcp-mercados",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Servidor MCP local que busca preços das grandes redes de supermercado e os devolve resumidos ao Agent Lab.",
+  "engines": {
+    "node": ">=22.18"
+  },
+  "scripts": {
+    "start": "node src/main.ts",
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.32.2",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@types/node": "^22.19.0",
+    "typescript": "^5.9.3"
+  }
+}
