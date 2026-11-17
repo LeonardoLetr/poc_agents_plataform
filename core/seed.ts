@@ -151,7 +151,6 @@ export function supervisorAgent(researcherId: string, analystId: string): AgentC
   });
 }
 
-/** Supervisor de exemplo: delega ao agente demo, para o multiagente funcionar sem chave de API. */
 /** Instruções da primeira versão do assistente (ligado ao Resend), usadas para atualizar só quem não as editou. */
 const EMAIL_PROMPT_V6_START = "Você é um assistente que redige e envia e-mails usando as ferramentas do servidor MCP do Resend.";
 
@@ -188,6 +187,7 @@ export function emailAgent(server = "resend"): AgentConfig {
   });
 }
 
+/** Coordenador de exemplo: delega ao agente demo, para o multiagente funcionar sem chave de API. */
 export function coordinatorAgent(demoId: string): AgentConfig {
   return baseAgent({
     name: "Coordenador (offline)",
@@ -325,7 +325,10 @@ function parseRun(raw: Raw): unknown {
   return { ...raw, events: parseEach(StoredRunEvent, rawList(raw.events), "eventos de execução") };
 }
 
-/** Converte dados salvos (de qualquer versão) para o formato atual, validando cada item. */
+/**
+ * Converte dados salvos (de qualquer versão) para o formato atual, validando cada item.
+ * Longa de propósito: as etapas por versão ficam em sequência, na ordem em que os formatos mudaram.
+ */
 export function migrate(raw: unknown): DB {
   const data = isRecord(raw) ? raw : {};
   const version = typeof data.version === "number" ? data.version : 1;

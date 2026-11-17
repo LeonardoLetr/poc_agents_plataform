@@ -25,7 +25,7 @@ Melhorias e novas funcionalidades planejadas, priorizadas por impacto e esforço
 | AL-13 | Busca semântica de memória com embeddings | Funcionalidade | P3 | M | a fazer |
 | AL-14 | Publicação do servidor na AWS | Infraestrutura | P3 | G | a fazer |
 | AL-15 | Servidores MCP remotos via conector da API do Claude | Funcionalidade | P2 | M | concluído |
-| AL-16 | Adequar o núcleo às diretrizes de código | Qualidade | P1 | G | em andamento (fases 1 a 6 concluídas) |
+| AL-16 | Adequar o núcleo às diretrizes de código | Qualidade | P1 | G | concluído |
 
 Sequência sugerida: AL-16 → AL-11 → AL-10 → demais → AL-14 (último).
 
@@ -195,7 +195,7 @@ Sequência sugerida: AL-16 → AL-11 → AL-10 → demais → AL-14 (último).
   5. separar `core/router.ts` em rotas por recurso (concluída, junto com a divisão de `core/agent/runner.ts`);
   6. validar os dados salvos e as respostas de provedores compatíveis com OpenAI na fronteira (concluída; as respostas
      OpenAI já eram validadas desde a fase 2);
-  7. revisar os comentários: remover os que narram o código e manter os que explicam decisões.
+  7. revisar os comentários: remover os que narram o código e manter os que explicam decisões (concluída).
 - **Critérios de aceite:** nenhuma função do núcleo acima de ~60 linhas sem justificativa; nenhum `as unknown as`;
   asserções restantes comentadas; lint e opções estritas ativos no CI; a suíte de testes passa sem alterações de
   comportamento.

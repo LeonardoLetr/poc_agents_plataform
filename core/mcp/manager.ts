@@ -115,6 +115,31 @@ export function explainConnectError(message: string, cfg: Pick<McpServerConfig, 
 }
 
 /** `silent`: não registra a conexão bem-sucedida na auditoria (reconexão automática ao iniciar). */
+/** Abre o cliente MCP. Servidores HTTP antigos só falam SSE: se o Streamable HTTP falhar, tenta o transporte legado. */
+async function openClient(cfg: McpServerConfig): Promise<{ client: Client; transport: Transport }> {
+  const client = new Client({ name: "agent-lab", version: "0.1.0" });
+  const transport = await buildTransport(cfg);
+  try {
+    await client.connect(transport);
+    return { client, transport };
+  } catch (err) {
+    if (cfg.transport !== "http" || !cfg.url) throw err;
+    const first = errorMessage(err);
+    log(cfg.id, `Streamable HTTP falhou (${first}); tentando SSE legado…`);
+    const sseClient = new Client({ name: "agent-lab", version: "0.1.0" });
+    // eslint-disable-next-line @typescript-eslint/no-deprecated -- recurso deliberado para servidores que só falam SSE
+    const sse = new SSEClientTransport(new URL(cfg.url), { requestInit: { headers: cfg.headers ?? {} } });
+    try {
+      await sseClient.connect(sse);
+      return { client: sseClient, transport: sse };
+    } catch (sseErr) {
+      // Os dois erros importam: o do Streamable HTTP costuma ser a causa real (ex.: 401), o do SSE só o confirma.
+      const second = errorMessage(sseErr);
+      throw new Error(first === second ? first : `Streamable HTTP: ${first} · SSE: ${second}`, { cause: sseErr });
+    }
+  }
+}
+
 export async function connect(cfg: McpServerConfig, opts: { silent?: boolean } = {}): Promise<void> {
   await disconnect(cfg.id, false);
   const c = conn(cfg.id);
@@ -139,27 +164,7 @@ export async function connect(cfg: McpServerConfig, opts: { silent?: boolean } =
     return;
   }
   try {
-    let client = new Client({ name: "agent-lab", version: "0.1.0" });
-    let transport = await buildTransport(cfg);
-    try {
-      await client.connect(transport);
-    } catch (err) {
-      // Servidores HTTP antigos só falam SSE: tenta o transporte legado.
-      if (cfg.transport !== "http" || !cfg.url) throw err;
-      const first = errorMessage(err);
-      log(cfg.id, `Streamable HTTP falhou (${first}); tentando SSE legado…`);
-      client = new Client({ name: "agent-lab", version: "0.1.0" });
-      // eslint-disable-next-line @typescript-eslint/no-deprecated -- recurso deliberado para servidores que só falam SSE
-      transport = new SSEClientTransport(new URL(cfg.url), { requestInit: { headers: cfg.headers ?? {} } });
-      try {
-        await client.connect(transport);
-      } catch (sseErr) {
-        // Os dois erros importam: o do Streamable HTTP costuma ser a causa real (ex.: 401), o do SSE só o confirma.
-        const second = errorMessage(sseErr);
-        throw new Error(first === second ? first : `Streamable HTTP: ${first} · SSE: ${second}`, { cause: sseErr });
-      }
-    }
-
+    const { client, transport } = await openClient(cfg);
     const { tools } = await client.listTools();
     c.client = client;
     c.transport = transport;

@@ -1,5 +1,6 @@
 import type Anthropic from "@anthropic-ai/sdk";
 import type { AgentConfig, LlmConfig, McpServerConfig } from "../types.js";
+import { parseJson } from "../util.js";
 
 /**
  * Servidores MCP conectados pela API do Claude (conector MCP).
@@ -95,22 +96,18 @@ export const DISCOVERY_PROMPT =
 export function parseDiscoveredTools(text: string): { name: string; description?: string }[] {
   const raw = text.match(/<tools>([\s\S]*?)<\/tools>/i)?.[1] ?? text.match(/\[[\s\S]*\]/)?.[0];
   if (!raw) return [];
-  try {
-    const data: unknown = JSON.parse(raw);
-    if (!Array.isArray(data)) return [];
-    const items: unknown[] = data;
-    const out: { name: string; description?: string }[] = [];
-    for (const item of items) {
-      const fields = typeof item === "object" && item !== null ? item : {};
-      const name = typeof item === "string" ? item : "name" in fields ? fields.name : undefined;
-      if (typeof name !== "string" || !/^[\w.-]{1,128}$/.test(name)) continue;
-      const description = "description" in fields && typeof fields.description === "string" ? fields.description.slice(0, 240) : undefined;
-      if (!out.some((t) => t.name === name)) out.push({ name, ...(description ? { description } : {}) });
-    }
-    return out;
-  } catch {
-    return [];
+  const data = parseJson(raw);
+  if (!Array.isArray(data)) return [];
+  const items: unknown[] = data;
+  const out: { name: string; description?: string }[] = [];
+  for (const item of items) {
+    const fields = typeof item === "object" && item !== null ? item : {};
+    const name = typeof item === "string" ? item : "name" in fields ? fields.name : undefined;
+    if (typeof name !== "string" || !/^[\w.-]{1,128}$/.test(name)) continue;
+    const description = "description" in fields && typeof fields.description === "string" ? fields.description.slice(0, 240) : undefined;
+    if (!out.some((t) => t.name === name)) out.push({ name, ...(description ? { description } : {}) });
   }
+  return out;
 }
 
 /** Junta a lista descoberta com a atual: ferramentas já usadas continuam marcadas como usadas. */

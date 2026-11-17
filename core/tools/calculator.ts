@@ -18,6 +18,7 @@ const FUNCS: Record<string, (...a: number[]) => number> = {
 };
 const CONSTS: Record<string, number> = { pi: Math.PI, e: Math.E };
 
+/** As funções internas são as regras da gramática (expressão, termo, fator), que dependem umas das outras. */
 export function evaluate(src: string): number {
   const s = src.replace(/\s+/g, "");
   let i = 0;

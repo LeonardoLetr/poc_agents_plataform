@@ -42,7 +42,7 @@ export function exportConfig(): ExportFile {
   };
 }
 
-/** Validação da estrutura do arquivo: o conteúdo de cada item é normalizado pela migração de dados. */
+/** Estrutura do arquivo; o conteúdo de cada item é validado pela migração, como nos dados salvos. */
 const withId = z.object({ id: z.string().min(1) }).loose();
 const ImportSchema = z.object({
   format: z.literal(EXPORT_FORMAT, { message: "Arquivo não é uma exportação do Agent Lab." }),
@@ -76,7 +76,7 @@ export async function importConfig(raw: unknown, mode: "merge" | "replace"): Pro
   const parsed = ImportSchema.parse(raw);
   if (parsed.version > db.version)
     throw new Error(`O arquivo é de uma versão mais nova da plataforma (${parsed.version}); atualize a página e tente de novo.`);
-  // A migração normaliza arquivos de versões anteriores para o formato atual.
+  // A migração converte arquivos de versões anteriores e valida cada item.
   const incoming = migrate({ ...parsed, audit: [], runs: [] });
   const empty = () => ({ added: 0, replaced: 0, skipped: 0 });
   const report: ImportReport = {

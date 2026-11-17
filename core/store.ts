@@ -1,8 +1,8 @@
 import type { AgentConfig, AuditEntry, LlmConfig, McpServerConfig, Memory, PromptTemplate, RunRecord } from "./types.js";
 
 /**
- * Estado da plataforma. O núcleo não sabe ONDE ele é salvo: o hospedeiro
- * (servidor Node → arquivo JSON; navegador → localStorage) fornece um adaptador.
+ * Estado da plataforma. O núcleo não sabe onde ele é salvo: quem o inicia (hoje, a página, com o localStorage)
+ * fornece um adaptador.
  */
 export type DB = {
   version: number;
@@ -47,8 +47,8 @@ export function persist() {
       db.audit.splice(0, Math.ceil(db.audit.length / 2));
       try {
         storage.save(db);
-      } catch {
-        /* desiste silenciosamente */
+      } catch (retryErr) {
+        console.error("Não foi possível salvar os dados neste navegador.", retryErr);
       }
     }
   }, 300);

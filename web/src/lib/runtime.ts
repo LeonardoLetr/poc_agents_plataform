@@ -7,7 +7,7 @@ import { z } from "zod";
 type Core = typeof import("../../../core/index.ts");
 
 const STORAGE_KEY = "agentlab.db.v2";
-/** Chaves de API ficam FORA do banco principal, num cofre separado. */
+/** Chaves de API ficam fora do banco principal, num cofre separado. */
 const KEYS_KEY = "agentlab.keys";
 const REMEMBER_KEY = "agentlab.keys.remember";
 

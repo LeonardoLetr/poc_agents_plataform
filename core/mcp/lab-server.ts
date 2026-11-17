@@ -10,6 +10,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 
+/** Uma chamada `registerTool` por ferramenta, em sequência, para servir de exemplo de leitura. */
 export function createLabServer(): McpServer {
   const server = new McpServer(
     { name: "laboratorio", version: "1.0.0" },

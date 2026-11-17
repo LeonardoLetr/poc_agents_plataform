@@ -1,5 +1,6 @@
 import type Anthropic from "@anthropic-ai/sdk";
 import { z } from "zod";
+import { parseJson } from "../util.js";
 import type { LlmConfig } from "../types.js";
 import type { AssistantTurn, Block, LlmCall, Msg } from "./types.js";
 
@@ -97,30 +98,21 @@ const Chunk = z.object({
 
 /** Lê uma linha "data:" do stream; JSON inválido ou fora do formato é descartado. */
 function parseChunk(data: string): z.infer<typeof Chunk> | null {
-  try {
-    const parsed = Chunk.safeParse(JSON.parse(data));
-    return parsed.success ? parsed.data : null;
-  } catch {
-    return null;
-  }
+  const parsed = Chunk.safeParse(parseJson(data));
+  return parsed.success ? parsed.data : null;
 }
 
 /** Argumentos de ferramenta gerados pelo modelo: precisam ser um objeto JSON. */
 function parseToolArgs(args: string): Record<string, unknown> {
   if (!args) return {};
-  try {
-    const parsed = z.record(z.string(), z.unknown()).safeParse(JSON.parse(args));
-    if (parsed.success) return parsed.data;
-  } catch {
-    // cai no retorno abaixo
-  }
-  return { _erro: "argumentos JSON inválidos gerados pelo modelo", bruto: args };
+  const parsed = z.record(z.string(), z.unknown()).safeParse(parseJson(args));
+  // O erro volta ao modelo como entrada da ferramenta, para ele corrigir os argumentos na próxima iteração.
+  return parsed.success ? parsed.data : { _erro: "argumentos JSON inválidos gerados pelo modelo", bruto: args };
 }
 
-export async function callOpenAi(call: LlmCall): Promise<AssistantTurn> {
-  const { llm, emit } = call;
+async function postChatCompletion(call: LlmCall, url: string): Promise<ReadableStream<Uint8Array>> {
+  const { llm } = call;
   const key = llm.apiKey;
-  const url = `${(llm.baseUrl || DEFAULT_BASE).replace(/\/$/, "")}/chat/completions`;
   let res: Response;
   try {
     res = await fetch(url, {
@@ -154,15 +146,21 @@ export async function callOpenAi(call: LlmCall): Promise<AssistantTurn> {
     const detail = await res.text().catch(() => "");
     throw new Error(`Erro do provedor (${res.status}): ${detail.slice(0, 400) || res.statusText}`);
   }
+  return res.body;
+}
 
-  let text = "";
-  let finish: string | null = null;
-  let usage = { input: 0, output: 0 };
-  let model = llm.model;
-  const calls: { id: string; name: string; args: string }[] = [];
+type StreamedTurn = {
+  text: string;
+  finish: string | null;
+  usage: { input: number; output: number };
+  model: string;
+  calls: { id: string; name: string; args: string }[];
+};
 
-  // Lê o stream SSE: linhas "data: {...}" terminando em "data: [DONE]".
-  const reader = res.body.getReader();
+/** Lê o stream SSE (linhas "data: {...}" terminando em "data: [DONE]"), repassando texto e raciocínio ao vivo. */
+async function readChatStream(body: ReadableStream<Uint8Array>, emit: LlmCall["emit"], model: string): Promise<StreamedTurn> {
+  const turn: StreamedTurn = { text: "", finish: null, usage: { input: 0, output: 0 }, model, calls: [] };
+  const reader = body.getReader();
   const decoder = new TextDecoder();
   let buffer = "";
   for (;;) {
@@ -176,27 +174,33 @@ export async function callOpenAi(call: LlmCall): Promise<AssistantTurn> {
       if (!data || data === "[DONE]" || !line.trim().startsWith("data:")) continue;
       const chunk = parseChunk(data);
       if (!chunk) continue;
-      if (chunk.model) model = chunk.model;
-      if (chunk.usage) usage = { input: chunk.usage.prompt_tokens ?? 0, output: chunk.usage.completion_tokens ?? 0 };
+      if (chunk.model) turn.model = chunk.model;
+      if (chunk.usage) turn.usage = { input: chunk.usage.prompt_tokens ?? 0, output: chunk.usage.completion_tokens ?? 0 };
       const choice = chunk.choices?.[0];
       if (!choice) continue;
       const d = choice.delta ?? {};
       const reasoning = d.reasoning ?? d.reasoning_content;
       if (reasoning) emit({ type: "thinking.delta", text: reasoning });
       if (d.content) {
-        text += d.content;
+        turn.text += d.content;
         emit({ type: "text.delta", text: d.content });
       }
+      // As chamadas de ferramenta chegam em pedaços, indexadas pela posição no turno.
       for (const tc of d.tool_calls ?? []) {
-        const slot = (calls[tc.index] ??= { id: "", name: "", args: "" });
+        const slot = (turn.calls[tc.index] ??= { id: "", name: "", args: "" });
         if (tc.id) slot.id = tc.id;
         if (tc.function?.name) slot.name += tc.function.name;
         if (tc.function?.arguments) slot.args += tc.function.arguments;
       }
-      if (choice.finish_reason) finish = choice.finish_reason;
+      if (choice.finish_reason) turn.finish = choice.finish_reason;
     }
   }
+  return turn;
+}
 
+export async function callOpenAi(call: LlmCall): Promise<AssistantTurn> {
+  const url = `${(call.llm.baseUrl || DEFAULT_BASE).replace(/\/$/, "")}/chat/completions`;
+  const { text, finish, usage, model, calls } = await readChatStream(await postChatCompletion(call, url), call.emit, call.llm.model);
   const content: Block[] = [];
   if (text) content.push({ type: "text", text });
   for (const c of calls.filter(Boolean)) {

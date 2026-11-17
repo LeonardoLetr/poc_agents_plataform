@@ -73,13 +73,13 @@ export type Stats = {
   auditEntries: number;
 };
 
-/** A "requisição" é uma chamada de função ao núcleo, na mesma aba. */
 /** Corpo de erro das rotas: mensagem simples ou a lista de problemas de validação. */
 const ErrorBody = z.object({
   error: z.string().optional(),
   issues: z.array(z.object({ path: z.array(z.union([z.string(), z.number()])), message: z.string() })).optional(),
 });
 
+/** A "requisição" é uma chamada de função ao núcleo, na mesma aba. */
 async function request<T>(method: string, url: string, body?: unknown): Promise<T> {
   const core = await getCore();
   const parsed = new URL(url, "http://local");

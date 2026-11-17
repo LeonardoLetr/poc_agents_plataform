@@ -24,7 +24,7 @@ const McpInput = z.object({
   enabled: z.boolean().default(true),
 });
 
-/** Valores de variáveis e cabeçalhos nunca saem da API. */
+/** Valores de cabeçalhos (tokens) nunca saem da API: só os nomes, com o valor oculto. */
 const MASK = "••••";
 
 const mcpView = (s: McpServerConfig) => ({

@@ -5,8 +5,7 @@ import { now, uid } from "./util.js";
 
 /**
  * Memória de longo prazo com busca lexical BM25 (relevância) combinada com importância e recência.
- * A implementação é intencionalmente simples para que o ranking seja transparente; em produção,
- * recomenda-se complementar com busca vetorial (embeddings).
+ * A busca é lexical de propósito: cada componente da pontuação aparece na tela de memória e pode ser explicado.
  *
  * Pontuação final = 70% relevância (BM25 normalizado) + 20% importância + 10% recência.
  */

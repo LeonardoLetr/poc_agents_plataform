@@ -222,7 +222,7 @@ async function iterate(run: LiveRun, tools: RunTools): Promise<string> {
       case "final":
         return outcome.text;
       case "tools": {
-        // Executa as ferramentas em paralelo e devolve TODOS os resultados em uma única mensagem de usuário.
+        // Em paralelo; a API exige os resultados de todas as chamadas do turno numa única mensagem de usuário.
         const results = await Promise.all(
           outcome.toolUses.map((b) => executeTool(run, b, ctx, (toolUseId, agentId, task) => delegate(run, toolUseId, agentId, task))),
         );

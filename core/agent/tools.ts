@@ -12,10 +12,11 @@ import { type LiveRun, emit } from "./live.js";
 
 /** Ferramentas de uma execução: quais vão para o modelo, como as locais são executadas e como as do provedor são auditadas. */
 
-/** Ferramentas habilitadas para o agente, no formato da API, com seus executores. */
+/** Habilitada no agente pelo nome ou pelo curinga do servidor (`mcp__<servidor>__*`). */
 const toolEnabled = (agent: AgentConfig, name: string, server?: string) =>
   agent.tools.includes(name) || (server !== undefined && agent.tools.includes(`mcp__${server}__*`));
 
+/** Ferramentas locais do agente no formato da API: nativas, outros agentes e MCP conectado pela página. */
 function resolveTools(agent: AgentConfig) {
   const defs: Anthropic.Tool[] = [];
   for (const name of agent.tools) {

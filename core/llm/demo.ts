@@ -1,7 +1,7 @@
 import { hostEnv } from "../env.js";
 import { COMPACTED_MARKER, estimateTokens, SUMMARY_REQUEST_MARKER } from "../agent/context.js";
 import type { RunEvent } from "../types.js";
-import { isRecord } from "../util.js";
+import { isRecord, parseJson } from "../util.js";
 import type { AssistantTurn, LlmCall, Msg } from "./types.js";
 
 /**
@@ -61,8 +61,8 @@ function extractMath(text: string): string | null {
   return best ? best.replace(/^[^\d(s]+|[^\d)]+$/g, "") : null;
 }
 
+/** Roteiro da demonstração: uma regra por palavra-chave, em sequência (cada regra é independente das outras). */
 function plan(input: string, tools: string[], agentNames: Map<string, string> = new Map()): Step[] {
-  // tools: nomes das ferramentas habilitadas e disponíveis
   const has = (n: string) => tools.includes(n);
   const lower = input.toLowerCase();
   const steps: Step[] = [];
@@ -121,7 +121,6 @@ function plan(input: string, tools: string[], agentNames: Map<string, string> = 
       tool: { name: "current_time", input: { timezone: "America/Sao_Paulo" } },
     });
   }
-  // Ferramentas vindas de servidores MCP (nome qualificado mcp__servidor__ferramenta)
   const mcpTool = (suffix: string) => tools.find((t) => t.startsWith("mcp__") && t.endsWith(`__${suffix}`));
   const dice = lower.match(/\b(\d{1,2}d\d{1,3})\b/)?.[1] ?? (/(dado|rolar|role)/.test(lower) ? "2d6" : null);
   const rollTool = mcpTool("dados_rolar");
@@ -180,12 +179,7 @@ const show = (value: unknown) => (typeof value === "string" || typeof value === 
 function summarize(results: { name: string; content: string }[], agentNames: Map<string, string> = new Map()): string {
   const lines: string[] = [];
   for (const r of results) {
-    let data: unknown;
-    try {
-      data = JSON.parse(r.content);
-    } catch {
-      data = r.content;
-    }
+    const data = parseJson(r.content);
     const d = isRecord(data) ? data : {};
     if (typeof r.content === "string" && r.content.startsWith("Erro")) lines.push(`- **${r.name}** falhou: ${r.content}`);
     else if (r.name === "calculator") lines.push(`- **Cálculo:** \`${show(d.expression)}\` = **${show(d.result)}**`);
@@ -280,7 +274,7 @@ export async function demoTurn(call: LlmCall): Promise<AssistantTurn> {
     return { content: [{ type: "text", text }], stopReason: "end_turn", usage: usageFor(text), model: "demo-simulado" };
   }
 
-  // Encontra a última mensagem do usuário que é texto (a tarefa atual).
+  // A tarefa atual é a última mensagem de texto do usuário; as seguintes são resultados de ferramentas.
   let taskIdx = messages.length - 1;
   while (taskIdx >= 0 && typeof messages[taskIdx]?.content !== "string") taskIdx--;
   const taskContent = messages[taskIdx]?.content;
@@ -300,7 +294,7 @@ export async function demoTurn(call: LlmCall): Promise<AssistantTurn> {
   const steps = plan(task, toolNames, agentNames);
   const content: AssistantTurn["content"] = [];
 
-  await sleep(350, signal); // "latência de rede"
+  await sleep(350, signal); // simula a latência da API para a linha do tempo ter ritmo
 
   const step = steps[stepIndex];
   if (step) {

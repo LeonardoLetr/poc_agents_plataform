@@ -1,7 +1,5 @@
 import type { RunEvent } from "./types.js";
 
-// Utilitários sem dependência de Node (funcionam no navegador também).
-
 export const uid = (prefix: string) => `${prefix}_${globalThis.crypto.randomUUID().replace(/-/g, "").slice(0, 12)}`;
 export const now = () => new Date().toISOString();
 
@@ -16,7 +14,7 @@ export function errorMessage(err: unknown): string {
   return String(err);
 }
 
-/** Emissor de eventos mínimo (substitui o EventEmitter do Node). */
+/** Emissor de eventos mínimo: liga o núcleo às telas ao vivo (execuções, auditoria, MCP). */
 export class Emitter {
   private handlers = new Map<string, Set<(payload: unknown) => void>>();
   on(event: string, fn: (payload: unknown) => void) {
@@ -48,4 +46,13 @@ export const isRecord = (value: unknown): value is Record<string, unknown> =>
 /** Eventos de um tipo, já estreitados para a variante correspondente da união. */
 export function eventsOfType<T extends RunEvent["type"]>(events: readonly RunEvent[], type: T): Extract<RunEvent, { type: T }>[] {
   return events.filter((e): e is Extract<RunEvent, { type: T }> => e.type === type);
+}
+
+/** JSON vindo de fora (modelo, stream, servidor): texto inválido vira `undefined`, para o chamador decidir. */
+export function parseJson(text: string): unknown {
+  try {
+    return JSON.parse(text);
+  } catch {
+    return undefined;
+  }
 }
