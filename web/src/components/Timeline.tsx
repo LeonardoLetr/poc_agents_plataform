@@ -12,19 +12,21 @@ import {
   Link2,
   Loader2,
   MessageSquare,
+  PanelRight,
   Plug,
   Scissors,
   User,
   Wrench,
   XCircle,
 } from "lucide-react";
-import { useReducer, useState } from "react";
+import { useState } from "react";
 import { Link } from "react-router-dom";
 import { fmtMs, fmtNumber, kindLabel, toolLabel } from "../lib/format";
-import type { Citation, RunEvent, RunStatus } from "../lib/api";
-import { useEventStream } from "../lib/hooks";
-import { emptyRun, reduceRun, type Step, type ToolStep } from "../lib/runState";
+import type { Citation, RunStatus } from "../lib/api";
+import { useRunStream } from "../lib/hooks";
+import type { Step, ToolStep } from "../lib/runState";
 import { JsonView } from "./JsonView";
+import { useOpenRun } from "./openRun";
 import { Markdown } from "./Markdown";
 import { Badge } from "./ui";
 
@@ -136,12 +138,8 @@ const CHILD_STATUS: Record<RunStatus, { text: string; badge: "warn" | "ok" | "ba
 
 /** Execução filha acompanhada ao vivo dentro do cartão da delegação. */
 function ChildRun({ child }: { child: NonNullable<ToolStep["child"]> }) {
-  const [view, dispatch] = useReducer(
-    (s: typeof emptyRun, e: RunEvent | { type: "snapshot"; events: RunEvent[] }) =>
-      e.type === "snapshot" ? (e as { events: RunEvent[] }).events.reduce(reduceRun, emptyRun) : reduceRun(s, e as RunEvent),
-    emptyRun,
-  );
-  useEventStream<RunEvent | { type: "snapshot"; events: RunEvent[] }>(`/api/runs/${child.runId}/stream`, dispatch);
+  const { view } = useRunStream(child.runId);
+  const openRun = useOpenRun();
   const status = CHILD_STATUS[view.status === "idle" ? (child.status ?? "running") : view.status];
   const tools = view.steps.flatMap((s) => (s.kind === "iteration" ? s.tools : []));
   const tokens = view.tokens.input + view.tokens.output + view.childTokens.input + view.childTokens.output;
@@ -155,9 +153,18 @@ function ChildRun({ child }: { child: NonNullable<ToolStep["child"]> }) {
         <span className="tabular-nums">
           {view.iteration} it. · {fmtNumber(tokens)} tokens
         </span>
-        <Link to={`/playground/${child.runId}`} className="ml-auto inline-flex items-center gap-1 text-info hover:underline">
-          abrir <ArrowUpRight size={11} />
-        </Link>
+        {openRun ? (
+          <button
+            onClick={() => openRun(child.runId)}
+            className="ml-auto inline-flex items-center gap-1 font-medium text-info hover:underline"
+          >
+            <PanelRight size={12} /> acompanhar
+          </button>
+        ) : (
+          <Link to={`/playground/${child.runId}`} className="ml-auto inline-flex items-center gap-1 text-info hover:underline">
+            abrir <ArrowUpRight size={11} />
+          </Link>
+        )}
       </div>
       {tools.length > 0 && (
         <div className="mt-1.5 flex flex-wrap gap-1">

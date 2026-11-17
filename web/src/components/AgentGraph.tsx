@@ -17,7 +17,8 @@ import { motion } from "motion/react";
 import { Bot, Brain, Calculator, Clock, Globe, NotebookPen, Plug, User, Wrench } from "lucide-react";
 import { useEffect, useMemo } from "react";
 import type { Agent, ToolInfo } from "../lib/api";
-import { graphTarget, SERVER_TOOL_NAMES, type RunView } from "../lib/runState";
+import { useRunStream } from "../lib/hooks";
+import { childActivity, graphTarget, latestChildRuns, SERVER_TOOL_NAMES, type RunView } from "../lib/runState";
 
 /**
  * Grafo ao vivo do agente: mostra o LLM no centro, a memória, o scratchpad e
@@ -100,12 +101,25 @@ function AgentNode({ data }: NodeProps<Node<{ agent: Agent; view: RunView; llmLa
   );
 }
 
-function ToolNode({
-  data,
-}: NodeProps<Node<{ label: string; sub?: string; icon: typeof Wrench; active: boolean; count: number; color: string; dim?: boolean }>>) {
+type ToolData = {
+  label: string;
+  sub?: string;
+  icon: typeof Wrench;
+  active: boolean;
+  count: number;
+  color: string;
+  dim?: boolean;
+  /** Agente delegado: execução filha mais recente, acompanhada ao vivo no próprio nó. */
+  childRunId?: string;
+};
+
+function ToolNode({ data }: NodeProps<Node<ToolData>>) {
   const Icon = data.icon;
   return (
-    <div className="relative">
+    <div
+      className={`relative ${data.childRunId ? "cursor-pointer" : ""}`}
+      title={data.childRunId ? "Acompanhar a execução delegada" : undefined}
+    >
       {handles}
       <motion.div
         animate={{ scale: data.active ? 1.03 : 1 }}
@@ -124,7 +138,11 @@ function ToolNode({
         </div>
         <div className="min-w-0">
           <div className="truncate text-[12px] font-medium text-ink-100">{data.label}</div>
-          {data.sub && <div className="truncate font-mono text-[9.5px] text-ink-400">{data.sub}</div>}
+          {data.childRunId ? (
+            <ChildActivity key={data.childRunId} runId={data.childRunId} />
+          ) : (
+            data.sub && <div className="truncate font-mono text-[9.5px] text-ink-400">{data.sub}</div>
+          )}
         </div>
         {data.count > 0 && (
           <motion.span
@@ -137,6 +155,19 @@ function ToolNode({
           </motion.span>
         )}
       </motion.div>
+    </div>
+  );
+}
+
+/** O que a execução filha está fazendo agora; clicar no nó abre a execução no painel lateral. */
+function ChildActivity({ runId }: { runId: string }) {
+  const { view } = useRunStream(runId);
+  const { label, busy } = childActivity(view);
+  return (
+    <div className="flex max-w-[150px] items-center gap-1 font-mono text-[9.5px] text-ink-400">
+      {busy && <span className="h-1.5 w-1.5 shrink-0 animate-pulse rounded-full bg-memory" />}
+      <span className={`truncate ${busy ? "text-memory" : ""}`}>{label}</span>
+      {view.iteration > 0 && <span className="shrink-0">· #{view.iteration}</span>}
     </div>
   );
 }
@@ -185,12 +216,21 @@ function BeamEdge({
 const nodeTypes = { agent: AgentNode, tool: ToolNode };
 const edgeTypes = { beam: BeamEdge };
 
-export function AgentGraph(props: { agent: Agent; tools: ToolInfo[]; view: RunView; llmLabel: string }) {
+type GraphProps = {
+  agent: Agent;
+  tools: ToolInfo[];
+  view: RunView;
+  llmLabel: string;
+  /** Abre uma execução delegada (clique no nó do agente filho). */
+  onOpenRun?: ((runId: string) => void) | undefined;
+};
+
+export function AgentGraph(props: GraphProps) {
   // Remonta (e reenquadra) quando troca de agente ou o conjunto de ferramentas muda.
   return <GraphInner key={`${props.agent.id}:${props.agent.tools.join(",")}:${props.tools.length}`} {...props} />;
 }
 
-function GraphInner({ agent, tools, view, llmLabel }: { agent: Agent; tools: ToolInfo[]; view: RunView; llmLabel: string }) {
+function GraphInner({ agent, tools, view, llmLabel, onOpenRun }: GraphProps) {
   // O texto transmitido muda a cada token; o grafo só precisa mudar quando o "estado visível" muda.
   const iterations = view.steps.filter((s) => s.kind === "iteration");
   const signature = JSON.stringify({
@@ -200,7 +240,9 @@ function GraphInner({ agent, tools, view, llmLabel }: { agent: Agent; tools: Too
     i: view.iteration,
     m: view.model,
     it: iterations.slice(-2).map((it) => (it.kind === "iteration" ? [it.phase, it.tools.map((t) => t.status)] : null)),
+    ch: [...latestChildRuns(view.steps)],
   });
+  const childRuns = latestChildRuns(view.steps);
 
   const computed = useMemo(() => {
     // Quais nós existem: ferramentas nativas (exceto memória/scratchpad), servidores MCP, memória e scratchpad.
@@ -235,7 +277,7 @@ function GraphInner({ agent, tools, view, llmLabel }: { agent: Agent; tools: Too
     }
     if (view.status === "completed") flows.set("user", "back");
 
-    const toolNodes: { id: string; label: string; sub?: string; icon: typeof Wrench; color: string; dim?: boolean }[] = [
+    const toolNodes: (Omit<ToolData, "active" | "count"> & { id: string })[] = [
       ...builtin.map((t) =>
         t.startsWith("agent__")
           ? {
@@ -245,6 +287,7 @@ function GraphInner({ agent, tools, view, llmLabel }: { agent: Agent; tools: Too
               icon: Bot,
               color: "#7c3aed",
               dim: !tools.some((x) => x.name === t),
+              ...(childRuns.has(t) ? { childRunId: childRuns.get(t) } : {}),
             }
           : SERVER_TOOL_NAMES.includes(t)
             ? { id: `tool:${t}`, label: t, sub: "servidor Anthropic", icon: ICONS[t] ?? Globe, color: "#0891b2" }
@@ -346,6 +389,10 @@ function GraphInner({ agent, tools, view, llmLabel }: { agent: Agent; tools: Too
       nodes={nodes}
       edges={edges}
       onNodesChange={onNodesChange}
+      onNodeClick={(_, node) => {
+        const runId = childRuns.get(node.id.replace(/^tool:/, ""));
+        if (runId && onOpenRun) onOpenRun(runId);
+      }}
       nodeTypes={nodeTypes}
       edgeTypes={edgeTypes}
       fitView

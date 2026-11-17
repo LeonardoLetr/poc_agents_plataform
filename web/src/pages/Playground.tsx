@@ -1,10 +1,12 @@
 import { AnimatePresence, motion } from "motion/react";
 import { ArrowUp, Coins, History, Layers, Loader2, Repeat, Send, Square, Timer, Users } from "lucide-react";
-import { useEffect, useMemo, useReducer, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { ContextMeter } from "../components/ContextMeter";
 import { ReplayBar, replayOff, type ReplayState } from "../components/ReplayBar";
 import { AgentGraph } from "../components/AgentGraph";
+import { ChildRunPanel } from "../components/ChildRunPanel";
+import { OpenRunContext } from "../components/openRun";
 import { LiveDot } from "../components/effects";
 import { JsonView } from "../components/JsonView";
 import { Timeline } from "../components/Timeline";
@@ -78,6 +80,12 @@ export default function Playground() {
   const [inspect, setInspect] = useState<"system" | "messages" | "scratchpad" | null>(null);
   const [detail, setDetail] = useState<RunDetail | null>(null);
   const timelineRef = useRef<HTMLDivElement>(null);
+  // Execuções delegadas abertas no painel lateral: filha, neta… (a última é a visível).
+  const [panel, setPanel] = useState<string[]>([]);
+  const openRun = useCallback((id: string) => setPanel([id]), []);
+  const pushRun = useCallback((id: string) => setPanel((stack) => (stack.includes(id) ? stack : [...stack, id])), []);
+  const backRun = useCallback(() => setPanel((stack) => stack.slice(0, -1)), []);
+  const closePanel = useCallback(() => setPanel([]), []);
 
   // Agente selecionado: o da execução aberta, ou o primeiro da lista.
   useEffect(() => {
@@ -89,6 +97,7 @@ export default function Playground() {
     setEvents([]);
     setReplay(replayOff);
     setParentRunId(null);
+    setPanel([]);
   }, [runId]);
 
   useEventStream<RunEvent | { type: "snapshot"; run: RunSummary; events: RunEvent[] }>(
@@ -300,7 +309,13 @@ export default function Playground() {
               </Button>
             )}
             {agent && (
-              <AgentGraph agent={agent} tools={tools.data ?? []} view={view} llmLabel={agentLlm ? `${agentLlm.name}` : "sem LLM"} />
+              <AgentGraph
+                agent={agent}
+                tools={tools.data ?? []}
+                view={view}
+                llmLabel={agentLlm ? `${agentLlm.name}` : "sem LLM"}
+                onOpenRun={openRun}
+              />
             )}
           </Card>
 
@@ -365,7 +380,9 @@ export default function Playground() {
                   </div>
                 </div>
               ) : (
-                <Timeline steps={view.steps} live={live} />
+                <OpenRunContext.Provider value={openRun}>
+                  <Timeline steps={view.steps} live={live} />
+                </OpenRunContext.Provider>
               )}
             </div>
             {runId && !live && view.status !== "idle" && (
@@ -393,6 +410,12 @@ export default function Playground() {
           </Card>
         </div>
       </div>
+
+      <AnimatePresence>
+        {panel.length > 0 && (
+          <ChildRunPanel stack={panel} agents={agents.data ?? []} onOpen={pushRun} onBack={backRun} onClose={closePanel} />
+        )}
+      </AnimatePresence>
 
       {/* Aprovação humana (human-in-the-loop) */}
       <Modal open={Boolean(approval)} onClose={() => undefined} title="✋ O agente quer usar uma ferramenta">

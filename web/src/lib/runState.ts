@@ -1,4 +1,5 @@
 import type { Citation, Memory, RunEvent, RunStatus } from "./api";
+import { toolLabel } from "./format";
 
 /**
  * Converte o fluxo de eventos de uma execução em um estado fácil de desenhar:
@@ -301,4 +302,37 @@ export function reduceRun(state: RunView, ev: RunEvent): RunView {
     default:
       return state;
   }
+}
+
+/** O que uma execução está fazendo agora, em poucas palavras: usado no nó do agente filho no grafo do pai. */
+export function childActivity(view: RunView): { label: string; busy: boolean } {
+  switch (view.status) {
+    case "idle":
+      return { label: "iniciando…", busy: true };
+    case "completed":
+      return { label: "concluída", busy: false };
+    case "failed":
+      return { label: "falhou", busy: false };
+    case "cancelled":
+      return { label: "cancelada", busy: false };
+    case "awaiting_approval":
+      return { label: "aguardando aprovação", busy: true };
+    case "running": {
+      const last = lastIteration(view.steps);
+      const running = last?.tools.filter((t) => t.status === "running") ?? [];
+      if (running.length)
+        return {
+          label: running.map((t) => (t.source === "agent" ? (t.child?.agentName ?? "agente") : toolLabel(t.name).label)).join(", "),
+          busy: true,
+        };
+      return { label: last ? "pensando…" : "iniciando…", busy: true };
+    }
+  }
+}
+
+/** Execução filha mais recente de cada ferramenta `agent__<id>`, pela ordem dos eventos. */
+export function latestChildRuns(steps: Step[]): Map<string, string> {
+  const out = new Map<string, string>();
+  for (const s of steps) if (s.kind === "iteration") for (const t of s.tools) if (t.child) out.set(t.name, t.child.runId);
+  return out;
 }

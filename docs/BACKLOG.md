@@ -26,8 +26,9 @@ Melhorias e novas funcionalidades planejadas, priorizadas por impacto e esforço
 | AL-14 | Publicação do servidor na AWS | Infraestrutura | P3 | G | a fazer |
 | AL-15 | Servidores MCP remotos via conector da API do Claude | Funcionalidade | P2 | M | concluído |
 | AL-16 | Adequar o núcleo às diretrizes de código | Qualidade | P1 | G | concluído |
+| AL-17 | Acompanhar execuções delegadas sem sair da execução pai | Melhoria | P1 | M | concluído |
 
-Sequência sugerida: AL-16 → AL-11 → AL-10 → demais → AL-14 (último).
+Sequência sugerida: AL-11 → AL-10 → demais → AL-14 (último).
 
 ---
 
@@ -223,3 +224,18 @@ Sequência sugerida: AL-16 → AL-11 → AL-10 → demais → AL-14 (último).
   versão deve rodar em uma única instância. Escalar horizontalmente exige mover esse estado para um serviço externo.
 - **Critérios de aceite:** acesso apenas autenticado; dados preservados após reinício do contêiner; chaves fora do
   código; limites de uso aplicados e registrados na auditoria; publicação automatizada a partir da `main`.
+
+### AL-17 · Acompanhar execuções delegadas sem sair da execução pai
+- **Problema:** quando um agente delega, a execução pai só mostra um cartão pequeno com o status da filha. Não há como
+  ver o raciocínio e as ferramentas da filha sem abrir a página dela, o que tira a execução pai da tela; enquanto a
+  filha trabalha, o pai parece parado.
+- **Proposta:** o nó do agente filho no grafo do pai mostra ao vivo o que a filha está fazendo; um clique no nó, ou em
+  "acompanhar" no cartão da delegação, abre um painel lateral com a linha do tempo completa da filha, sem sair do pai.
+- **Critérios de aceite:** atividade da filha visível no grafo do pai; painel ao vivo com a linha do tempo, as
+  métricas e os pedidos de aprovação da filha; netas abrem no mesmo painel, com volta; funciona no celular sem
+  rolagem horizontal.
+- **Resultado:** `childActivity()` e `latestChildRuns()` em `web/src/lib/runState.ts` (com testes) resumem a atividade
+  e localizam a filha de cada agente; `useRunStream()` acompanha uma execução ao vivo. O nó do agente no grafo mostra
+  "pensando…", a ferramenta em uso ou o desfecho, com o número da iteração. `ChildRunPanel` abre a filha ao lado, com
+  aprovação, "tela cheia" e uma pilha para netas; Esc fecha.
+

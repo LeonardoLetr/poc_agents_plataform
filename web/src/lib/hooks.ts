@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useRef, useState } from "react";
-import { api, subscribeStream } from "./api";
+import { useCallback, useEffect, useReducer, useRef, useState } from "react";
+import { api, subscribeStream, type RunEvent, type RunSummary } from "./api";
+import { emptyRun, reduceRun, type RunView } from "./runState";
 
 /** Busca um recurso e expõe `reload` para atualizar depois de mutações. */
 export function useResource<T>(url: string | null, deps: unknown[] = []) {
@@ -56,4 +57,22 @@ export function useInterval(fn: () => void, ms: number | null) {
     const id = setInterval(() => saved.current(), ms);
     return () => clearInterval(id);
   }, [ms]);
+}
+
+type StreamMessage = RunEvent | { type: "snapshot"; run: RunSummary; events: RunEvent[] };
+type RunStream = { view: RunView; run: RunSummary | null };
+
+function reduceStream(state: RunStream, msg: StreamMessage): RunStream {
+  if (msg.type === "snapshot") return { view: msg.events.reduce(reduceRun, emptyRun), run: msg.run };
+  return { ...state, view: reduceRun(state.view, msg) };
+}
+
+/**
+ * Acompanha uma execução ao vivo: o resumo dela (agente, tarefa) e o estado reduzido dos eventos.
+ * O estado não é zerado ao trocar de `runId`: quem usa remonta o componente (`key={runId}`).
+ */
+export function useRunStream(runId: string | null): RunStream {
+  const [state, dispatch] = useReducer(reduceStream, { view: emptyRun, run: null });
+  useEventStream<StreamMessage>(runId ? `/api/runs/${runId}/stream` : null, dispatch);
+  return state;
 }
