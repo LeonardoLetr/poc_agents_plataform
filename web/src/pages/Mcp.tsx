@@ -123,13 +123,13 @@ function RemoteTools({ server, onChange }: { server: McpServer; onChange: () => 
     }
   }
   return (
-    <div className="mt-3">
+    <div className="mt-3 flex flex-1 flex-col">
       <p className="text-[12.5px] leading-relaxed text-ink-300">
         A API da Anthropic conecta a este servidor durante as execuções de agentes com LLM Anthropic. Habilite{" "}
         <code className="text-mcp">mcp__{server.name}__*</code> no editor do agente ou escolha ferramentas específicas depois de
         descobri-las.
       </p>
-      <div className="mt-3 flex flex-wrap items-center gap-2">
+      <div className="mt-auto flex flex-wrap items-center gap-2 pt-3">
         <span className="font-mono text-[10.5px] uppercase tracking-wider text-ink-500">
           {known.length ? `${known.length} ferramentas conhecidas` : "ferramentas ainda não conhecidas"}
         </span>
@@ -243,8 +243,9 @@ function ServerCard({ server, onChange, onEdit }: { server: McpServer; onChange:
   }
 
   return (
-    <motion.div layout initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
-      <Card className={`p-5 ${server.state.status === "connecting" ? "beam [--beam-color:var(--color-warn)]" : ""}`}>
+    <motion.div layout initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="h-full">
+      {/* Mesma altura na linha da grade; o acesso aos logs fica sempre no rodapé. */}
+      <Card className={`flex h-full flex-col p-5 ${server.state.status === "connecting" ? "beam [--beam-color:var(--color-warn)]" : ""}`}>
         <div className="flex flex-wrap items-start gap-3">
           <div
             className={`flex h-11 w-11 items-center justify-center rounded-xl ${server.state.status === "connected" ? "bg-mcp/15 text-mcp" : "bg-ink-850 text-ink-400"}`}
@@ -303,7 +304,7 @@ function ServerCard({ server, onChange, onEdit }: { server: McpServer; onChange:
         {server.state.instructions && <p className="mt-3 text-[12.5px] text-ink-300">📋 {server.state.instructions}</p>}
 
         {server.state.tools.length > 0 && (
-          <div className="mt-4 flex flex-wrap items-center gap-2">
+          <div className="mt-auto flex flex-wrap items-center gap-2 pt-4">
             <span className="font-mono text-[10.5px] uppercase tracking-wider text-ink-500">
               {server.state.tools.length} ferramentas descobertas
             </span>
@@ -328,7 +329,7 @@ function ServerCard({ server, onChange, onEdit }: { server: McpServer; onChange:
 
         <button
           onClick={() => setShowLogs(!showLogs)}
-          className="mt-4 flex items-center gap-1.5 text-[12px] text-ink-400 hover:text-ink-200"
+          className="mt-4 flex self-start items-center gap-1.5 text-[12px] text-ink-400 hover:text-ink-200"
         >
           <Terminal size={12} /> logs da conexão <ChevronDown size={12} className={`transition ${showLogs ? "rotate-180" : ""}`} />
         </button>
