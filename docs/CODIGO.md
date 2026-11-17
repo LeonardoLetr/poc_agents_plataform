@@ -91,7 +91,7 @@ fronteiras do Agent Lab:
 
 | Fronteira | Como tratar |
 |---|---|
-| Rotas do núcleo (`core/router.ts`) | Esquema Zod no início do handler; o corpo nunca é usado antes disso. |
+| Rotas do núcleo (`core/routes/`) | Esquema Zod no início do handler; o corpo nunca é usado antes disso. |
 | Dados salvos (`localStorage`) | `migrate()` normaliza versões antigas; o resultado deve ser validado antes de virar o `db`. |
 | Arquivo importado | Esquema com formato e versão, depois a mesma migração dos dados salvos. |
 | Respostas de LLMs | Anthropic: tipos do SDK. Provedores compatíveis com OpenAI: `unknown` lido com esquema. |

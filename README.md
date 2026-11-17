@@ -115,9 +115,13 @@ Cada etapa gera um evento para a visualização e um registro de auditoria.
 
 ```
 core/                  núcleo da plataforma (executado na página)
-  agent/runner.ts      loop agêntico
+  agent/runner.ts      loop agêntico: início, iterações e término das execuções
+  agent/turn.ts        decisões sobre cada turno do modelo (funções puras)
+  agent/tools.ts       ferramentas da execução: seleção, aprovação e execução
+  agent/live.ts        execuções em andamento e emissão de eventos
   agent/delegation.ts  multiagente: agentes como ferramentas
-  agent/context.ts     medição da janela de contexto e resumo do histórico
+  agent/context.ts     medição da janela de contexto e regras do resumo
+  agent/compaction.ts  resumo automático do histórico durante a execução
   llm/                 provedores: anthropic.ts, openai.ts, demo.ts
   mcp/manager.ts       cliente MCP (Streamable HTTP, SSE e em memória)
   mcp/remote.ts        servidores MCP conectados pela API do Claude (conector MCP)
@@ -125,7 +129,8 @@ core/                  núcleo da plataforma (executado na página)
   tools/builtin.ts     ferramentas nativas
   tools/server.ts      ferramentas de servidor da Anthropic (web_search, web_fetch)
   memory.ts            memória de longo prazo e ranking de recuperação
-  router.ts            API (rotas e streams)
+  router.ts            API: despacho das rotas e streams
+  routes/              rotas por recurso (agents.ts, llms.ts, mcp.ts, runs.ts…)
   seed.ts              dados iniciais e migração de versões
 web/src/
   lib/runtime.ts       inicialização do núcleo e armazenamento local (dados e cofre de chaves)

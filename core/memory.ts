@@ -1,6 +1,6 @@
 import { audit } from "./audit.js";
 import { db, persist } from "./store.js";
-import type { Memory, MemoryKind } from "./types.js";
+import type { Memory, MemoryKind, RunRecord } from "./types.js";
 import { now, uid } from "./util.js";
 
 /**
@@ -217,4 +217,28 @@ export function deleteMemory(
   persist();
   audit({ type: "memory.deleted", actor, ...ctx, summary: `Memória removida: ${target.content.slice(0, 80)}`, data: target });
   return true;
+}
+
+/**
+ * Resumo episódico curto e autocontido: tarefa, ferramentas, iterações e a primeira frase da resposta.
+ * Nunca inclui trechos de outras memórias (o que faria os episódios crescerem a cada execução).
+ */
+export function summarizeEpisode(input: string, iterations: number, events: RunRecord["events"], finalText: string): string {
+  // Remove marcação de markdown apenas da resposta do modelo.
+  const clean = (t: string) =>
+    t
+      .replace(/[*_`>#]/g, "")
+      .replace(/\s+/g, " ")
+      .trim();
+  const tools = [...new Set(events.flatMap((e) => (e.type === "tool.call" ? [e.name.replace(/^mcp__(.+?)__/, "$1/")] : [])))];
+  const firstLine = clean(finalText.split("\n").find((l) => l.trim() && !/epis[óo]dio/i.test(l)) ?? "");
+  const firstSentence = firstLine.split(/(?<=[.!?:])\s/)[0] ?? "";
+  const task = input.replace(/\s+/g, " ").trim(); // a tarefa é preservada como o usuário escreveu
+  const parts = [
+    `Tarefa "${task.length > 80 ? `${task.slice(0, 79)}…` : task}"`,
+    `${iterations} ${iterations === 1 ? "iteração" : "iterações"}`,
+    tools.length ? `ferramentas: ${tools.slice(0, 4).join(", ")}${tools.length > 4 ? "…" : ""}` : "sem ferramentas",
+  ];
+  const result = firstSentence ? ` Resultado: ${firstSentence.length > 70 ? `${firstSentence.slice(0, 69)}…` : firstSentence}` : "";
+  return `${parts.join(" · ")}.${result}`.slice(0, 220);
 }
