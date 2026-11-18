@@ -35,8 +35,11 @@ export type Oferta = z.infer<typeof Oferta>;
 
 export type Resultado<T> = { ok: true; valor: T } | { ok: false; erro: string };
 
-/** Busca as ofertas de uma rede para os produtos pedidos, na região do CEP. Falhas esperadas voltam como valor. */
+/** Onde o usuário está: o CEP escolhe a loja mais próxima e a cidade filtra as lojas da rede. */
+export type Local = { cep: string; cidade: string };
+
+/** Busca as ofertas de uma rede para os produtos pedidos, perto do local. Falhas esperadas voltam como valor. */
 export type Fonte = {
   rede: Rede;
-  buscar(produtos: readonly string[], cep: string, signal: AbortSignal): Promise<Resultado<Oferta[]>>;
+  buscar(produtos: readonly string[], local: Local, signal: AbortSignal): Promise<Resultado<Oferta[]>>;
 };

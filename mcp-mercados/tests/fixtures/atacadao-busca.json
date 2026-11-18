@@ -1,0 +1,38 @@
+[
+  {
+    "productName": "Banana Prata Quilo",
+    "link": "https://secure.atacadao.com.br/banana-prata-quilo-1646/p",
+    "items": [
+      {
+        "measurementUnit": "kg",
+        "sellers": [
+          {
+            "sellerId": "1",
+            "commertialOffer": {
+              "Price": 9.9,
+              "ListPrice": 9.9
+            }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "productName": "Banana-prata 18kg",
+    "link": "https://secure.atacadao.com.br/banana-prata-1644/p",
+    "items": [
+      {
+        "measurementUnit": "un",
+        "sellers": [
+          {
+            "sellerId": "1",
+            "commertialOffer": {
+              "Price": 0.0,
+              "ListPrice": 0.0
+            }
+          }
+        ]
+      }
+    ]
+  }
+]

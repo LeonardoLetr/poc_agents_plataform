@@ -28,9 +28,9 @@ Melhorias e novas funcionalidades planejadas, priorizadas por impacto e esforço
 | AL-16 | Adequar o núcleo às diretrizes de código | Qualidade | P1 | G | concluído |
 | AL-17 | Acompanhar execuções delegadas sem sair da execução pai | Melhoria | P1 | M | concluído |
 | AL-18 | Comparador de preços por encartes de supermercado | Funcionalidade | P2 | P | concluído |
-| AL-19 | Servidor MCP local de preços de supermercado | Funcionalidade | P2 | M | em andamento |
+| AL-19 | Servidor MCP local de preços de supermercado | Funcionalidade | P2 | M | concluído |
 
-Sequência sugerida: AL-19 → demais → AL-14 (último).
+Sequência sugerida: AL-13 → AL-14 (último).
 
 ---
 
@@ -280,7 +280,12 @@ Sequência sugerida: AL-19 → demais → AL-14 (último).
 - **Critérios de aceite:** o Agent Lab publicado conecta no servidor local pelo navegador; uma fonte por rede;
   preços com unidade, preço por kg, validade e fonte; consultas repetidas na mesma semana não vão à rede; rede que
   falhar vira aviso, sem derrubar as demais.
-- **Andamento:** servidor HTTP com CORS restrito às origens do Agent Lab e o cabeçalho de rede privada exigido pelo
-  Chrome, ferramentas `buscar_precos` e `listar_redes`, comparação e cache testados. Faltam o mapeamento dos sites e a
-  fonte de cada rede (hoje pendentes) e a troca do agente para usar o servidor no Haiku.
+- **Resultado:** servidor HTTP com CORS restrito às origens do Agent Lab e o cabeçalho de rede privada exigido pelo
+  Chrome; `buscar_precos(cep, cidade, produtos)` devolve as 5 ofertas mais baratas por produto, com cache semanal.
+  Fontes: Tauste pela API GraphQL da loja física mais próxima; Carrefour pelos cartões da busca (a API recusa chamadas
+  automáticas); Atacadão pela busca pública da VTEX; Assaí pelos encartes por loja, que só existem em imagem e são
+  lidos pelo Haiku quando o servidor tem `ANTHROPIC_API_KEY` (uma leitura por encarte, no cache até o fim da validade).
+  Testes com trechos reais das respostas. A migração v12 cadastra o servidor `mercados` desligado e leva o Comparador
+  de Mercados (se as instruções não foram editadas) para o servidor, no Haiku. Uma consulta de três produtos devolve
+  cerca de 7 mil caracteres, contra encartes inteiros relidos a cada iteração na versão anterior.
 

@@ -2,7 +2,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { chave, type Cache } from "./cache.ts";
 import { comparar } from "./comparacao.ts";
-import { NOMES_REDES, REDES, type Fonte, type Oferta, type Rede } from "./tipos.ts";
+import { NOMES_REDES, REDES, type Fonte, type Local, type Oferta, type Rede } from "./tipos.ts";
 
 export type Dependencias = {
   fontes: Record<Rede, Fonte>;
@@ -12,24 +12,25 @@ export type Dependencias = {
 
 /** Tempo máximo de busca em cada rede: uma rede lenta não segura a resposta das outras. */
 const LIMITE_POR_REDE_MS = 20_000;
+const MAX_OFERTAS_POR_PRODUTO = 5;
 
 /** Ofertas de uma rede para os produtos pedidos: o que estiver no cache não vai à fonte. */
-async function ofertasDaRede(deps: Dependencias, rede: Rede, cep: string, produtos: readonly string[]) {
+async function ofertasDaRede(deps: Dependencias, rede: Rede, local: Local, produtos: readonly string[]) {
   const agora = deps.agora();
   const doCache: Oferta[] = [];
   const faltando: string[] = [];
   for (const produto of produtos) {
-    const salvas = await deps.cache.ler(chave(rede, cep, produto), agora);
+    const salvas = await deps.cache.ler(chave(rede, local.cep, produto), agora);
     if (salvas) doCache.push(...salvas);
     else faltando.push(produto);
   }
   if (!faltando.length) return { rede, ofertas: doCache, erro: undefined };
 
-  const resultado = await deps.fontes[rede].buscar(faltando, cep, AbortSignal.timeout(LIMITE_POR_REDE_MS));
+  const resultado = await deps.fontes[rede].buscar(faltando, local, AbortSignal.timeout(LIMITE_POR_REDE_MS));
   if (!resultado.ok) return { rede, ofertas: doCache, erro: resultado.erro };
   // Cada produto guarda só as ofertas que correspondem a ele, inclusive a ausência delas (o encarte não tem o item).
   for (const { produto, ofertas } of comparar(faltando, resultado.valor))
-    await deps.cache.gravar(chave(rede, cep, produto), ofertas, agora);
+    await deps.cache.gravar(chave(rede, local.cep, produto), ofertas, agora);
   return { rede, ofertas: [...doCache, ...resultado.valor], erro: undefined };
 }
 
@@ -51,19 +52,21 @@ export function criarServidor(deps: Dependencias): McpServer {
         "da mais barata para a mais cara (com preço por kg quando dá para calcular). Preços de encarte são promoções da semana.",
       inputSchema: {
         cep: z.string().regex(/^\d{5}-?\d{3}$/, "CEP com 8 dígitos, ex.: 18010-000"),
+        cidade: z.string().min(2).describe("Cidade do CEP, ex.: Sorocaba"),
         produtos: z.array(z.string().min(2)).min(1).max(20).describe("Produtos da lista de compras, ex.: banana prata, maçã"),
         redes: z.array(z.enum(REDES)).optional().describe("Redes a consultar; sem informar, todas."),
       },
     },
-    async ({ cep, produtos, redes }) => {
-      const porRede = await Promise.all((redes ?? REDES).map((r) => ofertasDaRede(deps, r, cep, produtos)));
+    async ({ cep, cidade, produtos, redes }) => {
+      const porRede = await Promise.all((redes ?? REDES).map((r) => ofertasDaRede(deps, r, { cep, cidade }, produtos)));
       const resposta = {
         cep,
         consultadoEm: new Date(deps.agora()).toISOString(),
+        // As mais baratas de cada produto bastam para decidir; o resto só aumentaria o que o modelo lê.
         produtos: comparar(
           produtos,
           porRede.flatMap((r) => r.ofertas),
-        ),
+        ).map((c) => ({ ...c, ofertas: c.ofertas.slice(0, MAX_OFERTAS_POR_PRODUTO) })),
         avisos: porRede.flatMap((r) => (r.erro ? [`${NOMES_REDES[r.rede]}: ${r.erro}`] : [])),
       };
       return { content: [{ type: "text", text: JSON.stringify(resposta, null, 2) }] };

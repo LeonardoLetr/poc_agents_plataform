@@ -1,12 +1,12 @@
 import { describe, expect, it, vi } from "vitest";
-import { SEED_LLM, migrate, seedDb } from "../seed.js";
+import { MARKET_PROMPT_V10, SEED_LLM, migrate, seedDb } from "../seed.js";
 
 describe("dados iniciais", () => {
   it("criam LLMs, agentes válidos e o MCP embutido", () => {
     const db = seedDb();
     const llmIds = new Set(db.llms.map((l) => l.id));
     expect(db.agents.every((a) => llmIds.has(a.llmId))).toBe(true);
-    expect(db.mcpServers.map((s) => `${s.name}:${s.transport}`)).toEqual(["laboratorio:builtin"]);
+    expect(db.mcpServers.map((s) => `${s.name}:${s.transport}:${s.enabled}`)).toEqual(["laboratorio:builtin:true", "mercados:http:false"]);
   });
 });
 
@@ -56,7 +56,7 @@ describe("migração para a versão 3 (multiagente)", () => {
     const db = migrate(structuredClone(data));
     const coordinator = db.agents.find((a) => a.name === "Coordenador (offline)");
     expect(coordinator?.tools).toContain(`agent__${demo.id}`);
-    expect(db.version).toBe(11);
+    expect(db.version).toBe(12);
   });
 
   it("não duplica o coordenador nem o cria sem o agente demo", () => {
@@ -202,25 +202,18 @@ describe("migração para a versão 9 (sem servidor local)", () => {
       agents: fresh.agents.map((a) => (a.name === "Explorador MCP" ? { ...a, tools: [...a.tools, "mcp__everything__*"] } : a)),
     };
     const db = migrate(structuredClone(data));
-    expect(db.mcpServers.map((s) => s.name)).toEqual(["laboratorio"]);
+    expect(db.mcpServers.map((s) => s.name)).toEqual(["laboratorio", "mercados"]);
     expect(db.agents.find((a) => a.name === "Explorador MCP")!.tools).toEqual(["mcp__laboratorio__*", "calculator"]);
     expect(db.mcpServers[0]).not.toHaveProperty("env");
   });
 });
 
 describe("migração para a versão 10 (comparador de mercados)", () => {
-  it("adiciona o comparador delegando ao Pesquisador e ao Analista existentes, uma única vez", () => {
+  it("adiciona o comparador uma única vez, quando o Pesquisador e o Analista existem", () => {
     const fresh = seedDb();
     const data = { ...fresh, version: 9, agents: fresh.agents.filter((a) => a.name !== "Comparador de Mercados") };
     const db = migrate(structuredClone(data));
-    const agent = db.agents.find((a) => a.name === "Comparador de Mercados");
-    const researcher = db.agents.find((a) => a.name === "Pesquisador");
-    const analyst = db.agents.find((a) => a.name === "Analista de Dados");
-    expect(agent?.llmId).toBe(SEED_LLM.opus);
-    expect(agent?.tools).toEqual(
-      expect.arrayContaining([`agent__${researcher?.id}`, `agent__${analyst?.id}`, "memory_search", "memory_save"]),
-    );
-    expect(agent?.systemPrompt).toMatch(/CEP/);
+    expect(db.agents.filter((a) => a.name === "Comparador de Mercados")).toHaveLength(1);
     expect(migrate(structuredClone(db)).agents.filter((a) => a.name === "Comparador de Mercados")).toHaveLength(1);
   });
 
@@ -232,6 +225,36 @@ describe("migração para a versão 10 (comparador de mercados)", () => {
       agents: fresh.agents.filter((a) => a.name !== "Comparador de Mercados" && a.name !== "Pesquisador"),
     };
     expect(migrate(structuredClone(data)).agents.some((a) => a.name === "Comparador de Mercados")).toBe(false);
+  });
+});
+
+describe("migração para a versão 12 (comparador pelo servidor MCP de mercados)", () => {
+  const v11 = (systemPrompt: string) => {
+    const fresh = seedDb();
+    return {
+      ...fresh,
+      version: 11,
+      mcpServers: fresh.mcpServers.filter((s) => s.name !== "mercados"),
+      agents: fresh.agents.map((a) =>
+        a.name === "Comparador de Mercados" ? { ...a, systemPrompt, llmId: SEED_LLM.opus, tools: ["agent__x", "memory_save"] } : a,
+      ),
+    };
+  };
+  it("cadastra o servidor desligado e leva o comparador sem edição para o servidor, no Haiku", () => {
+    const db = migrate(structuredClone(v11(MARKET_PROMPT_V10)));
+    const market = db.agents.find((a) => a.name === "Comparador de Mercados");
+    expect(market?.tools).toEqual(["mcp__mercados__*", "memory_search", "memory_save", "calculator", "current_time"]);
+    expect(market?.llmId).toBe(SEED_LLM.haiku);
+    expect(market?.systemPrompt).toMatch(/buscar_precos/);
+    expect(db.mcpServers.filter((s) => s.name === "mercados")).toEqual([expect.objectContaining({ enabled: false, via: "client" })]);
+    expect(migrate(structuredClone({ ...db, version: 11 })).mcpServers.filter((s) => s.name === "mercados")).toHaveLength(1);
+  });
+
+  it("mantém o comparador cujas instruções o usuário editou", () => {
+    const db = migrate(structuredClone(v11(`${MARKET_PROMPT_V10}\nMinhas instruções.`)));
+    const market = db.agents.find((a) => a.name === "Comparador de Mercados");
+    expect(market?.tools).toEqual(["agent__x", "memory_save"]);
+    expect(market?.llmId).toBe(SEED_LLM.opus);
   });
 });
 

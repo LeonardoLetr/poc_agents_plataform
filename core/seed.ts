@@ -106,7 +106,7 @@ export function seedAgents(): AgentConfig[] {
     demo,
     coordinatorAgent(demo.id),
     emailAgent(),
-    marketAgent(researcher.id, analyst.id),
+    marketAgent(),
   ];
 }
 
@@ -153,7 +153,8 @@ export function supervisorAgent(researcherId: string, analystId: string): AgentC
   });
 }
 
-const MARKET_PROMPT =
+/** Instruções da primeira versão (encartes lidos pelo Pesquisador), usadas para atualizar só quem não as editou. */
+export const MARKET_PROMPT_V10 =
   "Você compara preços de produtos nos encartes (folhetos de ofertas) das grandes redes de supermercado perto do usuário. " +
   "Você coordena dois especialistas: o Pesquisador (busca e lê páginas e PDFs na web) e o Analista de Dados (faz as contas). " +
   "Eles não veem esta conversa: cada delegação precisa trazer todas as informações necessárias.\n\n" +
@@ -180,31 +181,51 @@ const MARKET_PROMPT =
   "Encartes trazem só as promoções da semana: deixe isso claro, porque o preço normal da loja pode ser outro. " +
   "Não faça você mesmo o trabalho dos especialistas. Responda em português.";
 
+const MARKET_PROMPT =
+  "Você compara preços de supermercado nas grandes redes perto do usuário com a ferramenta `buscar_precos`, do servidor " +
+  "MCP de mercados que roda no computador do usuário. Ela já busca, compara e devolve as ofertas resumidas.\n\n" +
+  "Passo a passo:\n" +
+  '1. Localização: procure na memória o CEP e a cidade do usuário (`memory_search` com "CEP cidade do usuário"). ' +
+  "Se não houver, pergunte e pare. Quando o usuário informar, salve com `memory_save` (tipo preference, " +
+  'ex.: "CEP do usuário: 18048-110, cidade: Sorocaba") e continue.\n' +
+  "2. Chame `buscar_precos` uma única vez, com o CEP, a cidade e todos os produtos da lista.\n" +
+  "3. Responda com uma tabela por produto (rede, produto, preço, unidade, preço por kg quando houver, promoção) e a " +
+  "recomendação de onde comprar: uma rede para tudo ou dividir entre duas, com o total de cada opção calculado com " +
+  "`calculator`. Liste os avisos das redes que falharam (por exemplo, encarte do Assaí só em imagem).\n\n" +
+  "Tauste mostra o preço da loja física mais próxima; Carrefour e Atacadão, o da loja online, que pode diferir da loja " +
+  "física. Nunca invente um preço que a ferramenta não trouxe. Se `buscar_precos` não estiver disponível, explique que é " +
+  'preciso rodar `npm run mercados` no computador e conectar o servidor "mercados" em Servidores MCP. Responda em português.';
+
+/** Servidor MCP local de preços (`mcp-mercados/`): começa desligado, porque só existe quando o usuário o inicia. */
+export function mercadosServer(): McpServerConfig {
+  return {
+    id: uid("mcp"),
+    name: "mercados",
+    transport: "http",
+    url: "http://localhost:3333/mcp",
+    via: "client",
+    enabled: false,
+    createdAt: now(),
+  };
+}
+
 /**
- * Comparador de preços por encartes das grandes redes perto do usuário. Pede o CEP uma vez e o guarda na memória;
- * a busca dos encartes vai ao Pesquisador (uma rede por delegação, em paralelo) e as contas ao Analista de Dados.
+ * Comparador de preços das grandes redes perto do usuário. Pede o CEP uma vez e o guarda na memória; os preços vêm do
+ * servidor MCP local de mercados, que devolve só a lista resumida, por isso um modelo pequeno (Haiku) basta.
  */
-export function marketAgent(researcherId: string, analystId: string): AgentConfig {
+export function marketAgent(): AgentConfig {
   return baseAgent({
     name: "Comparador de Mercados",
     emoji: "🛒",
     color: "#15803d",
     description:
-      "Compara preços nos encartes das grandes redes de supermercado perto do seu CEP, delegando a busca ao Pesquisador e as contas ao Analista. Usa Claude (requer chave).",
+      "Compara preços das grandes redes de supermercado perto do seu CEP pelo servidor MCP local de mercados. Usa Claude Haiku (requer chave e o servidor rodando).",
+    llmId: SEED_LLM.haiku,
     systemPrompt: MARKET_PROMPT,
-    tools: [
-      `agent__${researcherId}`,
-      `agent__${analystId}`,
-      "memory_search",
-      "memory_save",
-      "scratchpad_write",
-      "scratchpad_read",
-      "current_time",
-    ],
-    maxIterations: 15,
+    tools: ["mcp__mercados__*", "memory_search", "memory_save", "calculator", "current_time"],
+    maxIterations: 8,
     // O CEP é buscado de propósito no primeiro passo: o recall automático compara palavras, e "quero comprar frutas" não traz o CEP.
     memory: { autoRecall: true, autoEpisode: true, recallLimit: 3 },
-    context: { autoCompact: true, thresholdPct: 60 },
   });
 }
 
@@ -303,6 +324,7 @@ export function seedMcpServers(): McpServerConfig[] {
       enabled: true,
       createdAt: now(),
     },
+    mercadosServer(),
   ];
   return servers;
 }
@@ -461,7 +483,7 @@ export function seedPrompts(agents: readonly AgentConfig[]): PromptTemplate[] {
 export function seedDb(): DB {
   const agents = seedAgents();
   return {
-    version: 11,
+    version: 12,
     llms: seedLlms(),
     agents,
     memories: seedMemories(),
@@ -544,7 +566,7 @@ export function migrate(raw: unknown): DB {
 
   // Campos que o formato atual não conhece (provider/model do agente, env dos servidores) são descartados aqui.
   const out: DB = {
-    version: 11,
+    version: 12,
     llms: parseEach(LlmConfig, rawLlms, "LLMs"),
     agents: parseEach(AgentConfig, rawAgents, "agentes"),
     memories: parseEach(Memory, rawList(data.memories), "memórias"),
@@ -602,7 +624,7 @@ export function migrate(raw: unknown): DB {
       out.llms.some((l) => l.id === SEED_LLM.opus) &&
       !out.agents.some((a) => a.name === "Comparador de Mercados")
     )
-      out.agents.push(marketAgent(researcher.id, analyst.id));
+      out.agents.push(marketAgent());
   }
   if (version < 11) {
     // Versão 11: os atalhos fixos do Playground viram prompts de tarefa ligados aos agentes de exemplo.
@@ -611,6 +633,23 @@ export function migrate(raw: unknown): DB {
     const research = out.prompts.find((p) => p.name === "Tarefa: pesquisa com fontes" && p.agentIds.length === 0);
     const researcher = out.agents.find((a) => a.name === "Pesquisador");
     if (research && researcher) research.agentIds = [researcher.id];
+  }
+  if (version < 12) {
+    // Versão 12: o comparador passa a usar o servidor MCP local de mercados, no Haiku. Só muda quem não editou as instruções.
+    if (!out.mcpServers.some((srv) => srv.name === "mercados")) out.mcpServers.push(mercadosServer());
+    const market = out.agents.find((a) => a.name === "Comparador de Mercados" && a.systemPrompt === MARKET_PROMPT_V10);
+    if (market) {
+      const updated = marketAgent();
+      Object.assign(market, {
+        systemPrompt: updated.systemPrompt,
+        description: updated.description,
+        tools: updated.tools,
+        maxIterations: updated.maxIterations,
+        llmId: out.llms.some((l) => l.id === SEED_LLM.haiku) ? SEED_LLM.haiku : market.llmId,
+        context: undefined,
+        updatedAt: now(),
+      });
+    }
   }
   return out;
 }

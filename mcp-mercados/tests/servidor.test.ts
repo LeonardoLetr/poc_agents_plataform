@@ -52,7 +52,10 @@ describe("servidor MCP de mercados", () => {
     expect((await client.listTools()).tools.map((t) => t.name)).toEqual(["listar_redes", "buscar_precos"]);
 
     const consultar = async () => {
-      const r = await client.callTool({ name: "buscar_precos", arguments: { cep: "18010-000", produtos: ["banana prata"] } });
+      const r = await client.callTool({
+        name: "buscar_precos",
+        arguments: { cep: "18010-000", cidade: "Sorocaba", produtos: ["banana prata"] },
+      });
       const [bloco] = r.content as { type: string; text: string }[];
       return JSON.parse(bloco?.text ?? "{}");
     };
