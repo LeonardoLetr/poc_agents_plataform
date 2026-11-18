@@ -414,7 +414,7 @@ export default function Playground() {
         {approval && (
           <div className="space-y-4">
             <p className="text-sm text-ink-300">
-              Este agente exige aprovação humana. Ele pediu para executar{" "}
+              A política deste agente pede aprovação para esta ferramenta. Ele pediu para executar{" "}
               <b className="font-mono text-warn">{toolLabel(approval.name).label}</b>
               {approval.server && (
                 <>

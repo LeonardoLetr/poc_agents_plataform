@@ -49,6 +49,7 @@ const baseAgent = (a: Partial<AgentConfig> & Pick<AgentConfig, "name" | "systemP
   llmId: SEED_LLM.opus,
   maxIterations: 10,
   requireApproval: false,
+  toolPolicies: {},
   memory: { autoRecall: true, autoEpisode: true, recallLimit: 5 },
   createdAt: now(),
   updatedAt: now(),

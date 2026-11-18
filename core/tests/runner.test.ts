@@ -116,6 +116,28 @@ describe("loop agêntico com a LLM demo", () => {
     expect(types(events).at(-1)).toBe("run.completed");
   });
 
+  it("pede aprovação só para a ferramenta marcada e nunca oferece a bloqueada", async () => {
+    const id = await agent({
+      tools: ["calculator", "current_time", "memory_save"],
+      toolPolicies: { calculator: "ask", memory_save: "block" },
+    });
+    const res = await ctx.api("POST", "/api/runs", { agentId: id, input: "quanto é 2 + 2 e que horas são? lembre que prefiro chá" });
+    const asked: string[] = [];
+    const events = await collectRun(ctx.core, res.body.id, {
+      onEvent: (e) => {
+        if (e.type === "tool.approval_requested") {
+          asked.push(e.name);
+          void ctx.api("POST", `/api/runs/${res.body.id}/approve`, { toolUseId: e.id, approved: true });
+        }
+      },
+    });
+    expect(asked).toEqual(["calculator"]);
+    expect(toolCalls(events).map((c) => c.name)).toEqual(["calculator", "current_time"]);
+    const request = events.find((e) => e.type === "llm.request");
+    expect(request && "toolCount" in request && request.toolCount).toBe(2);
+    expect(types(events).at(-1)).toBe("run.completed");
+  });
+
   it("interrompe ao atingir o limite de iterações", async () => {
     const id = await agent({ tools: ["scratchpad_write", "calculator"], maxIterations: 1 });
     const { events } = await run(id, "quanto é 5 * 5?");

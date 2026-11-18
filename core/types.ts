@@ -54,8 +54,10 @@ export const AgentConfig = z.object({
   /** Nomes das ferramentas habilitadas (builtin ou `mcp__servidor__tool`). */
   tools: z.array(z.string()).default([]),
   maxIterations: z.number().default(10),
-  /** Pausa antes de cada chamada de ferramenta aguardando aprovação humana. */
+  /** Padrão das ferramentas sem regra própria: pausar antes de cada chamada, aguardando aprovação humana. */
   requireApproval: z.boolean().default(false),
+  /** Regras por ferramenta (ou por servidor MCP, com `mcp__<servidor>__*`), acima do padrão. */
+  toolPolicies: z.record(z.string(), z.enum(["allow", "ask", "block"])).default({}),
   memory: z
     .object({
       /** Injeta memórias relevantes no prompt de sistema antes de rodar. */
@@ -159,6 +161,7 @@ export const AUDIT_TYPES = [
   "tool.result",
   "tool.approval_requested",
   "tool.approval_resolved",
+  "tool.blocked",
   "agent.delegated",
   "agent.delegation_finished",
   "context.compacted",

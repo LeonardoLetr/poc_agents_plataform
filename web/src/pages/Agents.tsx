@@ -22,6 +22,7 @@ const blank: AgentInput = {
   tools: ["calculator", "current_time"],
   maxIterations: 10,
   requireApproval: false,
+  toolPolicies: {},
   memory: { autoRecall: true, autoEpisode: true, recallLimit: 5 },
 };
 
@@ -91,7 +92,8 @@ export default function Agents() {
               <div className="mt-3 flex flex-wrap gap-1">
                 {a.memory.autoRecall && <Badge>recall automático</Badge>}
                 {a.memory.autoEpisode && <Badge>memória episódica</Badge>}
-                {a.requireApproval && <Badge color="warn">aprovação humana</Badge>}
+                {(a.requireApproval || Object.values(a.toolPolicies).includes("ask")) && <Badge color="warn">aprovação humana</Badge>}
+                {Object.values(a.toolPolicies).includes("block") && <Badge color="bad">ferramentas bloqueadas</Badge>}
                 <Badge>máx {a.maxIterations} it.</Badge>
               </div>
               <div className="mt-4 flex gap-2">
@@ -397,69 +399,76 @@ function AgentEditor({
         )}
 
         {tab === "comportamento" && (
-          <div className="grid gap-4 md:grid-cols-2">
-            <div className="rounded-xl border border-ink-700 p-2">
-              <div className="px-2 pt-1 text-[12px] font-medium text-ink-400">Memória</div>
-              <Toggle
-                checked={form.memory.autoRecall}
-                onChange={(v) => set("memory", { ...form.memory, autoRecall: v })}
-                label="Recall automático"
-                description="Busca memórias relevantes e injeta no prompt de sistema antes de rodar."
-              />
-              <Toggle
-                checked={form.memory.autoEpisode}
-                onChange={(v) => set("memory", { ...form.memory, autoEpisode: v })}
-                label="Memória episódica"
-                description="Salva um resumo de cada execução concluída."
-              />
-              <Toggle
-                checked={Boolean(form.memory.recallEpisodes)}
-                onChange={(v) => set("memory", { ...form.memory, recallEpisodes: v })}
-                label="Episódios no recall"
-                description="Inclui resumos de execuções anteriores entre as memórias injetadas automaticamente."
-              />
-            </div>
-            <div className="rounded-xl border border-ink-700 p-2">
-              <div className="px-2 pt-1 text-[12px] font-medium text-ink-400">Controle e segurança</div>
-              <Toggle
-                checked={form.requireApproval}
-                onChange={(v) => set("requireApproval", v)}
-                label="Aprovação humana"
-                description="Pausa antes de cada ferramenta e pede sua autorização."
-              />
-              <div className="px-2 pt-1">
-                <Field label="Máximo de iterações" hint="evita loops infinitos">
-                  <Input
-                    type="number"
-                    min={1}
-                    max={50}
-                    value={form.maxIterations}
-                    onChange={(e) => set("maxIterations", Number(e.target.value))}
-                  />
-                </Field>
+          <div className="space-y-4">
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="rounded-xl border border-ink-700 p-2">
+                <div className="px-2 pt-1 text-[12px] font-medium text-ink-400">Memória</div>
+                <Toggle
+                  checked={form.memory.autoRecall}
+                  onChange={(v) => set("memory", { ...form.memory, autoRecall: v })}
+                  label="Recall automático"
+                  description="Busca memórias relevantes e injeta no prompt de sistema antes de rodar."
+                />
+                <Toggle
+                  checked={form.memory.autoEpisode}
+                  onChange={(v) => set("memory", { ...form.memory, autoEpisode: v })}
+                  label="Memória episódica"
+                  description="Salva um resumo de cada execução concluída."
+                />
+                <Toggle
+                  checked={Boolean(form.memory.recallEpisodes)}
+                  onChange={(v) => set("memory", { ...form.memory, recallEpisodes: v })}
+                  label="Episódios no recall"
+                  description="Inclui resumos de execuções anteriores entre as memórias injetadas automaticamente."
+                />
               </div>
-              <Toggle
-                checked={form.context?.autoCompact ?? false}
-                onChange={(v) => set("context", { thresholdPct: form.context?.thresholdPct ?? 60, autoCompact: v })}
-                label="Resumo automático do histórico"
-                description="Ao passar do limite da janela de contexto, o modelo resume a conversa e continua a partir do resumo."
-              />
-              {form.context?.autoCompact && (
+              <div className="rounded-xl border border-ink-700 p-2">
+                <div className="px-2 pt-1 text-[12px] font-medium text-ink-400">Controle e segurança</div>
                 <div className="px-2 pt-1">
-                  <Field label="Limite da janela" hint="% que dispara o resumo">
+                  <Field label="Máximo de iterações" hint="evita loops infinitos">
                     <Input
                       type="number"
-                      min={5}
-                      max={95}
-                      value={form.context.thresholdPct}
-                      onChange={(e) =>
-                        set("context", { autoCompact: true, thresholdPct: Math.min(95, Math.max(5, Number(e.target.value) || 60)) })
-                      }
+                      min={1}
+                      max={50}
+                      value={form.maxIterations}
+                      onChange={(e) => set("maxIterations", Number(e.target.value))}
                     />
                   </Field>
                 </div>
-              )}
+                <Toggle
+                  checked={form.context?.autoCompact ?? false}
+                  onChange={(v) => set("context", { thresholdPct: form.context?.thresholdPct ?? 60, autoCompact: v })}
+                  label="Resumo automático do histórico"
+                  description="Ao passar do limite da janela de contexto, o modelo resume a conversa e continua a partir do resumo."
+                />
+                {form.context?.autoCompact && (
+                  <div className="px-2 pt-1">
+                    <Field label="Limite da janela" hint="% que dispara o resumo">
+                      <Input
+                        type="number"
+                        min={5}
+                        max={95}
+                        value={form.context.thresholdPct}
+                        onChange={(e) =>
+                          set("context", { autoCompact: true, thresholdPct: Math.min(95, Math.max(5, Number(e.target.value) || 60)) })
+                        }
+                      />
+                    </Field>
+                  </div>
+                )}
+              </div>
             </div>
+            <ApprovalSettings
+              tools={form.tools}
+              catalog={tools.data ?? []}
+              requireApproval={form.requireApproval}
+              policies={form.toolPolicies}
+              onDefault={(v) => set("requireApproval", v)}
+              onPolicy={(name, policy) => {
+                const { [name]: _old, ...rest } = form.toolPolicies;
+                set("toolPolicies", policy ? { ...rest, [name]: policy } : rest);
+              }}
+            />
           </div>
         )}
 
@@ -542,6 +551,113 @@ function McpServerPick({
           ))}
         </div>
       )}
+    </div>
+  );
+}
+
+type Policy = AgentInput["toolPolicies"][string];
+const POLICY_LABELS: Record<Policy, string> = { allow: "Permitir", ask: "Pedir aprovação", block: "Bloquear" };
+
+/**
+ * Aprovação de ferramentas: o padrão do agente e regras por ferramenta (ou por servidor MCP inteiro). Ferramentas
+ * executadas pela Anthropic rodam dentro da chamada ao modelo e não podem pausar: para elas só há permitir ou bloquear.
+ */
+function ApprovalSettings({
+  tools,
+  catalog,
+  requireApproval,
+  policies,
+  onDefault,
+  onPolicy,
+}: {
+  tools: string[];
+  catalog: ToolInfo[];
+  requireApproval: boolean;
+  policies: AgentInput["toolPolicies"];
+  onDefault: (requireApproval: boolean) => void;
+  onPolicy: (name: string, policy: Policy | undefined) => void;
+}) {
+  const [openServers, setOpenServers] = useState<string[]>([]);
+  const info = (name: string) => catalog.find((t) => t.name === name);
+  const runsAtAnthropic = (name: string) => info(name)?.source === "server" || Boolean(info(name)?.viaAnthropic);
+  const label = (name: string) => {
+    const t = info(name);
+    if (t?.source === "agent") return t.label ?? "agente";
+    if (name.endsWith("__*")) return `${t?.server ?? toolLabel(name).server ?? "servidor"} (todas as ferramentas)`;
+    return toolLabel(name).label;
+  };
+  const row = (name: string, indent = false) => (
+    <div key={name} className={`flex items-center gap-2 py-1 ${indent ? "pl-4" : ""}`}>
+      <span className="min-w-0 flex-1 truncate font-mono text-[12px] text-ink-200">{label(name)}</span>
+      <Select
+        value={policies[name] ?? ""}
+        onChange={(e) => {
+          const v = e.target.value;
+          onPolicy(name, v === "allow" || v === "ask" || v === "block" ? v : undefined);
+        }}
+        className="!h-8 !w-44 shrink-0 text-[12px]"
+        aria-label={`Política de ${label(name)}`}
+      >
+        <option value="">Padrão</option>
+        {(["allow", "ask", "block"] as const)
+          .filter((p) => p !== "ask" || !runsAtAnthropic(name))
+          .map((p) => (
+            <option key={p} value={p}>
+              {POLICY_LABELS[p]}
+            </option>
+          ))}
+      </Select>
+    </div>
+  );
+
+  return (
+    <div className="rounded-xl border border-ink-700 p-3">
+      <div className="text-[12px] font-medium text-ink-400">Aprovação de ferramentas</div>
+      <div className="mt-2 grid gap-2 sm:grid-cols-2">
+        {(
+          [
+            [false, "Executar direto", "As ferramentas rodam sem pausa, salvo as regras abaixo."],
+            [true, "Pedir aprovação", "Pausa antes de cada ferramenta e pede sua autorização, salvo as regras abaixo."],
+          ] as const
+        ).map(([value, title, text]) => (
+          <button
+            key={title}
+            type="button"
+            onClick={() => onDefault(value)}
+            className={`rounded-lg border p-2.5 text-left transition ${requireApproval === value ? "border-accent/50 bg-accent/10" : "border-ink-700 hover:bg-ink-900"}`}
+          >
+            <div className="text-[12.5px] font-medium text-ink-100">{title}</div>
+            <div className="mt-0.5 text-[11.5px] leading-snug text-ink-400">{text}</div>
+          </button>
+        ))}
+      </div>
+      <div className="mt-3 text-[12px] text-ink-400">
+        Regras por ferramenta <span className="text-ink-500">· bloqueadas não são oferecidas ao modelo</span>
+      </div>
+      {tools.length === 0 && <p className="mt-1 text-[12px] text-ink-500">Habilite ferramentas na aba Ferramentas.</p>}
+      <div className="mt-1 divide-y divide-ink-850">
+        {tools.map((name) => {
+          if (!name.endsWith("__*")) return row(name);
+          const server = name.slice("mcp__".length, -"__*".length);
+          const individual = catalog.filter((t) => t.server === server && t.name !== name);
+          const open = openServers.includes(server);
+          return (
+            <div key={name}>
+              {row(name)}
+              {individual.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setOpenServers(open ? openServers.filter((x) => x !== server) : [...openServers, server])}
+                  className="mb-1 pl-4 text-[11.5px] text-info hover:underline"
+                >
+                  {open ? "ocultar ferramentas" : `regras por ferramenta (${individual.length})`}
+                </button>
+              )}
+              {open && individual.map((t) => row(t.name, true))}
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }

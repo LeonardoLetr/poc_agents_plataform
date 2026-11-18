@@ -1,5 +1,6 @@
 import type Anthropic from "@anthropic-ai/sdk";
 import type { AgentConfig, LlmConfig, McpServerConfig } from "../types.js";
+import { isBlocked } from "../agent/approval.js";
 import { parseJson } from "../util.js";
 
 /**
@@ -46,26 +47,36 @@ export function remoteMcpFor(
   llm: LlmConfig,
   servers: McpServerConfig[],
 ): { servers: Anthropic.Beta.BetaRequestMCPServerURLDefinition[]; toolsets: Anthropic.Beta.BetaMCPToolset[]; ignored: string[] } {
-  const wanted = servers.filter(isRemoteMcp).filter((s) => s.enabled && agent.tools.some((t) => t.startsWith(`mcp__${s.name}__`)));
+  const wanted = servers
+    .filter(isRemoteMcp)
+    .filter((s) => s.enabled && !isBlocked(agent, `mcp__${s.name}__*`) && agent.tools.some((t) => t.startsWith(`mcp__${s.name}__`)));
   if (llm.provider !== "anthropic") return { servers: [], toolsets: [], ignored: wanted.map((s) => s.name) };
   const defs: Anthropic.Beta.BetaRequestMCPServerURLDefinition[] = [];
   const toolsets: Anthropic.Beta.BetaMCPToolset[] = [];
   for (const s of wanted) {
     defs.push(serverDefinition(s));
-    const all = agent.tools.includes(`mcp__${s.name}__*`);
+    const prefix = `mcp__${s.name}__`;
+    const all = agent.tools.includes(`${prefix}*`);
     const only = agent.tools
-      .filter((t) => t.startsWith(`mcp__${s.name}__`) && !t.endsWith("__*"))
-      .map((t) => t.slice(`mcp__${s.name}__`.length));
-    toolsets.push(
-      all || !only.length
-        ? { type: "mcp_toolset", mcp_server_name: s.name }
-        : {
-            type: "mcp_toolset",
-            mcp_server_name: s.name,
-            default_config: { enabled: false },
-            configs: Object.fromEntries(only.map((t) => [t, { enabled: true }])),
-          },
-    );
+      .filter((t) => t.startsWith(prefix) && !t.endsWith("__*") && !isBlocked(agent, t))
+      .map((t) => t.slice(prefix.length));
+    // Com todas liberadas, as bloqueadas individualmente (conhecidas pelo nome) ficam desligadas no conjunto.
+    const blocked = Object.entries(agent.toolPolicies)
+      .filter(([t, policy]) => policy === "block" && t.startsWith(prefix) && !t.endsWith("__*"))
+      .map(([t]) => t.slice(prefix.length));
+    if (all)
+      toolsets.push(
+        blocked.length
+          ? { type: "mcp_toolset", mcp_server_name: s.name, configs: Object.fromEntries(blocked.map((t) => [t, { enabled: false }])) }
+          : { type: "mcp_toolset", mcp_server_name: s.name },
+      );
+    else if (only.length)
+      toolsets.push({
+        type: "mcp_toolset",
+        mcp_server_name: s.name,
+        default_config: { enabled: false },
+        configs: Object.fromEntries(only.map((t) => [t, { enabled: true }])),
+      });
   }
   return { servers: defs, toolsets, ignored: [] };
 }

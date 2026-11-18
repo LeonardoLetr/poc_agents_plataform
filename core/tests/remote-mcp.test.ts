@@ -14,7 +14,8 @@ const server = (over: Partial<McpServerConfig> = {}): McpServerConfig => ({
   createdAt: "",
   ...over,
 });
-const agent = (tools: string[]) => ({ tools }) as AgentConfig;
+const agent = (tools: string[], toolPolicies: AgentConfig["toolPolicies"] = {}) =>
+  ({ tools, toolPolicies, requireApproval: false }) as AgentConfig;
 const llm = (provider: LlmConfig["provider"]) => ({ provider }) as LlmConfig;
 
 afterEach(() => vi.unstubAllGlobals());
@@ -43,6 +44,18 @@ describe("MCP conectado pela Anthropic: montagem da requisição", () => {
     expect(other).toEqual({ servers: [], toolsets: [], ignored: ["resend"] });
     expect(remoteMcpFor(agent(["mcp__resend__*"]), llm("anthropic"), [server({ via: "client" })]).servers).toEqual([]);
     expect(remoteMcpFor(agent(["mcp__resend__*"]), llm("anthropic"), [server({ enabled: false })]).servers).toEqual([]);
+  });
+
+  it("respeita os bloqueios: servidor bloqueado não vai na requisição, ferramenta bloqueada fica desligada", () => {
+    expect(remoteMcpFor(agent(["mcp__resend__*"], { "mcp__resend__*": "block" }), llm("anthropic"), [server()]).servers).toEqual([]);
+    const all = remoteMcpFor(agent(["mcp__resend__*"], { mcp__resend__send_email: "block" }), llm("anthropic"), [server()]);
+    expect(all.toolsets).toEqual([{ type: "mcp_toolset", mcp_server_name: "resend", configs: { send_email: { enabled: false } } }]);
+    const only = remoteMcpFor(
+      agent(["mcp__resend__send_email", "mcp__resend__list_emails"], { mcp__resend__send_email: "block" }),
+      llm("anthropic"),
+      [server()],
+    );
+    expect(only.toolsets[0]?.configs).toEqual({ list_emails: { enabled: true } });
   });
 });
 

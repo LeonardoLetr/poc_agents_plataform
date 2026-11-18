@@ -4,6 +4,7 @@ import { allMcpTools, callMcpTool, resolveMcpTool } from "../mcp/manager.js";
 import { rememberUsedTool, remoteMcpFor } from "../mcp/remote.js";
 import { db, persist } from "../store.js";
 import { builtinTools, type ToolContext } from "../tools/builtin.js";
+import { isBlocked, policyFor } from "./approval.js";
 import { agentIdFromTool, agentToolDefinition, isAgentTool } from "./delegation.js";
 import { isServerTool, serverToolDefinitions } from "../tools/server.js";
 import type { AgentConfig, LlmConfig, RunEvent } from "../types.js";
@@ -30,12 +31,13 @@ function resolveTools(agent: AgentConfig) {
   }
   const mcp = allMcpTools(db.mcpServers).filter((t) => toolEnabled(agent, t.definition.name, t.server.name));
   for (const t of mcp) defs.push(t.definition);
-  return defs;
+  // Ferramenta bloqueada nem chega ao modelo: ele não perde iterações tentando usá-la.
+  return defs.filter((d) => !isBlocked(agent, d.name));
 }
 
 /** Ferramentas de servidor habilitadas no agente. Só são enviadas a LLMs Anthropic. */
 function resolveServerTools(agent: AgentConfig, llm: LlmConfig): { defs: Anthropic.Beta.BetaToolUnion[]; ignored: string[] } {
-  const names = agent.tools.filter(isServerTool);
+  const names = agent.tools.filter(isServerTool).filter((name) => !isBlocked(agent, name));
   if (llm.provider !== "anthropic") return { defs: [], ignored: names };
   return { defs: serverToolDefinitions(names, llm.model), ignored: [] };
 }
@@ -169,7 +171,22 @@ export async function executeTool(
     data: { toolUseId: block.id, input, server: mcp?.server.name },
   });
 
-  if (run.agent.requireApproval && !(await requestApproval(run, block.id, block.name, input))) {
+  const policy = policyFor(run.agent, block.name);
+  if (policy === "block") {
+    // Só chega aqui se o modelo inventou a chamada: as bloqueadas não são oferecidas a ele.
+    const output = "Esta ferramenta está bloqueada pela política do agente. Siga sem ela.";
+    emit(run, { type: "tool.result", id: block.id, name: block.name, output, isError: true, durationMs: 0 });
+    audit({
+      type: "tool.blocked",
+      actor: "system",
+      agentId: run.agent.id,
+      runId: run.record.id,
+      summary: `Bloqueou ${block.name} (política do agente)`,
+      data: { toolUseId: block.id, input },
+    });
+    return { type: "tool_result", tool_use_id: block.id, content: output, is_error: true };
+  }
+  if (policy === "ask" && !(await requestApproval(run, block.id, block.name, input))) {
     const output = "O usuário NEGOU a execução desta ferramenta. Siga sem ela ou pergunte como prosseguir.";
     emit(run, { type: "tool.result", id: block.id, name: block.name, output, isError: true, durationMs: 0 });
     return { type: "tool_result", tool_use_id: block.id, content: output, is_error: true };
