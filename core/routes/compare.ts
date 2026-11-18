@@ -1,19 +1,19 @@
 import { z } from "zod";
 import { startRun } from "../agent/runner.js";
 import { audit } from "../audit.js";
-import { PRICING } from "../llm/catalog.js";
+import { runCost } from "../llm/catalog.js";
 import { db } from "../store.js";
 import { type RunRecord } from "../types.js";
 import { errorMessage, eventsOfType, uid } from "../util.js";
 import { defineRoutes, HttpError, notFound } from "./http.js";
 import { checkLlm } from "./llms.js";
 
-/** Métricas de uma execução, usadas na comparação. Custo só é estimado para modelos com preço conhecido. */
+/** Métricas de uma execução, usadas na comparação. Sem preço conhecido, o custo fica `null` ("não estimado"). */
 function runMetrics(r: RunRecord) {
   const [started] = eventsOfType(r.events, "run.started");
   const model = started?.model ?? "";
-  const price = PRICING[model];
   const toolCalls = eventsOfType(r.events, "tool.call").map((e) => e.name);
+  const cost = runCost(r, db.llms);
   return {
     runId: r.id,
     agentId: r.agentId,
@@ -27,7 +27,7 @@ function runMetrics(r: RunRecord) {
     output: r.output,
     iterations: r.iterations,
     tokens: { input: r.usage.input, output: r.usage.output, total: r.usage.input + r.usage.output },
-    costUsd: price ? +((r.usage.input * price.input + r.usage.output * price.output) / 1e6).toFixed(6) : null,
+    costUsd: cost === null ? null : +cost.toFixed(6),
     durationMs: r.finishedAt ? new Date(r.finishedAt).getTime() - new Date(r.startedAt).getTime() : null,
     toolCalls: toolCalls.length,
     tools: [...new Set(toolCalls)],

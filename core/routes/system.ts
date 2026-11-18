@@ -1,10 +1,10 @@
 import { z } from "zod";
 import { exportConfig, importConfig } from "../backup.js";
-import { ANTHROPIC_MODELS, OPENAI_PRESETS, PRICING } from "../llm/catalog.js";
+import { ANTHROPIC_MODELS, OPENAI_PRESETS, PRICING, runCost } from "../llm/catalog.js";
 import { llmHasCredentials } from "../llm/index.js";
 import { BUILTIN_MCP_SERVERS, publicState } from "../mcp/manager.js";
 import { db } from "../store.js";
-import { errorMessage, eventsOfType } from "../util.js";
+import { errorMessage } from "../util.js";
 import { defineRoutes, HttpError } from "./http.js";
 
 /** Saúde, estatísticas e exportação/importação da configuração. */
@@ -15,7 +15,7 @@ export const systemRoutes = defineRoutes((route) => {
     capabilities: { builtinMcp: Object.keys(BUILTIN_MCP_SERVERS) },
     llmsReady: db.llms.filter(llmHasCredentials).length,
     llmsTotal: db.llms.length,
-    catalog: { anthropic: ANTHROPIC_MODELS, openai: OPENAI_PRESETS },
+    catalog: { anthropic: ANTHROPIC_MODELS, openai: OPENAI_PRESETS, pricing: PRICING },
   }));
 
   route("GET", "/api/stats", () => {
@@ -24,12 +24,8 @@ export const systemRoutes = defineRoutes((route) => {
       input: 0,
       output: 0,
     });
-    let cost = 0;
-    for (const r of runs) {
-      const [started] = eventsOfType(r.events, "run.started");
-      const p = started ? PRICING[started.model] : undefined;
-      if (p) cost += (r.usage.input * p.input + r.usage.output * p.output) / 1e6;
-    }
+    const costs = runs.map((r) => runCost(r, db.llms));
+    const cost = costs.reduce<number>((total, c) => total + (c ?? 0), 0);
     const toolCalls = db.audit.filter((a) => a.type === "tool.call");
     const toolUsage: Record<string, number> = {};
     for (const t of toolCalls) {
@@ -48,6 +44,8 @@ export const systemRoutes = defineRoutes((route) => {
       toolUsage,
       tokens,
       estimatedCostUsd: +cost.toFixed(4),
+      /** Execuções fora da conta: LLM sem preço informado e modelo fora do catálogo. */
+      unpricedRuns: costs.filter((c) => c === null).length,
       auditEntries: db.audit.length,
     };
   });

@@ -37,6 +37,8 @@ export const LlmConfig = z.object({
   maxTokens: z.number().default(64000),
   /** Janela de contexto em tokens. Opcional: sem valor, usa o catálogo (ou um padrão por provedor). */
   contextWindow: z.number().optional(),
+  /** Preço em US$ por 1 milhão de tokens, para o custo estimado. Opcional: sem valor, usa o catálogo, se o modelo estiver nele. */
+  pricing: z.object({ input: z.number().min(0), output: z.number().min(0) }).optional(),
   createdAt: Timestamp,
   updatedAt: Timestamp,
 });

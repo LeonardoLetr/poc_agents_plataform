@@ -21,7 +21,7 @@ Melhorias e novas funcionalidades planejadas, priorizadas por impacto e esforço
 | AL-09 | Exportar e importar configuração | Funcionalidade | P2 | P | concluído |
 | AL-10 | Prompts de tarefa com variáveis no Playground | Funcionalidade | P2 | P | concluído |
 | AL-11 | Aprovação humana por ferramenta | Melhoria | P2 | P | concluído |
-| AL-12 | Preços de modelos compatíveis com OpenAI | Melhoria | P3 | P | a fazer |
+| AL-12 | Preços de modelos compatíveis com OpenAI | Melhoria | P3 | P | concluído |
 | AL-13 | Busca semântica de memória com embeddings | Funcionalidade | P3 | M | a fazer |
 | AL-14 | Publicação do servidor na AWS | Infraestrutura | P3 | G | a fazer |
 | AL-15 | Servidores MCP remotos via conector da API do Claude | Funcionalidade | P2 | M | concluído |
@@ -164,6 +164,10 @@ Sequência sugerida: AL-19 → demais → AL-14 (último).
 - **Problema:** o custo estimado ignora modelos fora do catálogo da Anthropic.
 - **Proposta:** campos opcionais de preço por milhão de tokens (entrada e saída) na configuração da LLM.
 - **Critérios de aceite:** custo estimado considera os preços informados; LLMs sem preço aparecem como "não estimado".
+- **Resultado:** a LLM ganhou `pricing` opcional (US$ por 1M de tokens de entrada e de saída). `priceFor()` e
+  `runCost()` (`core/llm/catalog.ts`, testadas) usam o preço da LLM, depois o do catálogo pelo modelo; a LLM demo vale
+  zero e o resto fica "não estimado". A Visão geral soma só as execuções com preço e indica quantas ficaram de fora; a
+  comparação mostra "não estimado". O custo usa o preço atual da LLM: mudar o preço recalcula as execuções antigas.
 
 ### AL-13 · Busca semântica de memória com embeddings
 - **Problema:** mesmo com melhor ranking lexical, sinônimos e paráfrases não são recuperados.

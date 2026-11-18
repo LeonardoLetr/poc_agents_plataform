@@ -125,6 +125,13 @@ export default function Llms({ health, onChange }: { health: Health | null; onCh
                   <Badge color={p.color as "accent"}>{p.label}</Badge>
                   {l.provider === "anthropic" && <Badge>effort {l.effort}</Badge>}
                   {l.provider === "anthropic" && l.refusalFallback && <Badge>fallback</Badge>}
+                  {l.pricing ? (
+                    <Badge>
+                      US$ {l.pricing.input} / {l.pricing.output} por 1M
+                    </Badge>
+                  ) : (
+                    l.provider !== "demo" && !health?.catalog.pricing[l.model] && <Badge color="warn">custo não estimado</Badge>
+                  )}
                   {l.apiKeySet && (
                     <Badge>
                       <KeyRound size={10} /> {l.apiKeyHint}
@@ -162,6 +169,7 @@ export default function Llms({ health, onChange }: { health: Health | null; onCh
                           refusalFallback: l.refusalFallback,
                           maxTokens: l.maxTokens,
                           contextWindow: l.contextWindow,
+                          pricing: l.pricing,
                         },
                       })
                     }
@@ -385,6 +393,10 @@ function LlmEditor({
           />
         </Field>
 
+        {form.provider !== "demo" && (
+          <PricingField value={form.pricing} catalog={health?.catalog.pricing[form.model]} onChange={(p) => set("pricing", p)} />
+        )}
+
         <ErrorNote message={error} />
         <div className="flex justify-end gap-2">
           <Button onClick={onClose}>Cancelar</Button>
@@ -394,5 +406,51 @@ function LlmEditor({
         </div>
       </div>
     </Modal>
+  );
+}
+
+type Price = { input: number; output: number };
+
+/** Preço por 1M de tokens. Vale só com entrada e saída preenchidas; vazio usa o catálogo ou fica "não estimado". */
+function PricingField({
+  value,
+  catalog,
+  onChange,
+}: {
+  value: Price | undefined;
+  catalog: Price | undefined;
+  onChange: (p: Price | undefined) => void;
+}) {
+  const [input, setInput] = useState(value ? String(value.input) : "");
+  const [output, setOutput] = useState(value ? String(value.output) : "");
+  const update = (i: string, o: string) => {
+    setInput(i);
+    setOutput(o);
+    const pi = Number(i.replace(",", "."));
+    const po = Number(o.replace(",", "."));
+    onChange(i.trim() && o.trim() && pi >= 0 && po >= 0 ? { input: pi, output: po } : undefined);
+  };
+  return (
+    <Field
+      label="Preço por 1 milhão de tokens (US$)"
+      hint={catalog ? `opcional · catálogo: ${catalog.input} / ${catalog.output}` : "opcional · sem preço, o custo fica “não estimado”"}
+    >
+      <div className="grid grid-cols-2 gap-2">
+        <Input
+          inputMode="decimal"
+          aria-label="Preço de entrada por 1M de tokens"
+          placeholder={catalog ? `entrada: ${catalog.input}` : "entrada, ex.: 0,40"}
+          value={input}
+          onChange={(e) => update(e.target.value, output)}
+        />
+        <Input
+          inputMode="decimal"
+          aria-label="Preço de saída por 1M de tokens"
+          placeholder={catalog ? `saída: ${catalog.output}` : "saída, ex.: 1,60"}
+          value={output}
+          onChange={(e) => update(input, e.target.value)}
+        />
+      </div>
+    </Field>
   );
 }
