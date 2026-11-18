@@ -93,7 +93,15 @@ export default function Dashboard({ health }: { health: Health | null }) {
               <span className="text-ink-200">{fmtNumber(s?.tokens.output ?? 0)}</span> de saída
             </>
           }
-          aside={<span className="text-[11px] text-ink-400">{fmtUsd(s?.estimatedCostUsd ?? 0)}</span>}
+          aside={
+            <span
+              className="text-[11px] text-ink-400"
+              title={s?.unpricedRuns ? `${s.unpricedRuns} execuções sem preço conhecido ficaram fora da estimativa` : undefined}
+            >
+              {fmtUsd(s?.estimatedCostUsd ?? 0)}
+              {s?.unpricedRuns ? ` + ${s.unpricedRuns} não estimadas` : ""}
+            </span>
+          }
         >
           <BarSpark values={history.map((r) => r.usage.input + r.usage.output)} />
         </KpiCard>

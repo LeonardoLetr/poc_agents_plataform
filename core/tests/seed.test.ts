@@ -56,7 +56,7 @@ describe("migração para a versão 3 (multiagente)", () => {
     const db = migrate(structuredClone(data));
     const coordinator = db.agents.find((a) => a.name === "Coordenador (offline)");
     expect(coordinator?.tools).toContain(`agent__${demo.id}`);
-    expect(db.version).toBe(10);
+    expect(db.version).toBe(11);
   });
 
   it("não duplica o coordenador nem o cria sem o agente demo", () => {
@@ -232,6 +232,33 @@ describe("migração para a versão 10 (comparador de mercados)", () => {
       agents: fresh.agents.filter((a) => a.name !== "Comparador de Mercados" && a.name !== "Pesquisador"),
     };
     expect(migrate(structuredClone(data)).agents.some((a) => a.name === "Comparador de Mercados")).toBe(false);
+  });
+});
+
+describe("migração para a versão 11 (prompts de tarefa por agente)", () => {
+  it("cria os atalhos ligados aos agentes de exemplo, inclusive o comparador criado na v10, sem duplicar", () => {
+    const fresh = seedDb();
+    const data = {
+      ...fresh,
+      version: 9,
+      agents: fresh.agents.filter((a) => a.name !== "Comparador de Mercados"),
+      prompts: fresh.prompts.filter((p) => p.category === "system").map((p) => ({ ...p, agentIds: undefined })),
+    };
+    const db = migrate(structuredClone(data));
+    const byName = (name: string) => db.agents.find((a) => a.name === name)?.id;
+    expect(db.prompts.find((p) => p.name === "Lista de compras")?.agentIds).toEqual([byName("Comparador de Mercados")]);
+    expect(db.prompts.find((p) => p.name === "Juros compostos")?.content).toMatch(/\{\{taxa\}\}/);
+    expect(db.prompts.filter((p) => p.category === "system").every((p) => p.agentIds.length === 0)).toBe(true);
+    const twice = migrate(structuredClone({ ...db, version: 10 }));
+    expect(twice.prompts.filter((p) => p.name === "Lista de compras")).toHaveLength(1);
+  });
+
+  it("liga o modelo de pesquisa existente ao Pesquisador", () => {
+    const fresh = seedDb();
+    const data = { ...fresh, version: 10, prompts: fresh.prompts.map((p) => ({ ...p, agentIds: [] })) };
+    const db = migrate(structuredClone(data));
+    const researcher = db.agents.find((a) => a.name === "Pesquisador");
+    expect(db.prompts.find((p) => p.name === "Tarefa: pesquisa com fontes")?.agentIds).toEqual([researcher?.id]);
   });
 });
 

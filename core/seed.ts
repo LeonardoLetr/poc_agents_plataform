@@ -49,6 +49,7 @@ const baseAgent = (a: Partial<AgentConfig> & Pick<AgentConfig, "name" | "systemP
   llmId: SEED_LLM.opus,
   maxIterations: 10,
   requireApproval: false,
+  toolPolicies: {},
   memory: { autoRecall: true, autoEpisode: true, recallLimit: 5 },
   createdAt: now(),
   updatedAt: now(),
@@ -306,13 +307,121 @@ export function seedMcpServers(): McpServerConfig[] {
   return servers;
 }
 
-export function seedPrompts(): PromptTemplate[] {
+/**
+ * Atalhos de tarefa do Playground, por agente de exemplo (pelo nome). `{{variável}}` vira um campo a preencher antes
+ * de usar o texto.
+ */
+const TASK_PROMPTS: { agents: string[]; name: string; description: string; content: string }[] = [
+  {
+    agents: ["Agente Demo (offline)", "Coordenador (offline)"],
+    name: "Conta e horário",
+    description: "Calculadora e relógio no mesmo pedido.",
+    content: "Quanto é (1250 * 1.08) ^ 2 e que horas são agora?",
+  },
+  {
+    agents: ["Agente Demo (offline)"],
+    name: "Guardar uma preferência",
+    description: "Salva uma preferência na memória de longo prazo.",
+    content: "Lembre que eu prefiro {{preferencia}}",
+  },
+  {
+    agents: ["Agente Demo (offline)"],
+    name: "Dados e nota (MCP)",
+    description: "Usa duas ferramentas do servidor MCP de exemplo.",
+    content: "Role {{dados}} e adicione a nota: {{nota}}",
+  },
+  {
+    agents: ["Agente Demo (offline)"],
+    name: "Resumir uma página",
+    description: "Lê uma página pela ferramenta http_fetch.",
+    content: "Resuma {{url}}",
+  },
+  {
+    agents: ["Pesquisador"],
+    name: "Pesquisar e memorizar",
+    description: "Pesquisa com fontes e salva o principal na memória.",
+    content: "Pesquise o que é o Model Context Protocol em https://modelcontextprotocol.io e salve o principal na memória",
+  },
+  {
+    agents: ["Analista de Dados"],
+    name: "Juros compostos",
+    description: "Projeção de investimento mensal, com as contas.",
+    content: "Se eu investir R$ {{valor_mensal}} por mês a {{taxa}}% ao mês, quanto terei em {{anos}} anos? Mostre as contas.",
+  },
+  {
+    agents: ["Assistente com Memória"],
+    name: "O que você lembra",
+    description: "Consulta a memória de longo prazo sobre o usuário.",
+    content: "O que você lembra sobre mim?",
+  },
+  {
+    agents: ["Explorador MCP"],
+    name: "Converter e rolar dados",
+    description: "Duas ferramentas do servidor MCP de exemplo.",
+    content: "Converta {{km}} km para milhas e role 3d6 usando o servidor MCP",
+  },
+  {
+    agents: ["Assistente de E-mail"],
+    name: "E-mail de teste",
+    description: "Rascunho de um e-mail curto, enviado só depois da confirmação.",
+    content: 'Escreva um e-mail para {{destinatario}} com o assunto "Teste do Agent Lab" dizendo que o agente de e-mail está funcionando',
+  },
+  {
+    agents: ["Assistente de E-mail"],
+    name: "Convite de reunião",
+    description: "Convite com assunto, data e participantes.",
+    content: "Redija um convite para uma reunião de {{assunto}} {{quando}} para {{destinatarios}}",
+  },
+  {
+    agents: ["Supervisor"],
+    name: "Custo de uma viagem",
+    description: "Pesquisa de preço com o Pesquisador e contas com o Analista.",
+    content:
+      "Pesquise o preço médio atual do litro da gasolina no Brasil e calcule quanto custa rodar {{km}} km com um carro que faz {{consumo}} km/l",
+  },
+  {
+    agents: ["Supervisor"],
+    name: "Comparar capitais",
+    description: "Pesquisa com fontes e cálculo percentual.",
+    content:
+      "Compare a população das 3 maiores capitais do Brasil e calcule a diferença percentual entre a maior e a menor, citando as fontes",
+  },
+  {
+    agents: ["Comparador de Mercados"],
+    name: "Lista de compras",
+    description: "Compara os produtos nos encartes das redes perto do seu CEP.",
+    content: "Quero comprar {{produtos}}. Onde está mais barato?",
+  },
+];
+
+/** Prompts de tarefa ligados aos agentes de exemplo que existirem (os demais atalhos ficam de fora). */
+function taskPromptsFor(agents: readonly AgentConfig[]): PromptTemplate[] {
+  return TASK_PROMPTS.flatMap((t) => {
+    const agentIds = agents.filter((a) => t.agents.includes(a.name)).map((a) => a.id);
+    return agentIds.length
+      ? [
+          {
+            id: uid("prm"),
+            name: t.name,
+            description: t.description,
+            content: t.content,
+            category: "task" as const,
+            agentIds,
+            createdAt: now(),
+          },
+        ]
+      : [];
+  });
+}
+
+export function seedPrompts(agents: readonly AgentConfig[]): PromptTemplate[] {
   const p = (name: string, description: string, content: string, category: PromptTemplate["category"]): PromptTemplate => ({
     id: uid("prm"),
     name,
     description,
     content,
     category,
+    agentIds: [],
     createdAt: now(),
   });
   return [
@@ -336,23 +445,28 @@ export function seedPrompts(): PromptTemplate[] {
       "Antes da resposta final, revise criticamente: há erros? suposições não verificadas? Corrija o que for necessário.",
       "system",
     ),
-    p(
-      "Tarefa: pesquisa com fontes",
-      "Modelo de tarefa para o agente Pesquisador.",
-      "Pesquise sobre {{tema}}. Traga 3 fatos principais, cada um com a URL da fonte, e salve o mais importante na memória.",
-      "task",
-    ),
+    {
+      ...p(
+        "Tarefa: pesquisa com fontes",
+        "Modelo de tarefa para o agente Pesquisador.",
+        "Pesquise sobre {{tema}}. Traga 3 fatos principais, cada um com a URL da fonte, e salve o mais importante na memória.",
+        "task",
+      ),
+      agentIds: agents.filter((a) => a.name === "Pesquisador").map((a) => a.id),
+    },
+    ...taskPromptsFor(agents),
   ];
 }
 
 export function seedDb(): DB {
+  const agents = seedAgents();
   return {
-    version: 10,
+    version: 11,
     llms: seedLlms(),
-    agents: seedAgents(),
+    agents,
     memories: seedMemories(),
     mcpServers: seedMcpServers(),
-    prompts: seedPrompts(),
+    prompts: seedPrompts(agents),
     audit: [],
     runs: [],
   };
@@ -430,7 +544,7 @@ export function migrate(raw: unknown): DB {
 
   // Campos que o formato atual não conhece (provider/model do agente, env dos servidores) são descartados aqui.
   const out: DB = {
-    version: 10,
+    version: 11,
     llms: parseEach(LlmConfig, rawLlms, "LLMs"),
     agents: parseEach(AgentConfig, rawAgents, "agentes"),
     memories: parseEach(Memory, rawList(data.memories), "memórias"),
@@ -489,6 +603,14 @@ export function migrate(raw: unknown): DB {
       !out.agents.some((a) => a.name === "Comparador de Mercados")
     )
       out.agents.push(marketAgent(researcher.id, analyst.id));
+  }
+  if (version < 11) {
+    // Versão 11: os atalhos fixos do Playground viram prompts de tarefa ligados aos agentes de exemplo.
+    const names = new Set(out.prompts.map((p) => p.name));
+    out.prompts.push(...taskPromptsFor(out.agents).filter((p) => !names.has(p.name)));
+    const research = out.prompts.find((p) => p.name === "Tarefa: pesquisa com fontes" && p.agentIds.length === 0);
+    const researcher = out.agents.find((a) => a.name === "Pesquisador");
+    if (research && researcher) research.agentIds = [researcher.id];
   }
   return out;
 }

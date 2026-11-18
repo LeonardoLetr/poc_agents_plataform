@@ -17,6 +17,7 @@ import { motion } from "motion/react";
 import { Bot, Brain, Calculator, Clock, Globe, NotebookPen, Plug, User, Wrench } from "lucide-react";
 import { useEffect, useMemo } from "react";
 import type { Agent, ToolInfo } from "../lib/api";
+import { policyFor } from "../../../core/agent/approval";
 import { useRunStream } from "../lib/hooks";
 import { childActivity, graphTarget, latestChildRuns, SERVER_TOOL_NAMES, type RunView } from "../lib/runState";
 
@@ -277,11 +278,12 @@ function GraphInner({ agent, tools, view, llmLabel, onOpenRun }: GraphProps) {
     }
     if (view.status === "completed") flows.set("user", "back");
 
-    const toolNodes: (Omit<ToolData, "active" | "count"> & { id: string })[] = [
+    const nodesBeforePolicy: (Omit<ToolData, "active" | "count"> & { id: string; tool: string })[] = [
       ...builtin.map((t) =>
         t.startsWith("agent__")
           ? {
               id: `tool:${t}`,
+              tool: t,
               label: tools.find((x) => x.name === t)?.label ?? "agente",
               sub: "agente · delegação",
               icon: Bot,
@@ -290,8 +292,8 @@ function GraphInner({ agent, tools, view, llmLabel, onOpenRun }: GraphProps) {
               ...(childRuns.has(t) ? { childRunId: childRuns.get(t) } : {}),
             }
           : SERVER_TOOL_NAMES.includes(t)
-            ? { id: `tool:${t}`, label: t, sub: "servidor Anthropic", icon: ICONS[t] ?? Globe, color: "#0891b2" }
-            : { id: `tool:${t}`, label: t, sub: "ferramenta nativa", icon: ICONS[t] ?? Wrench, color: "#d97706" },
+            ? { id: `tool:${t}`, tool: t, label: t, sub: "servidor Anthropic", icon: ICONS[t] ?? Globe, color: "#0891b2" }
+            : { id: `tool:${t}`, tool: t, label: t, sub: "ferramenta nativa", icon: ICONS[t] ?? Wrench, color: "#d97706" },
       ),
       ...[...mcpServers].map((s) => {
         const serverTools = tools.filter((t) => t.server === s);
@@ -299,6 +301,7 @@ function GraphInner({ agent, tools, view, llmLabel, onOpenRun }: GraphProps) {
         const via = serverTools.some((t) => t.viaAnthropic);
         return {
           id: `mcp:${s}`,
+          tool: `mcp__${s}__*`,
           label: s,
           sub: via ? "MCP · via Anthropic" : available ? `MCP · ${available} ferramentas` : "MCP · desconectado",
           icon: Plug,
@@ -307,6 +310,10 @@ function GraphInner({ agent, tools, view, llmLabel, onOpenRun }: GraphProps) {
         };
       }),
     ];
+    // Ferramentas bloqueadas pela política do agente continuam no mapa, apagadas, para a regra ficar visível.
+    const toolNodes = nodesBeforePolicy.map(({ tool, ...n }) =>
+      policyFor(agent, tool) === "block" ? { ...n, sub: "bloqueada", dim: true } : n,
+    );
 
     const gap = 78;
     const startY = 150 - ((toolNodes.length - 1) * gap) / 2;

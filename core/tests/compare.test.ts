@@ -42,7 +42,7 @@ describe("comparação lado a lado", () => {
     for (const r of body.results) {
       expect(r.tokens.total).toBe(r.tokens.input + r.tokens.output);
       expect(r.durationMs).toBeGreaterThanOrEqual(0);
-      expect(r.costUsd).toBeNull(); // modelo demo não tem preço
+      expect(r.costUsd).toBe(0); // a LLM demo não cobra
       expect(r.output).toContain("42");
     }
   });

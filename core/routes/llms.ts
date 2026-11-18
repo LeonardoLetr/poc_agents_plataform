@@ -18,6 +18,7 @@ const LlmInput = z.object({
   refusalFallback: z.boolean().default(true),
   maxTokens: z.number().int().min(256).max(128000).optional(),
   contextWindow: z.number().int().min(1000).max(10_000_000).optional(),
+  pricing: z.object({ input: z.number().min(0), output: z.number().min(0) }).optional(),
 });
 
 /** Falha com 404 se a LLM não existe. */
@@ -62,6 +63,7 @@ export const llmRoutes = defineRoutes((route) => {
       refusalFallback: body.refusalFallback,
       maxTokens: body.maxTokens ?? llm.maxTokens,
       contextWindow: body.contextWindow,
+      pricing: body.pricing,
       updatedAt: now(),
     });
     if (body.apiKey !== undefined) llm.apiKey = body.apiKey.trim() || undefined;

@@ -19,9 +19,9 @@ Melhorias e novas funcionalidades planejadas, priorizadas por impacto e esforço
 | AL-07 | Gestão da janela de contexto (medidor e resumo) | Funcionalidade | P1 | M | concluído |
 | AL-08 | Replay passo a passo de execuções | Funcionalidade | P2 | M | concluído |
 | AL-09 | Exportar e importar configuração | Funcionalidade | P2 | P | concluído |
-| AL-10 | Prompts de tarefa com variáveis no Playground | Funcionalidade | P2 | P | a fazer |
-| AL-11 | Aprovação humana por ferramenta | Melhoria | P2 | P | a fazer |
-| AL-12 | Preços de modelos compatíveis com OpenAI | Melhoria | P3 | P | a fazer |
+| AL-10 | Prompts de tarefa com variáveis no Playground | Funcionalidade | P2 | P | concluído |
+| AL-11 | Aprovação humana por ferramenta | Melhoria | P2 | P | concluído |
+| AL-12 | Preços de modelos compatíveis com OpenAI | Melhoria | P3 | P | concluído |
 | AL-13 | Busca semântica de memória com embeddings | Funcionalidade | P3 | M | a fazer |
 | AL-14 | Publicação do servidor na AWS | Infraestrutura | P3 | G | a fazer |
 | AL-15 | Servidores MCP remotos via conector da API do Claude | Funcionalidade | P2 | M | concluído |
@@ -30,7 +30,7 @@ Melhorias e novas funcionalidades planejadas, priorizadas por impacto e esforço
 | AL-18 | Comparador de preços por encartes de supermercado | Funcionalidade | P2 | P | concluído |
 | AL-19 | Servidor MCP local de preços de supermercado | Funcionalidade | P2 | M | em andamento |
 
-Sequência sugerida: AL-11 → AL-10 → demais → AL-14 (último).
+Sequência sugerida: AL-19 → demais → AL-14 (último).
 
 ---
 
@@ -143,16 +143,32 @@ Sequência sugerida: AL-11 → AL-10 → demais → AL-14 (último).
 - **Problema:** modelos de tarefa com `{{variáveis}}` não têm onde ser preenchidos.
 - **Proposta:** seletor de modelo de tarefa no Playground com formulário gerado a partir das variáveis.
 - **Critérios de aceite:** todas as variáveis exigidas antes da execução; texto final visível antes de enviar.
+- **Resultado:** prompts de tarefa ganharam a lista de agentes em que aparecem (`agentIds`; vazia vale para todos) e
+  viraram os atalhos do Playground, no lugar dos exemplos fixos no código. Um atalho com variáveis abre um formulário
+  com um campo por variável e a prévia do texto final; o texto só vai para a caixa de tarefa com tudo preenchido. A
+  migração v11 cria os atalhos dos agentes de exemplo. A tela Prompts separa tarefa e sistema em abas e mostra em quais
+  agentes cada atalho aparece. Funções puras em `web/src/lib/prompts.ts`, com testes.
 
 ### AL-11 · Aprovação humana por ferramenta
 - **Problema:** a aprovação é tudo ou nada por agente.
 - **Proposta:** política por ferramenta (sempre permitir, pedir aprovação, bloquear).
 - **Critérios de aceite:** política aplicada também a ferramentas MCP; decisões registradas na auditoria.
+- **Resultado:** cada agente tem `toolPolicies` (permitir, pedir aprovação ou bloquear) por ferramenta ou por servidor
+  MCP inteiro (`mcp__<servidor>__*`); sem regra, vale o padrão do agente (o antigo "Aprovação humana"). A decisão fica
+  em `policyFor()` (`core/agent/approval.ts`, testada). Ferramentas bloqueadas não são oferecidas ao modelo, inclusive
+  as de servidor e as dos servidores MCP conectados pela Anthropic (servidor fora da requisição ou ferramenta desligada
+  no conjunto); uma chamada a ferramenta bloqueada volta como erro e é auditada como `tool.blocked`. Ferramentas
+  executadas pela Anthropic não podem pausar, então só aceitam permitir ou bloquear. No editor, a aba Comportamento
+  ganhou a seção "Aprovação de ferramentas", e o grafo mostra as bloqueadas apagadas.
 
 ### AL-12 · Preços de modelos compatíveis com OpenAI
 - **Problema:** o custo estimado ignora modelos fora do catálogo da Anthropic.
 - **Proposta:** campos opcionais de preço por milhão de tokens (entrada e saída) na configuração da LLM.
 - **Critérios de aceite:** custo estimado considera os preços informados; LLMs sem preço aparecem como "não estimado".
+- **Resultado:** a LLM ganhou `pricing` opcional (US$ por 1M de tokens de entrada e de saída). `priceFor()` e
+  `runCost()` (`core/llm/catalog.ts`, testadas) usam o preço da LLM, depois o do catálogo pelo modelo; a LLM demo vale
+  zero e o resto fica "não estimado". A Visão geral soma só as execuções com preço e indica quantas ficaram de fora; a
+  comparação mostra "não estimado". O custo usa o preço atual da LLM: mudar o preço recalcula as execuções antigas.
 
 ### AL-13 · Busca semântica de memória com embeddings
 - **Problema:** mesmo com melhor ranking lexical, sinônimos e paráfrases não são recuperados.

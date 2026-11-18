@@ -9,11 +9,13 @@ import { ChildRunPanel } from "../components/ChildRunPanel";
 import { OpenRunContext } from "../components/openRun";
 import { LiveDot } from "../components/effects";
 import { JsonView } from "../components/JsonView";
+import { TaskPromptDialog } from "../components/TaskPromptDialog";
 import { Timeline } from "../components/Timeline";
 import { Badge, Button, Card, ErrorNote, Modal, Textarea } from "../components/ui";
-import { api, type Agent, type Llm, type RunDetail, type RunEvent, type RunSummary, type ToolInfo } from "../lib/api";
+import { api, type Agent, type Llm, type PromptTemplate, type RunDetail, type RunEvent, type RunSummary, type ToolInfo } from "../lib/api";
 import { fmtNumber, timeAgo, toolLabel } from "../lib/format";
 import { useEventStream, useResource } from "../lib/hooks";
+import { promptVariables, taskPromptsFor } from "../lib/prompts";
 import { viewAt } from "../lib/replay";
 import { emptyRun, reduceRun, type RunView } from "../lib/runState";
 
@@ -34,36 +36,6 @@ function mergeDelta(list: RunEvent[], ev: RunEvent): RunEvent[] {
   return [...list, ev];
 }
 
-const EXAMPLES = {
-  demo: [
-    "Quanto é (1250 * 1.08) ^ 2 e que horas são agora?",
-    "Lembre que eu prefiro café sem açúcar",
-    "Role 2d20 e adicione a nota: estudar MCP amanhã",
-    "Resuma https://example.com",
-  ],
-  default: [
-    "Pesquise o que é o Model Context Protocol em https://modelcontextprotocol.io e salve o principal na memória",
-    "Se eu investir R$ 1.500 por mês a 0,9% ao mês, quanto terei em 10 anos? Mostre as contas.",
-    "O que você lembra sobre mim?",
-    "Converta 42 km para milhas e role 3d6 usando o servidor MCP",
-  ],
-  // Agentes de e-mail: o agente mostra o rascunho e só envia após a confirmação.
-  email: [
-    'Escreva um e-mail para meu-email@exemplo.com com o assunto "Teste do Agent Lab" dizendo que o agente de e-mail está funcionando',
-    "Redija um convite para uma reunião de alinhamento na sexta às 10h para equipe@exemplo.com",
-  ],
-  // Comparador de mercados: listas de compras.
-  market: [
-    "Quero comprar frutas: banana prata, maçã, mamão e laranja. Onde está mais barato?",
-    "Compare o preço de arroz 5 kg, feijão carioca 1 kg, café 500 g e óleo de soja",
-  ],
-  // Agentes que delegam (com outros agentes como ferramentas) ganham exemplos de tarefa em equipe.
-  team: [
-    "Pesquise o preço médio atual do litro da gasolina no Brasil e calcule quanto custa rodar 1.200 km com um carro que faz 11 km/l",
-    "Compare a população das 3 maiores capitais do Brasil e calcule a diferença percentual entre a maior e a menor, citando as fontes",
-  ],
-};
-
 export default function Playground() {
   const { runId } = useParams();
   const navigate = useNavigate();
@@ -72,6 +44,8 @@ export default function Playground() {
   const llms = useResource<Llm[]>("/api/llms");
   const llmOf = (a: Agent | null | undefined) => llms.data?.find((l) => l.id === a?.llmId);
   const runs = useResource<RunSummary[]>("/api/runs");
+  const prompts = useResource<PromptTemplate[]>("/api/prompts");
+  const [filling, setFilling] = useState<PromptTemplate | null>(null);
   const [agentId, setAgentId] = useState<string | null>(null);
   const [input, setInput] = useState("");
   const [followUp, setFollowUp] = useState("");
@@ -142,22 +116,9 @@ export default function Playground() {
     timelineRef.current?.scrollTo({ top: timelineRef.current.scrollHeight, behavior: "smooth" });
   }, [view.steps]);
   const agentLlm = llmOf(agent);
-  const delegates = agent?.tools.some((t) => t.startsWith("agent__")) ?? false;
-  // Exemplos de e-mail para o assistente de e-mail ou agentes com servidores MCP de e-mail conhecidos.
-  const emailer = Boolean(
-    agent && (/e-?mail/i.test(agent.name) || agent.tools.some((t) => /^mcp__.*(resend|zapier|gmail|brevo|mail).*__/i.test(t))),
-  );
-  const market = agent?.name === "Comparador de Mercados";
-  const examples =
-    agentLlm?.provider === "demo"
-      ? EXAMPLES.demo
-      : emailer
-        ? EXAMPLES.email
-        : market
-          ? EXAMPLES.market
-          : delegates
-            ? EXAMPLES.team
-            : EXAMPLES.default;
+  const shortcuts = agent ? taskPromptsFor(prompts.data ?? [], agent.id) : [];
+  // Atalho sem variáveis vai direto para a caixa de tarefa; com variáveis, abre o formulário.
+  const pickShortcut = (p: PromptTemplate) => (promptVariables(p.content).length ? setFilling(p) : setInput(p.content));
 
   async function start(text = input) {
     if (!agent || !text.trim()) return;
@@ -266,16 +227,21 @@ export default function Playground() {
             {live ? <Loader2 size={18} className="animate-spin" /> : <ArrowUp size={18} />}
           </Button>
         </div>
-        <div className="flex flex-wrap gap-1.5 px-2 pb-1 pt-1">
-          {examples.map((ex) => (
+        <div className="flex flex-wrap items-center gap-1.5 px-2 pb-1 pt-1">
+          {shortcuts.map((p) => (
             <button
-              key={ex}
-              onClick={() => setInput(ex)}
+              key={p.id}
+              onClick={() => pickShortcut(p)}
+              title={p.content}
               className="rounded-full border border-ink-700 bg-ink-900 px-2.5 py-1 text-[11.5px] text-ink-300 transition hover:border-accent/40 hover:text-ink-100"
             >
-              {ex.length > 60 ? `${ex.slice(0, 58)}…` : ex}
+              {p.name}
+              {promptVariables(p.content).length > 0 && <span className="ml-1 text-ink-500">…</span>}
             </button>
           ))}
+          <Link to="/prompts" className="px-1 text-[11.5px] text-info hover:underline">
+            {shortcuts.length ? "editar atalhos" : "criar atalhos de tarefa"}
+          </Link>
         </div>
       </Card>
       {agentLlm && !agentLlm.ready && !live && (
@@ -432,12 +398,23 @@ export default function Playground() {
         )}
       </AnimatePresence>
 
+      {filling && (
+        <TaskPromptDialog
+          prompt={filling}
+          onClose={() => setFilling(null)}
+          onUse={(text) => {
+            setInput(text);
+            setFilling(null);
+          }}
+        />
+      )}
+
       {/* Aprovação humana (human-in-the-loop) */}
       <Modal open={Boolean(approval)} onClose={() => undefined} title="✋ O agente quer usar uma ferramenta">
         {approval && (
           <div className="space-y-4">
             <p className="text-sm text-ink-300">
-              Este agente exige aprovação humana. Ele pediu para executar{" "}
+              A política deste agente pede aprovação para esta ferramenta. Ele pediu para executar{" "}
               <b className="font-mono text-warn">{toolLabel(approval.name).label}</b>
               {approval.server && (
                 <>

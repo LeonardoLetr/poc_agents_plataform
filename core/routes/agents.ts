@@ -17,6 +17,7 @@ const AgentInput = z.object({
   tools: z.array(z.string()).default([]),
   maxIterations: z.number().int().min(1).max(50).default(10),
   requireApproval: z.boolean().default(false),
+  toolPolicies: z.record(z.string(), z.enum(["allow", "ask", "block"])).default({}),
   memory: z
     .object({
       autoRecall: z.boolean(),

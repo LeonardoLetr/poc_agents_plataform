@@ -10,6 +10,7 @@ const PromptInput = z.object({
   description: z.string().default(""),
   content: z.string().min(1),
   category: z.enum(["system", "task"]).default("system"),
+  agentIds: z.array(z.string()).default([]),
 });
 
 export const promptRoutes = defineRoutes((route) => {

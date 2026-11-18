@@ -1,3 +1,6 @@
+import type { LlmConfig, RunRecord } from "../types.js";
+import { eventsOfType } from "../util.js";
+
 /** Sugestões exibidas na UI ao cadastrar uma LLM. O campo de modelo é livre: qualquer id funciona. */
 
 export const ANTHROPIC_MODELS = [
@@ -14,8 +17,10 @@ export const OPENAI_PRESETS = [
   { id: "ollama", label: "Ollama (local)", baseUrl: "http://localhost:11434/v1", model: "llama3.2", needsKey: false },
 ] as const;
 
-/** Preço por 1M de tokens (US$) para estimar custo na auditoria. Modelos desconhecidos não entram na conta. */
-export const PRICING: Record<string, { input: number; output: number }> = {
+export type Price = { input: number; output: number };
+
+/** Preço por 1M de tokens (US$) dos modelos do catálogo. Outros modelos dependem do preço informado na LLM. */
+export const PRICING: Record<string, Price> = {
   "claude-opus-5-5": { input: 4, output: 20 },
   "claude-sonnet-5-5": { input: 2, output: 10 },
   "claude-haiku-5-5": { input: 0.1, output: 0.5 },
@@ -43,4 +48,32 @@ export function contextWindowFor(llm: {
 
 export function supportsServerFallback(model: string) {
   return ANTHROPIC_MODELS.some((m) => m.id === model && m.fallback);
+}
+
+/**
+ * Preço de uma chamada: o informado na LLM; senão o do catálogo pelo modelo; a LLM demo não cobra. `null` quando não
+ * há como estimar (modelo fora do catálogo e sem preço informado).
+ */
+export function priceFor(llm: { provider: string; model: string; pricing?: Price | undefined }): Price | null {
+  if (llm.pricing) return llm.pricing;
+  if (llm.provider === "demo") return { input: 0, output: 0 };
+  return PRICING[llm.model] ?? null;
+}
+
+export const costUsd = (usage: { input: number; output: number }, price: Price) =>
+  (usage.input * price.input + usage.output * price.output) / 1e6;
+
+/**
+ * Custo estimado de uma execução (sem as filhas, que têm registro próprio): preço atual da LLM usada, com o provedor e
+ * o modelo registrados no início. `null` quando não há preço.
+ */
+export function runCost(run: RunRecord, llms: readonly LlmConfig[]): number | null {
+  const [started] = eventsOfType(run.events, "run.started");
+  const llm = llms.find((l) => l.id === run.llmId);
+  const price = priceFor({
+    provider: started?.provider ?? llm?.provider ?? "",
+    model: started?.model ?? llm?.model ?? "",
+    pricing: llm?.pricing,
+  });
+  return price ? costUsd(run.usage, price) : null;
 }

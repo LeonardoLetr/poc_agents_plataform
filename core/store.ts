@@ -20,7 +20,7 @@ export type StorageAdapter = {
   save(db: DB): void;
 };
 
-export const db: DB = { version: 10, llms: [], agents: [], memories: [], mcpServers: [], prompts: [], audit: [], runs: [] };
+export const db: DB = { version: 11, llms: [], agents: [], memories: [], mcpServers: [], prompts: [], audit: [], runs: [] };
 
 let adapter: StorageAdapter | null = null;
 let limits = { maxAudit: 5000, maxRuns: 200 };

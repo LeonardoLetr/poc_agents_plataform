@@ -37,6 +37,8 @@ export const LlmConfig = z.object({
   maxTokens: z.number().default(64000),
   /** Janela de contexto em tokens. Opcional: sem valor, usa o catálogo (ou um padrão por provedor). */
   contextWindow: z.number().optional(),
+  /** Preço em US$ por 1 milhão de tokens, para o custo estimado. Opcional: sem valor, usa o catálogo, se o modelo estiver nele. */
+  pricing: z.object({ input: z.number().min(0), output: z.number().min(0) }).optional(),
   createdAt: Timestamp,
   updatedAt: Timestamp,
 });
@@ -54,8 +56,10 @@ export const AgentConfig = z.object({
   /** Nomes das ferramentas habilitadas (builtin ou `mcp__servidor__tool`). */
   tools: z.array(z.string()).default([]),
   maxIterations: z.number().default(10),
-  /** Pausa antes de cada chamada de ferramenta aguardando aprovação humana. */
+  /** Padrão das ferramentas sem regra própria: pausar antes de cada chamada, aguardando aprovação humana. */
   requireApproval: z.boolean().default(false),
+  /** Regras por ferramenta (ou por servidor MCP, com `mcp__<servidor>__*`), acima do padrão. */
+  toolPolicies: z.record(z.string(), z.enum(["allow", "ask", "block"])).default({}),
   memory: z
     .object({
       /** Injeta memórias relevantes no prompt de sistema antes de rodar. */
@@ -132,6 +136,8 @@ export const PromptTemplate = z.object({
   description: z.string().default(""),
   content: z.string(),
   category: z.enum(["system", "task"]).default("task"),
+  /** Prompts de tarefa: agentes em que o atalho aparece no Playground. Vazio = todos os agentes. */
+  agentIds: z.array(z.string()).default([]),
   createdAt: Timestamp,
 });
 export type PromptTemplate = z.infer<typeof PromptTemplate>;
@@ -157,6 +163,7 @@ export const AUDIT_TYPES = [
   "tool.result",
   "tool.approval_requested",
   "tool.approval_resolved",
+  "tool.blocked",
   "agent.delegated",
   "agent.delegation_finished",
   "context.compacted",

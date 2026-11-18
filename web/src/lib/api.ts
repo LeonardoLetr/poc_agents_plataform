@@ -14,7 +14,10 @@ export type AgentInput = Omit<Agent, "id" | "createdAt" | "updatedAt">;
 
 /** LLM como a rota devolve: sem a chave, com o indicador de prontidão e os agentes que a usam. */
 export type Llm = ReturnType<typeof publicLlm> & { agents: string[] };
-export type LlmInput = Pick<LlmConfig, "name" | "provider" | "model" | "baseUrl" | "effort" | "refusalFallback" | "contextWindow"> & {
+export type LlmInput = Pick<
+  LlmConfig,
+  "name" | "provider" | "model" | "baseUrl" | "effort" | "refusalFallback" | "contextWindow" | "pricing"
+> & {
   apiKey?: string;
   maxTokens?: number;
 };
@@ -55,6 +58,8 @@ export type Health = {
   catalog: {
     anthropic: { id: string; label: string; note: string; fallback: boolean }[];
     openai: { id: string; label: string; baseUrl: string; model: string; needsKey: boolean }[];
+    /** Preço por 1M de tokens (US$) dos modelos do catálogo. */
+    pricing: Record<string, { input: number; output: number }>;
   };
 };
 
@@ -70,6 +75,8 @@ export type Stats = {
   toolUsage: Record<string, number>;
   tokens: { input: number; output: number };
   estimatedCostUsd: number;
+  /** Execuções sem preço conhecido, fora da estimativa. */
+  unpricedRuns: number;
   auditEntries: number;
 };
 
